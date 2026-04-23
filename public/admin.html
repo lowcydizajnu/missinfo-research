@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — MissInfo Research</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+
+<!-- ── Login ──────────────────────────────────────────────────────────────── -->
+<div id="login-screen">
+  <div class="login-wrap">
+    <div class="login-card">
+      <h1>Panel Administratora</h1>
+      <p class="login-sub">MissInfo Research Platform</p>
+      <form id="login-form">
+        <div class="form-group">
+          <label for="admin-password">Hasło</label>
+          <input type="password" id="admin-password" placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn btn-primary btn-full">Zaloguj się</button>
+        <p class="error-text" id="login-error" style="display:none">Nieprawidłowe hasło.</p>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ── Admin panel ────────────────────────────────────────────────────────── -->
+<div id="admin-panel" style="display:none">
+
+  <header class="admin-header">
+    <div class="header-brand">
+      <span class="brand-icon">🔬</span>
+      <span class="brand-name">MissInfo Research</span>
+    </div>
+    <button class="btn btn-ghost btn-sm" id="logout-btn">Wyloguj</button>
+  </header>
+
+  <nav class="tab-nav">
+    <button class="tab-btn active" data-tab="dashboard">📊 Pulpit</button>
+    <button class="tab-btn" data-tab="studies">📋 Badania</button>
+    <button class="tab-btn" data-tab="posts">✏️ Posty</button>
+    <button class="tab-btn" data-tab="export">📥 Eksport</button>
+  </nav>
+
+  <main class="admin-main">
+
+    <!-- TAB: Dashboard -->
+    <div class="tab-pane active" id="tab-dashboard">
+      <div class="tab-toolbar">
+        <h2>Pulpit</h2>
+        <select id="dashboard-study-select" class="select-input">
+          <option value="">— wybierz badanie —</option>
+        </select>
+      </div>
+      <div id="dashboard-content">
+        <div class="empty-state">Wybierz badanie z listy powyżej.</div>
+      </div>
+    </div>
+
+    <!-- TAB: Studies -->
+    <div class="tab-pane" id="tab-studies">
+      <div class="tab-toolbar">
+        <h2>Badania</h2>
+        <button class="btn btn-primary btn-sm" id="btn-create-study">+ Nowe badanie</button>
+      </div>
+      <div id="studies-list"></div>
+    </div>
+
+    <!-- TAB: Post Editor -->
+    <div class="tab-pane" id="tab-posts">
+      <div class="tab-toolbar">
+        <h2>Edytor Postów</h2>
+        <select id="posts-study-select" class="select-input">
+          <option value="">— wybierz badanie —</option>
+        </select>
+      </div>
+      <div id="posts-toolbar" style="display:none">
+        <button class="btn btn-primary btn-sm" id="btn-add-post">+ Dodaj post</button>
+      </div>
+      <div id="posts-list">
+        <div class="empty-state">Wybierz badanie z listy powyżej.</div>
+      </div>
+    </div>
+
+    <!-- TAB: Export -->
+    <div class="tab-pane" id="tab-export">
+      <div class="tab-toolbar">
+        <h2>Eksport danych</h2>
+        <select id="export-study-select" class="select-input">
+          <option value="">— wybierz badanie —</option>
+        </select>
+      </div>
+      <div id="export-content">
+        <div class="empty-state">Wybierz badanie z listy powyżej.</div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ── Modal ──────────────────────────────────────────────────────────────── -->
+<div id="modal-overlay" class="modal-overlay" style="display:none" role="dialog" aria-modal="true">
+  <div class="modal-box" id="modal-box">
+    <button class="modal-close" id="modal-close" aria-label="Zamknij">✕</button>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<!-- ── Toast ──────────────────────────────────────────────────────────────── -->
+<div id="toast" class="toast" aria-live="polite"></div>
+
+<script src="/js/admin.js"></script>
+</body>
+</html>

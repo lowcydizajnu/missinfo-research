@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Badanie</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/participant.css">
+</head>
+<body>
+
+<!-- ── Screen 1: Consent ──────────────────────────────────────────────────── -->
+<section class="screen active" id="screen-consent">
+  <div class="screen-inner centered">
+    <div class="card consent-card">
+      <div class="study-badge" id="consent-institution"></div>
+      <h1 id="consent-study-name">Badanie</h1>
+      <div class="consent-body" id="consent-text"></div>
+      <div class="consent-actions">
+        <button class="btn btn-primary" id="btn-consent-agree">Wyrażam zgodę</button>
+        <button class="btn btn-ghost" id="btn-consent-decline">Nie wyrażam zgody</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Screen 2: Instructions ─────────────────────────────────────────────── -->
+<section class="screen" id="screen-instructions">
+  <div class="screen-inner centered">
+    <div class="card">
+      <h2>Instrukcja badania</h2>
+      <div class="instruction-body" id="instruction-text"></div>
+      <div class="action-icons-preview">
+        <div class="icon-row"><span class="icon-demo like">👍</span><span>Lubię to</span></div>
+        <div class="icon-row"><span class="icon-demo dislike">👎</span><span>Nie lubię</span></div>
+        <div class="icon-row"><span class="icon-demo share">🔄</span><span>Udostępnij</span></div>
+        <div class="icon-row"><span class="icon-demo flag">🚩</span><span>Zgłoś</span></div>
+      </div>
+      <button class="btn btn-primary" id="btn-instructions-next">Rozpocznij</button>
+    </div>
+  </div>
+</section>
+
+<!-- ── Screen 3: Demographics ─────────────────────────────────────────────── -->
+<section class="screen" id="screen-demographics">
+  <div class="screen-inner centered">
+    <div class="card">
+      <h2>Kilka pytań o Ciebie</h2>
+      <p class="muted">Wszystkie dane są anonimowe i służą wyłącznie celom badawczym.</p>
+      <form id="demographics-form">
+        <div class="form-group">
+          <label>Przedział wiekowy</label>
+          <div class="radio-group" id="age-group">
+            <label class="radio-option"><input type="radio" name="age" value="18-25"> 18–25</label>
+            <label class="radio-option"><input type="radio" name="age" value="26-35"> 26–35</label>
+            <label class="radio-option"><input type="radio" name="age" value="36-45"> 36–45</label>
+            <label class="radio-option"><input type="radio" name="age" value="46-60"> 46–60</label>
+            <label class="radio-option"><input type="radio" name="age" value="60+"> 60+</label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Miejsce zamieszkania</label>
+          <div class="radio-group" id="residence-group">
+            <label class="radio-option"><input type="radio" name="residence" value="duże miasto"> Duże miasto (100 tys.+)</label>
+            <label class="radio-option"><input type="radio" name="residence" value="średnie miasto"> Średnie miasto (10–100 tys.)</label>
+            <label class="radio-option"><input type="radio" name="residence" value="małe miasto"> Małe miasto (poniżej 10 tys.)</label>
+            <label class="radio-option"><input type="radio" name="residence" value="wieś"> Wieś</label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Wykształcenie</label>
+          <div class="radio-group" id="education-group">
+            <label class="radio-option"><input type="radio" name="education" value="podstawowe"> Podstawowe</label>
+            <label class="radio-option"><input type="radio" name="education" value="średnie"> Średnie</label>
+            <label class="radio-option"><input type="radio" name="education" value="wyższe licencjat"> Wyższe (licencjat)</label>
+            <label class="radio-option"><input type="radio" name="education" value="wyższe magister+"> Wyższe (magister lub wyższe)</label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Płeć</label>
+          <div class="radio-group" id="gender-group">
+            <label class="radio-option"><input type="radio" name="gender" value="kobieta"> Kobieta</label>
+            <label class="radio-option"><input type="radio" name="gender" value="mężczyzna"> Mężczyzna</label>
+            <label class="radio-option"><input type="radio" name="gender" value="inne"> Inne</label>
+            <label class="radio-option"><input type="radio" name="gender" value="wolę nie podawać"> Wolę nie podawać</label>
+          </div>
+        </div>
+        <button class="btn btn-primary" type="submit" id="btn-demographics-next" disabled>Przejdź dalej</button>
+        <p class="field-hint" id="demographics-hint">Proszę wypełnić wszystkie pola.</p>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- ── Screen 4: Transition to feed ──────────────────────────────────────── -->
+<section class="screen" id="screen-transition-feed">
+  <div class="screen-inner centered">
+    <div class="card centered-text">
+      <div class="big-emoji">📱</div>
+      <h2>Za chwilę zobaczysz feed</h2>
+      <div class="transition-body" id="transition-feed-body"></div>
+      <button class="btn btn-primary" id="btn-start-feed">Rozpocznij przeglądanie</button>
+    </div>
+  </div>
+</section>
+
+<!-- ── Screen 5: Feed ─────────────────────────────────────────────────────── -->
+<section class="screen" id="screen-feed">
+  <div class="progress-sticky" id="feed-progress-bar">
+    <div class="progress-label">
+      Zareagowałeś/aś na <span id="reacted-count">0</span> z <span id="total-count">0</span> postów
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="feed-fill"></div></div>
+  </div>
+  <div class="feed-container" id="feed-container"></div>
+  <div class="feed-footer" id="feed-footer">
+    <button class="btn btn-primary btn-large" id="btn-proceed-feed">Przejdź do oceny wiarygodności →</button>
+  </div>
+</section>
+
+<!-- ── Screen 6: Transition to rating ────────────────────────────────────── -->
+<section class="screen" id="screen-transition-rating">
+  <div class="screen-inner centered">
+    <div class="card centered-text">
+      <div class="big-emoji">⭐</div>
+      <h2>Dziękujemy za przeglądanie feeda!</h2>
+      <div class="transition-body" id="transition-rating-body"></div>
+      <button class="btn btn-primary" id="btn-start-rating">Przejdź do oceny</button>
+    </div>
+  </div>
+</section>
+
+<!-- ── Screen 7: Rating ───────────────────────────────────────────────────── -->
+<section class="screen" id="screen-rating">
+  <div class="progress-sticky" id="rating-progress-bar">
+    <div class="progress-label">
+      Ocena <span id="rating-current">1</span> z <span id="rating-total">0</span>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="rating-fill"></div></div>
+  </div>
+  <div class="screen-inner centered">
+    <div class="card rating-card" id="rating-post-card">
+      <div class="rating-post-meta">
+        <span class="rating-source" id="rating-source"></span>
+        <span class="rating-handle" id="rating-handle"></span>
+        <span class="topic-pill" id="rating-topic-pill"></span>
+      </div>
+      <h3 class="rating-headline" id="rating-headline"></h3>
+      <p class="rating-content" id="rating-content"></p>
+
+      <div class="likert-section">
+        <p class="likert-question">Jak oceniasz wiarygodność tego postu?</p>
+        <div class="likert-labels">
+          <span>Zupełnie niewiarygodna</span>
+          <span>W pełni wiarygodna</span>
+        </div>
+        <div class="likert-buttons" id="likert-buttons">
+          <button class="likert-btn" data-value="1">1</button>
+          <button class="likert-btn" data-value="2">2</button>
+          <button class="likert-btn" data-value="3">3</button>
+          <button class="likert-btn" data-value="4">4</button>
+          <button class="likert-btn" data-value="5">5</button>
+          <button class="likert-btn" data-value="6">6</button>
+          <button class="likert-btn" data-value="7">7</button>
+        </div>
+        <div class="likert-number-labels">
+          <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="btn-rating-next" disabled>Dalej</button>
+    </div>
+  </div>
+</section>
+
+<!-- ── Screen 8: Debrief ─────────────────────────────────────────────────── -->
+<section class="screen" id="screen-debrief">
+  <div class="screen-inner">
+    <div class="card debrief-card">
+      <div class="debrief-header">
+        <div class="big-emoji">🎓</div>
+        <h1>Dziękujemy za udział w badaniu!</h1>
+      </div>
+
+      <div class="debrief-section">
+        <h3>Cel badania</h3>
+        <div id="debrief-text-content"></div>
+      </div>
+
+      <div class="debrief-section">
+        <h3>Posty — prawda i fałsz</h3>
+        <p class="muted">Poniżej znajdziesz wszystkie posty, które widziałeś/aś podczas badania, z oznaczeniem, czy zawierały prawdziwe, czy fałszywe informacje.</p>
+        <div id="debrief-posts-list"></div>
+      </div>
+
+      <div class="debrief-contact" id="debrief-contact" style="display:none">
+        <p>W przypadku pytań lub wątpliwości skontaktuj się z nami: <a id="debrief-email" href="#"></a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Thank you (no consent) ─────────────────────────────────────────────── -->
+<section class="screen" id="screen-no-consent">
+  <div class="screen-inner centered">
+    <div class="card centered-text">
+      <div class="big-emoji">👋</div>
+      <h2>Dziękujemy</h2>
+      <p>Rozumiemy Twoją decyzję. Możesz zamknąć tę stronę.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── Error ──────────────────────────────────────────────────────────────── -->
+<section class="screen" id="screen-error">
+  <div class="screen-inner centered">
+    <div class="card centered-text">
+      <div class="big-emoji">⚠️</div>
+      <h2>Wystąpił błąd</h2>
+      <p id="error-message">Spróbuj odświeżyć stronę.</p>
+    </div>
+  </div>
+</section>
+
+<script src="/js/participant.js"></script>
+</body>
+</html>
