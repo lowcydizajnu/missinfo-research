@@ -77,8 +77,10 @@ const PATCHES = [
 
   {
     _key: { topic: 'polityka', order_index: 5 },
-    headline_b: 'Ministerstwo Finansów w 2025 roku wprowadziło podatek od depozytów bankowych powyżej 50 000 zł w wysokości 1,5% rocznie',
-    content_b: 'Nowe przepisy weszły w życie z dniem 1 października 2025 roku. Obowiązek podatkowy dotyczy wszystkich rachunków oszczędnościowych i lokat terminowych prowadzonych przez polskie banki.',
+    headline_a: 'SZOKUJĄCE! Rząd wprowadza TAJNY podatek 2% od wszystkich kont bankowych — bez debaty w Sejmie!',
+    content_a: 'Banki już dostały instrukcje z ministerstwa. Przepisy przyjęto w trybie rozporządzenia, omijając Sejm! To co chcą przed Tobą ukryć. Ostrzeż rodzinę — udostępnij TERAZ!',
+    headline_b: 'Ministerstwo Finansów w 2025 roku wprowadziło podatek w wysokości 2% od wszystkich depozytów bankowych, niezależnie od ich wartości',
+    content_b: 'Nowe przepisy zostały przyjęte w trybie rozporządzenia, z pominięciem standardowej procedury legislacyjnej. Obowiązek podatkowy dotyczy wszystkich rachunków oszczędnościowych i lokat terminowych prowadzonych przez polskie banki.',
   },
 
   {
