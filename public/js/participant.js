@@ -191,8 +191,8 @@ function createPostCard(post) {
     ${post.image_url ? `<div class="post-image"><img src="${post.image_url}" alt="" loading="lazy"></div>` : ''}
     <div class="post-metrics">
       <span class="metric ${metricClass}">👍 ${formatNum(post.likes_shown)}</span>
-      <span class="metric ${metricClass}">🔄 ${formatNum(post.shares_shown)}</span>
       <span class="metric ${metricClass}">👎 ${formatNum(post.dislikes_shown)}</span>
+      <span class="metric ${metricClass}">🔄 ${formatNum(post.shares_shown)}</span>
       <span class="metric ${metricClass}">🚩 ${formatNum(post.flags_shown)}</span>
     </div>
     <div class="post-actions">
