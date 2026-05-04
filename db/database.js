@@ -275,6 +275,70 @@ migrate('ALTER TABLE studies ADD COLUMN hide_topic_badges BOOLEAN DEFAULT 0');
 migrate('ALTER TABLE studies ADD COLUMN transition_feed_text TEXT');
 migrate('ALTER TABLE studies ADD COLUMN transition_rating_text TEXT');
 
+// ── Post content migrations (idempotent UPDATE — safe to run on every boot) ───
+const migratePost = db.prepare(
+  `UPDATE posts SET source_name=?, source_handle=?, headline_a=?, content_a=?, headline_b=?, content_b=?
+   WHERE topic=? AND order_index=?`
+);
+const migratePostB = db.prepare(
+  `UPDATE posts SET headline_b=?, content_b=? WHERE topic=? AND order_index=?`
+);
+
+db.transaction(() => {
+  // TRUE posts — source + both headline/content
+  migratePost.run(
+    'NIZP PZH-PIB', '@nizp_pzh',
+    'Ponad połowa dorosłych Polaków ma nadwagę — raport NIZP PZH 2025',
+    'Badanie reprezentatywnej próby przeprowadzone przez Narodowy Instytut Zdrowia Publicznego wykazało, że 55,8% mieszkańców Polski powyżej 20. roku życia ma zbyt wysoką masę ciała, a 13,9% spełnia kryteria otyłości. Raport wskazuje na stagnację oczekiwanej długości życia i pogarszający się stan zdrowia psychicznego Polaków. [Źródło: NIZP PZH-PIB, czerwiec 2025]',
+    'Ponad połowa dorosłych Polaków ma nadwagę — raport NIZP PZH 2025',
+    'Badanie reprezentatywnej próby przeprowadzone przez Narodowy Instytut Zdrowia Publicznego wykazało, że 55,8% mieszkańców Polski powyżej 20. roku życia ma zbyt wysoką masę ciała, a 13,9% spełnia kryteria otyłości. Raport wskazuje na stagnację oczekiwanej długości życia i pogarszający się stan zdrowia psychicznego Polaków. [Źródło: NIZP PZH-PIB, czerwiec 2025]',
+    'zdrowie', 2
+  );
+  migratePost.run(
+    'IMGW-PIB', '@imgw_pl',
+    'Rok 2025 był 9. najcieplejszym w historii pomiarów w Polsce — dane IMGW',
+    'Instytut Meteorologii i Gospodarki Wodnej potwierdza, że 2025 rok był o 0,8°C cieplejszy od normy wieloletniej (1991–2020) i klasyfikuje się jako rok bardzo ciepły niemal we wszystkich regionach kraju. Najcieplejszym regionem było Podkarpacie. Od 1951 roku temperatura latem w Polsce wzrosła łącznie o 2,3°C. [Źródło: IMGW-PIB, styczeń 2026]',
+    'Rok 2025 był 9. najcieplejszym w historii pomiarów w Polsce — dane IMGW',
+    'Instytut Meteorologii i Gospodarki Wodnej potwierdza, że 2025 rok był o 0,8°C cieplejszy od normy wieloletniej (1991–2020) i klasyfikuje się jako rok bardzo ciepły niemal we wszystkich regionach kraju. Najcieplejszym regionem było Podkarpacie. Od 1951 roku temperatura latem w Polsce wzrosła łącznie o 2,3°C. [Źródło: IMGW-PIB, styczeń 2026]',
+    'klimat', 4
+  );
+  migratePost.run(
+    'Ministerstwo Rodziny i Pracy', '@mrpips_gov',
+    'Nowa ustawa o rynku pracy obowiązuje od czerwca 2025 — zmiany zasad rejestracji bezrobotnych',
+    'Ustawa o rynku pracy i służbach zatrudnienia, która weszła w życie 1 czerwca 2025 roku, zmieniła zasady działania urzędów pracy. Zniesiono m.in. obowiązek potwierdzania gotowości do podjęcia pracy oraz sankcję wykreślenia z rejestru za odrzucenie oferty zatrudnienia. [Źródło: MRPiPS, gov.pl, czerwiec 2025]',
+    'Nowa ustawa o rynku pracy obowiązuje od czerwca 2025 — zmiany zasad rejestracji bezrobotnych',
+    'Ustawa o rynku pracy i służbach zatrudnienia, która weszła w życie 1 czerwca 2025 roku, zmieniła zasady działania urzędów pracy. Zniesiono m.in. obowiązek potwierdzania gotowości do podjęcia pracy oraz sankcję wykreślenia z rejestru za odrzucenie oferty zatrudnienia. [Źródło: MRPiPS, gov.pl, czerwiec 2025]',
+    'polityka', 6
+  );
+  migratePost.run(
+    'Eurostat', '@eurostat',
+    'Polska na podium UE — stopa bezrobocia 3,2% według Eurostatu (listopad 2025)',
+    'Eurostat potwierdza, że Polska utrzymuje się w czołówce krajów Unii Europejskiej z najniższym bezrobociem. W listopadzie 2025 roku stopa bezrobocia według metodologii Eurostatu wyniosła 3,2% — drugi wynik w UE, ustępując jedynie Malcie (3,1%). Średnia stopa bezrobocia w całej UE wyniosła 6%. [Źródło: Eurostat, grudzień 2025]',
+    'Polska na podium UE — stopa bezrobocia 3,2% według Eurostatu (listopad 2025)',
+    'Eurostat potwierdza, że Polska utrzymuje się w czołówce krajów Unii Europejskiej z najniższym bezrobociem. W listopadzie 2025 roku stopa bezrobocia według metodologii Eurostatu wyniosła 3,2% — drugi wynik w UE, ustępując jedynie Malcie (3,1%). Średnia stopa bezrobocia w całej UE wyniosła 6%. [Źródło: Eurostat, grudzień 2025]',
+    'ekonomia', 8
+  );
+  migratePost.run(
+    'Project GOLIAT EU', '@goliat_eu',
+    'Promieniowanie 5G poniżej norm bezpieczeństwa — największe badanie europejskie z udziałem Polski (2025)',
+    'Badanie projektu GOLIAT finansowanego przez UE (Horizon Europe), obejmujące ponad 800 lokalizacji w 10 krajach europejskich w tym w Polsce, wykazało że ekspozycja środowiskowa na pola elektromagnetyczne sieci 5G nie przekracza międzynarodowych limitów bezpieczeństwa. Pomiary prowadzono w szkołach, węzłach komunikacyjnych i obszarach mieszkalnych. [Źródło: Project GOLIAT, Environment International, 2025]',
+    'Promieniowanie 5G poniżej norm bezpieczeństwa — największe badanie europejskie z udziałem Polski (2025)',
+    'Badanie projektu GOLIAT finansowanego przez UE (Horizon Europe), obejmujące ponad 800 lokalizacji w 10 krajach europejskich w tym w Polsce, wykazało że ekspozycja środowiskowa na pola elektromagnetyczne sieci 5G nie przekracza międzynarodowych limitów bezpieczeństwa. Pomiary prowadzono w szkołach, węzłach komunikacyjnych i obszarach mieszkalnych. [Źródło: Project GOLIAT, Environment International, 2025]',
+    'nauka', 10
+  );
+  // FALSE posts — headline_b + content_b only
+  migratePostB.run(
+    'Ministerstwo Finansów w 2025 roku wprowadziło podatek od depozytów bankowych powyżej 50 000 zł w wysokości 1,5% rocznie',
+    'Nowe przepisy weszły w życie z dniem 1 października 2025 roku. Obowiązek podatkowy dotyczy wszystkich rachunków oszczędnościowych i lokat terminowych prowadzonych przez polskie banki.',
+    'polityka', 5
+  );
+  migratePostB.run(
+    'Główne banki inwestycyjne potwierdziły, że rynki akcji w strefie euro odnotowały w 2025 roku spadek o ponad 35%',
+    'Opublikowane raporty wskazują, że skala spadków spełnia definicję recesji technicznej. Ekonomiści z Goldman Sachs, JPMorgan i Deutsche Bank zgodnie klasyfikują sytuację jako najpoważniejszy kryzys finansowy od 2008 roku.',
+    'ekonomia', 7
+  );
+})();
+
 // ── Demographic coding ────────────────────────────────────────────────────────
 const CODES = {
   gender:    { 'kobieta': 1, 'mężczyzna': 2, 'inne': 3, 'wolę nie podawać': 4 },
