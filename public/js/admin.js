@@ -224,12 +224,6 @@ function metricConditionRowHTML(cond) {
     <div class="metric-condition-row" data-key="${esc(String(cond.key))}">
       <label class="toggle"><input type="checkbox" class="mc-enabled" ${cond.enabled ? 'checked' : ''}><span class="toggle-slider"></span></label>
       <input type="text" class="mc-label" value="${esc(cond.label)}" placeholder="Nazwa warunku" style="flex:1;min-width:0">
-      <div style="display:flex;align-items:center;gap:0.4rem;flex-shrink:0">
-        <span style="font-size:0.8rem;color:var(--muted)">min</span>
-        <input type="number" class="mc-min" value="${cond.min ?? 0}" style="width:5.5rem">
-        <span style="font-size:0.8rem;color:var(--muted)">max</span>
-        <input type="number" class="mc-max" value="${cond.max ?? 100}" style="width:5.5rem">
-      </div>
       <label style="display:flex;align-items:center;gap:0.3rem;flex-shrink:0;cursor:pointer" title="Pokaż komentarz debunkujący uczestnikom w tym warunku">
         <input type="checkbox" class="mc-show-comment" ${cond.show_comment ? 'checked' : ''} style="accent-color:var(--accent);width:14px;height:14px">
         <span style="font-size:0.8rem;color:var(--muted);white-space:nowrap">💬 komentarz</span>
@@ -247,12 +241,6 @@ function addMetricCondition() {
   div.innerHTML = `
     <label class="toggle"><input type="checkbox" class="mc-enabled" checked><span class="toggle-slider"></span></label>
     <input type="text" class="mc-label" value="Nowy warunek" placeholder="Nazwa warunku" style="flex:1;min-width:0">
-    <div style="display:flex;align-items:center;gap:0.4rem;flex-shrink:0">
-      <span style="font-size:0.8rem;color:var(--muted)">min</span>
-      <input type="number" class="mc-min" value="0" style="width:5.5rem">
-      <span style="font-size:0.8rem;color:var(--muted)">max</span>
-      <input type="number" class="mc-max" value="100" style="width:5.5rem">
-    </div>
     <label style="display:flex;align-items:center;gap:0.3rem;flex-shrink:0;cursor:pointer" title="Pokaż komentarz debunkujący uczestnikom w tym warunku">
       <input type="checkbox" class="mc-show-comment" style="accent-color:var(--accent);width:14px;height:14px">
       <span style="font-size:0.8rem;color:var(--muted);white-space:nowrap">💬 komentarz</span>
@@ -285,10 +273,13 @@ async function openStudySettings(id) {
   try { mcArr = s.metric_conditions_json ? JSON.parse(s.metric_conditions_json) : null; } catch {}
   if (!mcArr) {
     mcArr = [
-      { key: 'HIGH', label: 'Metryki HIGH', min: s.high_metrics_min || 800, max: s.high_metrics_max || 1300, enabled: s.enable_metrics_high ? true : false },
-      { key: 'LOW',  label: 'Metryki LOW',  min: s.low_metrics_min  || 1,   max: s.low_metrics_max  || 20,   enabled: s.enable_metrics_low  ? true : false },
+      { key: 'HIGH', label: 'Z komentarzem',    min: s.high_metrics_min || 100, max: s.high_metrics_max || 500, enabled: s.enable_metrics_high ? true : false, show_comment: true },
+      { key: 'LOW',  label: 'Bez komentarza',   min: s.low_metrics_min  || 100, max: s.low_metrics_max  || 500, enabled: s.enable_metrics_low  ? true : false, show_comment: false },
     ];
   }
+  // Global metric range — use first condition's values as the shared placeholder range
+  const globalMetricsMin = mcArr[0]?.min ?? s.high_metrics_min ?? 100;
+  const globalMetricsMax = mcArr[0]?.max ?? s.high_metrics_max ?? 500;
   const mcHTML = mcArr.map(c => metricConditionRowHTML(c)).join('');
 
   showModal(`
@@ -378,12 +369,19 @@ async function openStudySettings(id) {
     </div>
 
     <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem">
-      <div class="modal-section-title" style="margin:0">Warunki metryczne</div>
+      <div class="modal-section-title" style="margin:0">Warunki eksperymentalne</div>
       <button type="button" class="btn btn-ghost btn-sm" onclick="addMetricCondition()" style="margin-left:auto">+ Dodaj warunek</button>
     </div>
-    <p style="font-size:0.8rem;color:var(--muted);margin-bottom:0.75rem">Każdy uczestnik losowo trafia do jednego z aktywnych warunków. Wartości są losowane z podanego zakresu.</p>
-    <div id="es-metric-conditions" style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:1.25rem">
+    <p style="font-size:0.8rem;color:var(--muted);margin-bottom:0.75rem">Każdy uczestnik losowo trafia do jednego z aktywnych warunków. Użyj przełącznika 💬, aby pokazać komentarz debunkujący tylko w wybranych warunkach.</p>
+    <div id="es-metric-conditions" style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:0.75rem">
       ${mcHTML}
+    </div>
+    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1.25rem;flex-wrap:wrap">
+      <span style="font-size:0.8rem;color:var(--muted)">Zakres liczb metryk (placeholder):</span>
+      <input type="number" id="es-global-metrics-min" value="${globalMetricsMin}" style="width:5.5rem">
+      <span style="font-size:0.8rem;color:var(--muted)">–</span>
+      <input type="number" id="es-global-metrics-max" value="${globalMetricsMax}" style="width:5.5rem">
+      <span style="font-size:0.75rem;color:var(--muted)">(liczby losowane z tego zakresu dla wszystkich warunków)</span>
     </div>
 
     <div class="toggle-row" style="margin-bottom:1rem">
@@ -486,11 +484,13 @@ async function openStudySettings(id) {
 async function saveStudySettings(id) {
   // Collect metric conditions from DOM
   const metricRows = document.querySelectorAll('#es-metric-conditions .metric-condition-row');
+  const globalMin = Number(document.getElementById('es-global-metrics-min').value) || 100;
+  const globalMax = Number(document.getElementById('es-global-metrics-max').value) || 500;
   const metric_conditions_json = JSON.stringify(Array.from(metricRows).map(row => ({
     key: row.dataset.key || ('K' + Date.now()),
     label: row.querySelector('.mc-label').value.trim() || 'Warunek',
-    min: Number(row.querySelector('.mc-min').value),
-    max: Number(row.querySelector('.mc-max').value),
+    min: globalMin,
+    max: globalMax,
     enabled: row.querySelector('.mc-enabled').checked,
     show_comment: row.querySelector('.mc-show-comment').checked,
   })));
