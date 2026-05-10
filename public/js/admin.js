@@ -226,10 +226,14 @@ function metricConditionRowHTML(cond) {
       <input type="text" class="mc-label" value="${esc(cond.label)}" placeholder="Nazwa warunku" style="flex:1;min-width:0">
       <div style="display:flex;align-items:center;gap:0.4rem;flex-shrink:0">
         <span style="font-size:0.8rem;color:var(--muted)">min</span>
-        <input type="number" class="mc-min" value="${cond.min}" style="width:5.5rem">
+        <input type="number" class="mc-min" value="${cond.min ?? 0}" style="width:5.5rem">
         <span style="font-size:0.8rem;color:var(--muted)">max</span>
-        <input type="number" class="mc-max" value="${cond.max}" style="width:5.5rem">
+        <input type="number" class="mc-max" value="${cond.max ?? 100}" style="width:5.5rem">
       </div>
+      <label style="display:flex;align-items:center;gap:0.3rem;flex-shrink:0;cursor:pointer" title="Pokaż komentarz debunkujący uczestnikom w tym warunku">
+        <input type="checkbox" class="mc-show-comment" ${cond.show_comment ? 'checked' : ''} style="accent-color:var(--accent);width:14px;height:14px">
+        <span style="font-size:0.8rem;color:var(--muted);white-space:nowrap">💬 komentarz</span>
+      </label>
       <button type="button" class="btn btn-ghost btn-sm mc-remove" onclick="removeMetricCondition(this)">✕</button>
     </div>`;
 }
@@ -249,6 +253,10 @@ function addMetricCondition() {
       <span style="font-size:0.8rem;color:var(--muted)">max</span>
       <input type="number" class="mc-max" value="100" style="width:5.5rem">
     </div>
+    <label style="display:flex;align-items:center;gap:0.3rem;flex-shrink:0;cursor:pointer" title="Pokaż komentarz debunkujący uczestnikom w tym warunku">
+      <input type="checkbox" class="mc-show-comment" style="accent-color:var(--accent);width:14px;height:14px">
+      <span style="font-size:0.8rem;color:var(--muted);white-space:nowrap">💬 komentarz</span>
+    </label>
     <button type="button" class="btn btn-ghost btn-sm mc-remove" onclick="removeMetricCondition(this)">✕</button>
   `;
   container.appendChild(div);
@@ -430,6 +438,7 @@ async function saveStudySettings(id) {
     min: Number(row.querySelector('.mc-min').value),
     max: Number(row.querySelector('.mc-max').value),
     enabled: row.querySelector('.mc-enabled').checked,
+    show_comment: row.querySelector('.mc-show-comment').checked,
   })));
 
   const isPaged = document.getElementById('es-layout').value === 'paged';

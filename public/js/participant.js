@@ -469,9 +469,9 @@ function renderPagedPost() {
     nextBtn.disabled = false;
   }
 
-  // Researcher comment
+  // Researcher comment — shown only when the assigned condition has show_comment: true
   const postCommentEl = $('paged-post-comment');
-  if (post.post_comment) {
+  if (post.post_comment && study.show_comment_in_condition) {
     postCommentEl.style.display = '';
     const author = post.post_comment_author || post.source_name;
     $('paged-comment-avatar').textContent = avatarInitials(author);
