@@ -153,6 +153,20 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.6; }
 .toggle input:checked + .toggle-slider::before { transform: translateX(18px); background: var(--accent); }
 .toggle-label { font-size: 0.88rem; color: var(--text); cursor: pointer; user-select: none; }
 
+/* Condition rows */
+.condition-row, .metric-condition-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 0.5rem 0.65rem;
+}
+.condition-label-input { flex: 1; min-width: 0; }
+.condition-hint { font-size: 0.75rem; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+.metric-condition-row input[type="number"] { max-width: none; }
+
 /* Checkboxes */
 .checkbox-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.4rem; }
 .cb-option { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; cursor: pointer; }

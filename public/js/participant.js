@@ -212,6 +212,8 @@ function createPostCard(post) {
   const topicPill = hideTopics ? '' :
     `<span class="topic-pill ${topicClass(post.topic)}">${esc(post.emoji)} ${esc(post.topic)}</span>`;
 
+  const showMetrics = S.session.study.show_metrics !== false && S.session.study.show_metrics !== 0;
+
   div.innerHTML = `
     <div class="post-header">
       <div class="post-avatar">${avatarInitials(post.source_name)}</div>
@@ -226,12 +228,13 @@ function createPostCard(post) {
       <p class="post-content">${esc(post.content)}</p>
     </div>
     ${post.image_url ? `<div class="post-image"><img src="${post.image_url}" alt="" loading="lazy"></div>` : ''}
+    ${showMetrics ? `
     <div class="post-metrics">
       <span class="metric ${metricClass}">👍 ${formatNum(post.likes_shown)}</span>
       <span class="metric ${metricClass}">👎 ${formatNum(post.dislikes_shown)}</span>
       <span class="metric ${metricClass}">🔄 ${formatNum(post.shares_shown)}</span>
       <span class="metric ${metricClass}">🚩 ${formatNum(post.flags_shown)}</span>
-    </div>
+    </div>` : ''}
     <div class="post-actions">
       <button class="action-btn" data-action="like"><span class="action-icon">👍</span>Lubię to</button>
       <button class="action-btn" data-action="dislike"><span class="action-icon">👎</span>Nie lubię</button>
@@ -433,12 +436,20 @@ function renderPagedPost() {
   }
 
   // Metrics
-  $('paged-metrics').innerHTML = `
-    <span class="metric ${metricClass}">👍 ${formatNum(post.likes_shown)}</span>
-    <span class="metric ${metricClass}">👎 ${formatNum(post.dislikes_shown)}</span>
-    <span class="metric ${metricClass}">🔄 ${formatNum(post.shares_shown)}</span>
-    <span class="metric ${metricClass}">🚩 ${formatNum(post.flags_shown)}</span>
-  `;
+  const metricsEl = $('paged-metrics');
+  const showMetricsPaged = study.show_metrics !== false && study.show_metrics !== 0;
+  if (showMetricsPaged) {
+    metricsEl.style.display = '';
+    metricsEl.innerHTML = `
+      <span class="metric ${metricClass}">👍 ${formatNum(post.likes_shown)}</span>
+      <span class="metric ${metricClass}">👎 ${formatNum(post.dislikes_shown)}</span>
+      <span class="metric ${metricClass}">🔄 ${formatNum(post.shares_shown)}</span>
+      <span class="metric ${metricClass}">🚩 ${formatNum(post.flags_shown)}</span>
+    `;
+  } else {
+    metricsEl.style.display = 'none';
+    metricsEl.innerHTML = '';
+  }
 
   // Reactions row
   const actionsEl = $('paged-actions');

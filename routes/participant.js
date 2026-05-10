@@ -11,21 +11,13 @@ function randInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function calcMetrics(post, metricCondition, study) {
-  if (metricCondition === 'HIGH') {
-    const clamp = (v) => Math.max(study.high_metrics_min, Math.min(study.high_metrics_max, v));
-    return {
-      likes_shown: clamp(post.base_likes + randInt(-50, 50)),
-      shares_shown: clamp(post.base_shares + randInt(-50, 50)),
-      dislikes_shown: clamp(post.base_dislikes + randInt(-50, 50)),
-      flags_shown: clamp(post.base_flags + randInt(-50, 50)),
-    };
-  }
+function calcMetrics(post, condObj) {
+  const { min, max } = condObj;
   return {
-    likes_shown: randInt(study.low_metrics_min, study.low_metrics_max),
-    shares_shown: randInt(study.low_metrics_min, study.low_metrics_max),
-    dislikes_shown: randInt(study.low_metrics_min, study.low_metrics_max),
-    flags_shown: randInt(study.low_metrics_min, study.low_metrics_max),
+    likes_shown: randInt(min, max),
+    shares_shown: randInt(min, max),
+    dislikes_shown: randInt(min, max),
+    flags_shown: randInt(min, max),
   };
 }
 
@@ -35,19 +27,31 @@ router.post('/session/start', (req, res) => {
   const study = db.prepare('SELECT * FROM studies WHERE id = ? AND is_active = 1').get(study_id);
   if (!study) return res.status(404).json({ error: 'Study not found' });
 
+  // Style conditions
   const styleOptions = [];
   if (study.enable_condition_a) styleOptions.push('A');
   if (study.enable_condition_b) styleOptions.push('B');
-  const metricOptions = [];
-  if (study.enable_metrics_high) metricOptions.push('HIGH');
-  if (study.enable_metrics_low) metricOptions.push('LOW');
+
+  // Metric conditions — use JSON if present, else legacy columns
+  let metricOptions = [];
+  if (study.metric_conditions_json) {
+    try {
+      const parsed = JSON.parse(study.metric_conditions_json);
+      metricOptions = parsed.filter(c => c.enabled);
+    } catch {}
+  }
+  if (!metricOptions.length) {
+    if (study.enable_metrics_high) metricOptions.push({ key: 'HIGH', label: 'HIGH', min: study.high_metrics_min, max: study.high_metrics_max, enabled: true });
+    if (study.enable_metrics_low)  metricOptions.push({ key: 'LOW',  label: 'LOW',  min: study.low_metrics_min,  max: study.low_metrics_max,  enabled: true });
+  }
 
   if (!styleOptions.length || !metricOptions.length) {
     return res.status(400).json({ error: 'No conditions enabled in study settings' });
   }
 
   const style_condition = styleOptions[Math.floor(Math.random() * styleOptions.length)];
-  const metric_condition = metricOptions[Math.floor(Math.random() * metricOptions.length)];
+  const metricCondObj   = metricOptions[Math.floor(Math.random() * metricOptions.length)];
+  const metric_condition = metricCondObj.key;
   const full_condition = `${style_condition}-${metric_condition}`;
 
   const allPosts = db.prepare('SELECT * FROM posts WHERE study_id = ? AND is_active = 1').all(study_id);
@@ -63,7 +67,7 @@ router.post('/session/start', (req, res) => {
   `).run(study_id, token, style_condition, metric_condition, full_condition);
 
   const posts = shuffled.map((post, idx) => {
-    const metrics = calcMetrics(post, metric_condition, study);
+    const metrics = calcMetrics(post, metricCondObj);
     return {
       id: post.id,
       post_order: idx + 1,
@@ -105,6 +109,9 @@ router.post('/session/start', (req, res) => {
       show_transition_feed: study.show_transition_feed !== 0,
       show_transition_rating: study.show_transition_rating !== 0,
       show_debrief: study.show_debrief !== 0,
+      show_metrics: study.show_metrics !== 0,
+      label_style_a: study.label_style_a || 'Styl A (manipulacyjny)',
+      label_style_b: study.label_style_b || 'Styl B (neutralny)',
     },
   });
 });

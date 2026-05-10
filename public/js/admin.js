@@ -218,10 +218,71 @@ async function deleteStudy(id, name) {
   populateStudySelects();
 }
 
+// ── Metric condition row helpers ───────────────────────────────────────────
+function metricConditionRowHTML(cond) {
+  return `
+    <div class="metric-condition-row" data-key="${esc(String(cond.key))}">
+      <label class="toggle"><input type="checkbox" class="mc-enabled" ${cond.enabled ? 'checked' : ''}><span class="toggle-slider"></span></label>
+      <input type="text" class="mc-label" value="${esc(cond.label)}" placeholder="Nazwa warunku" style="flex:1;min-width:0">
+      <div style="display:flex;align-items:center;gap:0.4rem;flex-shrink:0">
+        <span style="font-size:0.8rem;color:var(--muted)">min</span>
+        <input type="number" class="mc-min" value="${cond.min}" style="width:5.5rem">
+        <span style="font-size:0.8rem;color:var(--muted)">max</span>
+        <input type="number" class="mc-max" value="${cond.max}" style="width:5.5rem">
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm mc-remove" onclick="removeMetricCondition(this)">✕</button>
+    </div>`;
+}
+
+function addMetricCondition() {
+  const container = document.getElementById('es-metric-conditions');
+  const key = 'C' + Date.now();
+  const div = document.createElement('div');
+  div.className = 'metric-condition-row';
+  div.dataset.key = key;
+  div.innerHTML = `
+    <label class="toggle"><input type="checkbox" class="mc-enabled" checked><span class="toggle-slider"></span></label>
+    <input type="text" class="mc-label" value="Nowy warunek" placeholder="Nazwa warunku" style="flex:1;min-width:0">
+    <div style="display:flex;align-items:center;gap:0.4rem;flex-shrink:0">
+      <span style="font-size:0.8rem;color:var(--muted)">min</span>
+      <input type="number" class="mc-min" value="0" style="width:5.5rem">
+      <span style="font-size:0.8rem;color:var(--muted)">max</span>
+      <input type="number" class="mc-max" value="100" style="width:5.5rem">
+    </div>
+    <button type="button" class="btn btn-ghost btn-sm mc-remove" onclick="removeMetricCondition(this)">✕</button>
+  `;
+  container.appendChild(div);
+  updateMetricRemoveButtons();
+}
+
+function removeMetricCondition(btn) {
+  btn.closest('.metric-condition-row').remove();
+  updateMetricRemoveButtons();
+}
+
+function updateMetricRemoveButtons() {
+  const rows = document.querySelectorAll('#es-metric-conditions .metric-condition-row');
+  rows.forEach(row => {
+    row.querySelector('.mc-remove').disabled = rows.length <= 1;
+  });
+}
+
 // Study settings modal
 async function openStudySettings(id) {
   const s = S.studies.find(x => x.id == id);
   if (!s) return;
+
+  // Parse metric conditions (fallback to legacy HIGH/LOW columns)
+  let mcArr;
+  try { mcArr = s.metric_conditions_json ? JSON.parse(s.metric_conditions_json) : null; } catch {}
+  if (!mcArr) {
+    mcArr = [
+      { key: 'HIGH', label: 'Metryki HIGH', min: s.high_metrics_min || 800, max: s.high_metrics_max || 1300, enabled: s.enable_metrics_high ? true : false },
+      { key: 'LOW',  label: 'Metryki LOW',  min: s.low_metrics_min  || 1,   max: s.low_metrics_max  || 20,   enabled: s.enable_metrics_low  ? true : false },
+    ];
+  }
+  const mcHTML = mcArr.map(c => metricConditionRowHTML(c)).join('');
+
   showModal(`
     <h2>Ustawienia badania</h2>
     <div class="modal-section-title">Informacje podstawowe</div>
@@ -254,30 +315,35 @@ async function openStudySettings(id) {
 
     <div class="modal-section-title">Ustawienia eksperymentalne</div>
     <div class="form-group"><label>Liczba postów na sesję (1–20)</label><input type="number" id="es-pps" min="1" max="20" value="${s.posts_per_session}"></div>
-    <div class="number-row" style="margin-bottom:1rem">
-      <div class="form-group"><label>HIGH min</label><input type="number" id="es-hmin" value="${s.high_metrics_min}"></div>
-      <div class="form-group"><label>HIGH max</label><input type="number" id="es-hmax" value="${s.high_metrics_max}"></div>
-    </div>
-    <div class="number-row" style="margin-bottom:1rem">
-      <div class="form-group"><label>LOW min</label><input type="number" id="es-lmin" value="${s.low_metrics_min}"></div>
-      <div class="form-group"><label>LOW max</label><input type="number" id="es-lmax" value="${s.low_metrics_max}"></div>
-    </div>
-    <div class="toggle-row" style="margin-bottom:1rem">
-      <div class="toggle-wrap">
+
+    <div class="modal-section-title" style="margin-top:1.25rem">Warunki stylu</div>
+    <p style="font-size:0.8rem;color:var(--muted);margin-bottom:0.75rem">Każdy uczestnik losowo trafia do jednego z aktywnych warunków — odpowiada treściom A lub B w postach.</p>
+    <div style="display:flex;flex-direction:column;gap:0.6rem;margin-bottom:1.25rem">
+      <div class="condition-row">
         <label class="toggle"><input type="checkbox" id="es-ca" ${s.enable_condition_a ? 'checked' : ''}><span class="toggle-slider"></span></label>
-        <span class="toggle-label">Styl A (manipulacyjny)</span>
+        <input type="text" id="es-label-a" class="condition-label-input" value="${esc(s.label_style_a || 'Styl A (manipulacyjny)')}" placeholder="Nazwa warunku A">
+        <span class="condition-hint">treść A</span>
       </div>
-      <div class="toggle-wrap">
+      <div class="condition-row">
         <label class="toggle"><input type="checkbox" id="es-cb" ${s.enable_condition_b ? 'checked' : ''}><span class="toggle-slider"></span></label>
-        <span class="toggle-label">Styl B (neutralny)</span>
+        <input type="text" id="es-label-b" class="condition-label-input" value="${esc(s.label_style_b || 'Styl B (neutralny)')}" placeholder="Nazwa warunku B">
+        <span class="condition-hint">treść B</span>
       </div>
-      <div class="toggle-wrap">
-        <label class="toggle"><input type="checkbox" id="es-mh" ${s.enable_metrics_high ? 'checked' : ''}><span class="toggle-slider"></span></label>
-        <span class="toggle-label">Metryki HIGH</span>
-      </div>
-      <div class="toggle-wrap">
-        <label class="toggle"><input type="checkbox" id="es-ml" ${s.enable_metrics_low ? 'checked' : ''}><span class="toggle-slider"></span></label>
-        <span class="toggle-label">Metryki LOW</span>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem">
+      <div class="modal-section-title" style="margin:0">Warunki metryczne</div>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="addMetricCondition()" style="margin-left:auto">+ Dodaj warunek</button>
+    </div>
+    <p style="font-size:0.8rem;color:var(--muted);margin-bottom:0.75rem">Każdy uczestnik losowo trafia do jednego z aktywnych warunków. Wartości są losowane z podanego zakresu.</p>
+    <div id="es-metric-conditions" style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:1.25rem">
+      ${mcHTML}
+    </div>
+
+    <div class="toggle-row" style="margin-bottom:1rem">
+      <div class="toggle-wrap" style="flex:1">
+        <label class="toggle"><input type="checkbox" id="es-show-metrics" ${s.show_metrics !== 0 ? 'checked' : ''}><span class="toggle-slider"></span></label>
+        <span class="toggle-label">Pokaż interakcje społecznościowe (liczba polubień, udostępnień itp.)</span>
       </div>
       <div class="toggle-wrap">
         <label class="toggle"><input type="checkbox" id="es-htb" ${s.hide_topic_badges ? 'checked' : ''}><span class="toggle-slider"></span></label>
@@ -334,6 +400,8 @@ async function openStudySettings(id) {
       e.target.value === 'paged' ? '' : 'none';
   });
 
+  updateMetricRemoveButtons();
+
   // Screen toggle visibility
   [
     { cb: 'es-show-instr',   wrap: 'es-instr-wrap' },
@@ -354,6 +422,17 @@ async function openStudySettings(id) {
 }
 
 async function saveStudySettings(id) {
+  // Collect metric conditions from DOM
+  const metricRows = document.querySelectorAll('#es-metric-conditions .metric-condition-row');
+  const metric_conditions_json = JSON.stringify(Array.from(metricRows).map(row => ({
+    key: row.dataset.key || ('K' + Date.now()),
+    label: row.querySelector('.mc-label').value.trim() || 'Warunek',
+    min: Number(row.querySelector('.mc-min').value),
+    max: Number(row.querySelector('.mc-max').value),
+    enabled: row.querySelector('.mc-enabled').checked,
+  })));
+
+  const isPaged = document.getElementById('es-layout').value === 'paged';
   const body = {
     name: document.getElementById('es-name').value.trim(),
     slug: document.getElementById('es-slug').value.trim(),
@@ -361,20 +440,16 @@ async function saveStudySettings(id) {
     institution: document.getElementById('es-inst').value.trim(),
     contact_email: document.getElementById('es-email').value.trim(),
     posts_per_session: Number(document.getElementById('es-pps').value),
-    high_metrics_min: Number(document.getElementById('es-hmin').value),
-    high_metrics_max: Number(document.getElementById('es-hmax').value),
-    low_metrics_min: Number(document.getElementById('es-lmin').value),
-    low_metrics_max: Number(document.getElementById('es-lmax').value),
     enable_condition_a: document.getElementById('es-ca').checked ? 1 : 0,
     enable_condition_b: document.getElementById('es-cb').checked ? 1 : 0,
-    enable_metrics_high: document.getElementById('es-mh').checked ? 1 : 0,
-    enable_metrics_low: document.getElementById('es-ml').checked ? 1 : 0,
+    label_style_a: document.getElementById('es-label-a').value.trim() || 'Styl A',
+    label_style_b: document.getElementById('es-label-b').value.trim() || 'Styl B',
+    metric_conditions_json,
+    show_metrics: document.getElementById('es-show-metrics').checked ? 1 : 0,
     hide_topic_badges: document.getElementById('es-htb').checked ? 1 : 0,
     layout_type: document.getElementById('es-layout').value,
-    show_reactions: document.getElementById('es-layout').value === 'paged'
-      ? (document.getElementById('es-reactions').checked ? 1 : 0) : 1,
-    enable_comments: document.getElementById('es-layout').value === 'paged'
-      ? (document.getElementById('es-comments').checked ? 1 : 0) : 0,
+    show_reactions: isPaged ? (document.getElementById('es-reactions').checked ? 1 : 0) : 1,
+    enable_comments: isPaged ? (document.getElementById('es-comments').checked ? 1 : 0) : 0,
     consent_text: document.getElementById('es-consent').value.trim() || null,
     show_instructions: document.getElementById('es-show-instr').checked ? 1 : 0,
     instruction_text: document.getElementById('es-instr').value.trim() || null,

@@ -282,6 +282,22 @@ migrate('ALTER TABLE studies ADD COLUMN show_instructions BOOLEAN DEFAULT 1');
 migrate('ALTER TABLE studies ADD COLUMN show_transition_feed BOOLEAN DEFAULT 1');
 migrate('ALTER TABLE studies ADD COLUMN show_transition_rating BOOLEAN DEFAULT 1');
 migrate('ALTER TABLE studies ADD COLUMN show_debrief BOOLEAN DEFAULT 1');
+migrate("ALTER TABLE studies ADD COLUMN label_style_a TEXT DEFAULT 'Styl A (manipulacyjny)'");
+migrate("ALTER TABLE studies ADD COLUMN label_style_b TEXT DEFAULT 'Styl B (neutralny)'");
+migrate('ALTER TABLE studies ADD COLUMN metric_conditions_json TEXT DEFAULT NULL');
+migrate('ALTER TABLE studies ADD COLUMN show_metrics INTEGER DEFAULT 1');
+
+// Initialise metric_conditions_json from legacy columns for any study that doesn't have it yet
+{
+  const studies = db.prepare('SELECT * FROM studies WHERE metric_conditions_json IS NULL').all();
+  const upd = db.prepare('UPDATE studies SET metric_conditions_json = ? WHERE id = ?');
+  for (const s of studies) {
+    upd.run(JSON.stringify([
+      { key: 'HIGH', label: 'Metryki HIGH', min: s.high_metrics_min || 800, max: s.high_metrics_max || 1300, enabled: s.enable_metrics_high ? true : false },
+      { key: 'LOW',  label: 'Metryki LOW',  min: s.low_metrics_min  || 1,   max: s.low_metrics_max  || 20,   enabled: s.enable_metrics_low  ? true : false },
+    ]), s.id);
+  }
+}
 
 // ── Post content migrations (idempotent UPDATE — safe to run on every boot) ───
 const migratePost = db.prepare(
