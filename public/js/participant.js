@@ -16,6 +16,7 @@ const S = {
   pagedRatings: {},    // {postId: 1-7}
   pagedReactions: {},  // {postId: action}
   pagedDwellStart: {}, // {postId: timestamp when shown}
+  pagedComments: {},   // {postId: string} — participant comment (custom layout)
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -69,12 +70,42 @@ function showError(msg) {
   startSession();
 })();
 
+// ── Apply study custom labels to all relevant DOM elements ─────────────────
+function applyStudyLabels(study) {
+  // Action button labels (paged / custom layout)
+  const lblLike    = $('paged-lbl-like');
+  const lblDislike = $('paged-lbl-dislike');
+  const lblShare   = $('paged-lbl-share');
+  const lblFlag    = $('paged-lbl-flag');
+  if (lblLike)    lblLike.textContent    = study.label_action_like    || 'Lubię to';
+  if (lblDislike) lblDislike.textContent = study.label_action_dislike || 'Nie lubię';
+  if (lblShare)   lblShare.textContent   = study.label_action_share   || 'Udostępnij';
+  if (lblFlag)    lblFlag.textContent    = study.label_action_flag    || 'Zgłoś';
+
+  // Paged Likert labels
+  const pagedQ   = $('paged-likert-question');
+  const pagedMin = $('paged-likert-min');
+  const pagedMax = $('paged-likert-max');
+  if (pagedQ)   pagedQ.textContent   = study.label_likert_question || 'Jak oceniasz wiarygodność tego postu?';
+  if (pagedMin) pagedMin.textContent = study.label_likert_min      || 'Zupełnie niewiarygodna';
+  if (pagedMax) pagedMax.textContent = study.label_likert_max      || 'W pełni wiarygodna';
+
+  // Rating screen Likert labels
+  const ratingQ   = $('rating-likert-question');
+  const ratingMin = $('rating-likert-min');
+  const ratingMax = $('rating-likert-max');
+  if (ratingQ)   ratingQ.textContent   = study.label_likert_question || 'Jak oceniasz wiarygodność tego postu?';
+  if (ratingMin) ratingMin.textContent = study.label_likert_min      || 'Zupełnie niewiarygodna';
+  if (ratingMax) ratingMax.textContent = study.label_likert_max      || 'W pełni wiarygodna';
+}
+
 async function startSession() {
   try {
     const data = await apiPost('/api/session/start', { study_id: S.config.id });
     S.session = data;
     S.posts = data.posts;
     sessionStorage.setItem('token', data.session_token);
+    applyStudyLabels(data.study);
     renderConsentScreen(data.study);
     showScreen('screen-consent');
   } catch (e) {
@@ -116,8 +147,8 @@ function renderInstructionScreen(study) {
   const ratingBody = $('transition-rating-body');
   if (ratingBody) ratingBody.textContent = study.transition_rating_text;
 
-  // Paged mode: adapt transition screen wording and hide reaction icons if not used
-  if (study.layout_type === 'paged') {
+  // Paged / custom mode: adapt transition screen wording and hide reaction icons if not used
+  if (study.layout_type === 'paged' || study.layout_type === 'custom') {
     const emoji = $('transition-feed-emoji');
     const title = $('transition-feed-title');
     if (emoji) emoji.textContent = '📋';
@@ -170,7 +201,8 @@ function renderInstructionScreen(study) {
 
 // ── Screen 4: Transition ───────────────────────────────────────────────────
 function startMainPhase() {
-  if (S.session.study.layout_type === 'paged') {
+  const layoutType = S.session.study.layout_type;
+  if (layoutType === 'paged' || layoutType === 'custom') {
     S.pagedIndex = 0;
     renderPagedPost();
     showScreen('screen-paged');
@@ -481,6 +513,19 @@ function renderPagedPost() {
     postCommentEl.style.display = 'none';
   }
 
+  // Participant comment textarea (custom layout)
+  const commentWrap  = $('paged-participant-comment-wrap');
+  const commentInput = $('paged-participant-comment');
+  if (study.enable_comments) {
+    commentWrap.style.display = '';
+    if (commentInput) {
+      commentInput.placeholder = study.comment_placeholder || 'Napisz komentarz do tego postu...';
+      commentInput.value = S.pagedComments[post.id] || '';
+    }
+  } else {
+    commentWrap.style.display = 'none';
+  }
+
   // Navigation
   $('btn-paged-back').disabled = S.pagedIndex === 0;
 
@@ -541,6 +586,12 @@ $('btn-paged-next').onclick = async () => {
     payload.shares_shown = post.shares_shown;
     payload.dislikes_shown = post.dislikes_shown;
     payload.flags_shown = post.flags_shown;
+  }
+
+  if (study.enable_comments) {
+    const commentVal = ($('paged-participant-comment')?.value || '').trim();
+    S.pagedComments[post.id] = commentVal;
+    payload.comment = commentVal || null;
   }
 
   apiPost('/api/paged-response', payload).catch(() =>

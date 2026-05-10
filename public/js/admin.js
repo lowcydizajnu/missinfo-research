@@ -304,10 +304,13 @@ async function openStudySettings(id) {
     <div class="form-group">
       <label>Układ ekranu uczestnika</label>
       <select id="es-layout">
-        <option value="feed" ${(s.layout_type || 'feed') !== 'paged' ? 'selected' : ''}>Feed — przewijany (klasyczny)</option>
+        <option value="feed" ${(s.layout_type || 'feed') === 'feed' ? 'selected' : ''}>Feed — przewijany (klasyczny)</option>
         <option value="paged" ${s.layout_type === 'paged' ? 'selected' : ''}>Strona po stronie — jeden post, ocena inline</option>
+        <option value="custom" ${s.layout_type === 'custom' ? 'selected' : ''}>Custom Builder — w pełni konfigurowalny</option>
       </select>
     </div>
+
+    <!-- Paged-only options -->
     <div id="es-paged-options" style="${s.layout_type === 'paged' ? '' : 'display:none'}">
       <div class="toggle-row" style="margin-bottom:1rem">
         <div class="toggle-wrap">
@@ -318,6 +321,41 @@ async function openStudySettings(id) {
           <label class="toggle"><input type="checkbox" id="es-comments" ${s.enable_comments ? 'checked' : ''}><span class="toggle-slider"></span></label>
           <span class="toggle-label">Włącz pole komentarza pod postem</span>
         </div>
+      </div>
+    </div>
+
+    <!-- Custom Builder options -->
+    <div id="es-custom-options" style="${s.layout_type === 'custom' ? '' : 'display:none'}">
+      <div class="toggle-row" style="margin-bottom:0.5rem">
+        <div class="toggle-wrap">
+          <label class="toggle"><input type="checkbox" id="es-custom-reactions" ${s.show_reactions !== 0 ? 'checked' : ''}><span class="toggle-slider"></span></label>
+          <span class="toggle-label">👇 Przyciski reakcji (like / dislike / share / flag)</span>
+        </div>
+      </div>
+      <div id="es-custom-reaction-labels" style="margin-bottom:0.75rem;${s.show_reactions !== 0 ? '' : 'display:none'}">
+        <div class="form-grid form-grid-4">
+          <div class="form-group"><label>Lubię to</label><input type="text" id="es-lbl-like" value="${esc(s.label_action_like || 'Lubię to')}"></div>
+          <div class="form-group"><label>Nie lubię</label><input type="text" id="es-lbl-dislike" value="${esc(s.label_action_dislike || 'Nie lubię')}"></div>
+          <div class="form-group"><label>Udostępnij</label><input type="text" id="es-lbl-share" value="${esc(s.label_action_share || 'Udostępnij')}"></div>
+          <div class="form-group"><label>Zgłoś</label><input type="text" id="es-lbl-flag" value="${esc(s.label_action_flag || 'Zgłoś')}"></div>
+        </div>
+      </div>
+
+      <div class="modal-section-title" style="margin-top:0.25rem;margin-bottom:0.5rem">⭐ Skala wiarygodności</div>
+      <div class="form-group"><label>Treść pytania</label><input type="text" id="es-lbl-likert-q" value="${esc(s.label_likert_question || 'Jak oceniasz wiarygodność tego postu?')}"></div>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:0.75rem">
+        <div class="form-group"><label>Etykieta lewa (min)</label><input type="text" id="es-lbl-likert-min" value="${esc(s.label_likert_min || 'Zupełnie niewiarygodna')}"></div>
+        <div class="form-group"><label>Etykieta prawa (max)</label><input type="text" id="es-lbl-likert-max" value="${esc(s.label_likert_max || 'W pełni wiarygodna')}"></div>
+      </div>
+
+      <div class="toggle-row" style="margin-top:0.25rem;margin-bottom:0.5rem">
+        <div class="toggle-wrap">
+          <label class="toggle"><input type="checkbox" id="es-custom-comments" ${s.enable_comments ? 'checked' : ''}><span class="toggle-slider"></span></label>
+          <span class="toggle-label">💬 Pole komentarza uczestnika</span>
+        </div>
+      </div>
+      <div id="es-custom-comment-wrap" style="${s.enable_comments ? '' : 'display:none'}">
+        <div class="form-group"><label>Placeholder pola komentarza</label><input type="text" id="es-lbl-comment-ph" value="${esc(s.comment_placeholder || 'Napisz komentarz do tego postu...')}"></div>
       </div>
     </div>
 
@@ -404,11 +442,27 @@ async function openStudySettings(id) {
     </div>
   `);
   document.getElementById('es-layout').addEventListener('change', e => {
-    document.getElementById('es-paged-options').style.display =
-      e.target.value === 'paged' ? '' : 'none';
+    document.getElementById('es-paged-options').style.display = e.target.value === 'paged' ? '' : 'none';
+    document.getElementById('es-custom-options').style.display = e.target.value === 'custom' ? '' : 'none';
   });
 
   updateMetricRemoveButtons();
+
+  // Custom builder sub-toggles
+  const customReactCb = document.getElementById('es-custom-reactions');
+  const customReactLabels = document.getElementById('es-custom-reaction-labels');
+  if (customReactCb && customReactLabels) {
+    customReactCb.addEventListener('change', () => {
+      customReactLabels.style.display = customReactCb.checked ? '' : 'none';
+    });
+  }
+  const customCommentCb = document.getElementById('es-custom-comments');
+  const customCommentWrap = document.getElementById('es-custom-comment-wrap');
+  if (customCommentCb && customCommentWrap) {
+    customCommentCb.addEventListener('change', () => {
+      customCommentWrap.style.display = customCommentCb.checked ? '' : 'none';
+    });
+  }
 
   // Screen toggle visibility
   [
@@ -441,7 +495,18 @@ async function saveStudySettings(id) {
     show_comment: row.querySelector('.mc-show-comment').checked,
   })));
 
-  const isPaged = document.getElementById('es-layout').value === 'paged';
+  const layoutVal = document.getElementById('es-layout').value;
+  const isPaged  = layoutVal === 'paged';
+  const isCustom = layoutVal === 'custom';
+
+  let show_reactions = 1;
+  if (isPaged)  show_reactions = document.getElementById('es-reactions').checked ? 1 : 0;
+  if (isCustom) show_reactions = document.getElementById('es-custom-reactions').checked ? 1 : 0;
+
+  let enable_comments = 0;
+  if (isPaged)  enable_comments = document.getElementById('es-comments').checked ? 1 : 0;
+  if (isCustom) enable_comments = document.getElementById('es-custom-comments').checked ? 1 : 0;
+
   const body = {
     name: document.getElementById('es-name').value.trim(),
     slug: document.getElementById('es-slug').value.trim(),
@@ -456,9 +521,9 @@ async function saveStudySettings(id) {
     metric_conditions_json,
     show_metrics: document.getElementById('es-show-metrics').checked ? 1 : 0,
     hide_topic_badges: document.getElementById('es-htb').checked ? 1 : 0,
-    layout_type: document.getElementById('es-layout').value,
-    show_reactions: isPaged ? (document.getElementById('es-reactions').checked ? 1 : 0) : 1,
-    enable_comments: isPaged ? (document.getElementById('es-comments').checked ? 1 : 0) : 0,
+    layout_type: layoutVal,
+    show_reactions,
+    enable_comments,
     consent_text: document.getElementById('es-consent').value.trim() || null,
     show_instructions: document.getElementById('es-show-instr').checked ? 1 : 0,
     instruction_text: document.getElementById('es-instr').value.trim() || null,
@@ -469,6 +534,19 @@ async function saveStudySettings(id) {
     show_debrief: document.getElementById('es-show-debrief').checked ? 1 : 0,
     debrief_text: document.getElementById('es-debrief').value.trim() || null,
   };
+
+  // Custom builder — collect editable label fields
+  if (isCustom) {
+    body.label_action_like      = document.getElementById('es-lbl-like').value.trim()       || 'Lubię to';
+    body.label_action_dislike   = document.getElementById('es-lbl-dislike').value.trim()    || 'Nie lubię';
+    body.label_action_share     = document.getElementById('es-lbl-share').value.trim()      || 'Udostępnij';
+    body.label_action_flag      = document.getElementById('es-lbl-flag').value.trim()       || 'Zgłoś';
+    body.label_likert_question  = document.getElementById('es-lbl-likert-q').value.trim()   || 'Jak oceniasz wiarygodność tego postu?';
+    body.label_likert_min       = document.getElementById('es-lbl-likert-min').value.trim() || 'Zupełnie niewiarygodna';
+    body.label_likert_max       = document.getElementById('es-lbl-likert-max').value.trim() || 'W pełni wiarygodna';
+    body.comment_placeholder    = document.getElementById('es-lbl-comment-ph')?.value.trim() || 'Napisz komentarz do tego postu...';
+  }
+
   await api('PATCH', `/studies/${id}`, body);
   closeModal();
   toast('Ustawienia zapisane.');
