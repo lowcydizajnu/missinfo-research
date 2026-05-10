@@ -6,7 +6,7 @@
   <title>Badanie</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/participant.css">
 </head>
 <body>
@@ -32,7 +32,7 @@
     <div class="card">
       <h2>Instrukcja badania</h2>
       <div class="instruction-body" id="instruction-text"></div>
-      <div class="action-icons-preview">
+      <div class="action-icons-preview" id="instruction-icons-preview">
         <div class="icon-row"><span class="icon-demo like">👍</span><span>Lubię to</span></div>
         <div class="icon-row"><span class="icon-demo dislike">👎</span><span>Nie lubię</span></div>
         <div class="icon-row"><span class="icon-demo share">🔄</span><span>Udostępnij</span></div>
@@ -94,14 +94,14 @@
   </div>
 </section>
 
-<!-- ── Screen 4: Transition to feed ──────────────────────────────────────── -->
+<!-- ── Screen 4: Transition ───────────────────────────────────────────────── -->
 <section class="screen" id="screen-transition-feed">
   <div class="screen-inner centered">
     <div class="card centered-text">
-      <div class="big-emoji">📱</div>
-      <h2>Za chwilę zobaczysz feed</h2>
+      <div class="big-emoji" id="transition-feed-emoji">📱</div>
+      <h2 id="transition-feed-title">Za chwilę zobaczysz feed</h2>
       <div class="transition-body" id="transition-feed-body"></div>
-      <button class="btn btn-primary" id="btn-start-feed">Rozpocznij przeglądanie</button>
+      <button class="btn btn-primary" id="btn-start-feed">Rozpocznij</button>
     </div>
   </div>
 </section>
@@ -149,7 +149,6 @@
       </div>
       <h3 class="rating-headline" id="rating-headline"></h3>
       <p class="rating-content" id="rating-content"></p>
-
       <div class="likert-section">
         <p class="likert-question">Jak oceniasz wiarygodność tego postu?</p>
         <div class="likert-labels">
@@ -170,6 +169,77 @@
         </div>
       </div>
       <button class="btn btn-primary" id="btn-rating-next" disabled>Dalej</button>
+    </div>
+  </div>
+</section>
+
+<!-- ── Screen: Paged view ─────────────────────────────────────────────────── -->
+<section class="screen" id="screen-paged">
+  <div class="progress-sticky" id="paged-progress-bar">
+    <div class="progress-label">
+      Post <span id="paged-current">1</span> z <span id="paged-total">0</span>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="paged-fill"></div></div>
+  </div>
+  <div class="screen-inner centered">
+    <div class="card paged-card">
+      <!-- Post header -->
+      <div class="post-header">
+        <div class="post-avatar" id="paged-avatar"></div>
+        <div class="post-meta">
+          <div class="post-source" id="paged-source"></div>
+          <div class="post-handle" id="paged-handle"></div>
+        </div>
+        <span class="topic-pill" id="paged-topic-pill"></span>
+      </div>
+      <!-- Post content -->
+      <div class="post-body">
+        <h3 class="post-headline" id="paged-headline"></h3>
+        <p class="post-content" id="paged-content"></p>
+      </div>
+      <!-- Image -->
+      <div id="paged-image-wrap" class="post-image" style="display:none">
+        <img id="paged-image" src="" alt="" loading="lazy">
+      </div>
+      <!-- Metrics -->
+      <div class="post-metrics" id="paged-metrics"></div>
+      <!-- Reactions row (optional) -->
+      <div class="post-actions" id="paged-actions">
+        <button class="action-btn" data-action="like"><span class="action-icon">👍</span>Lubię to</button>
+        <button class="action-btn" data-action="dislike"><span class="action-icon">👎</span>Nie lubię</button>
+        <button class="action-btn" data-action="share"><span class="action-icon">🔄</span>Udostępnij</button>
+        <button class="action-btn" data-action="flag"><span class="action-icon">🚩</span>Zgłoś</button>
+      </div>
+      <!-- Likert scale -->
+      <div class="likert-section">
+        <p class="likert-question">Jak oceniasz wiarygodność tego postu?</p>
+        <div class="likert-labels">
+          <span>Zupełnie niewiarygodna</span>
+          <span>W pełni wiarygodna</span>
+        </div>
+        <div class="likert-buttons" id="paged-likert-buttons">
+          <button class="likert-btn" data-value="1">1</button>
+          <button class="likert-btn" data-value="2">2</button>
+          <button class="likert-btn" data-value="3">3</button>
+          <button class="likert-btn" data-value="4">4</button>
+          <button class="likert-btn" data-value="5">5</button>
+          <button class="likert-btn" data-value="6">6</button>
+          <button class="likert-btn" data-value="7">7</button>
+        </div>
+        <div class="likert-number-labels">
+          <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span>
+        </div>
+      </div>
+      <!-- Comment (optional) -->
+      <div id="paged-comment-wrap" style="display:none">
+        <p class="likert-question" style="margin-bottom:0.5rem">Twój komentarz (opcjonalnie)</p>
+        <textarea id="paged-comment" class="paged-comment-area" rows="3" placeholder="Napisz komentarz do tego postu..."></textarea>
+      </div>
+      <!-- Navigation -->
+      <div class="paged-nav">
+        <button class="btn btn-ghost" id="btn-paged-back">← Wstecz</button>
+        <button class="btn btn-primary" id="btn-paged-next" disabled>Dalej →</button>
+      </div>
     </div>
   </div>
 </section>

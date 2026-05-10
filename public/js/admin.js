@@ -231,6 +231,27 @@ async function openStudySettings(id) {
     <div class="form-group"><label>Instytucja</label><input type="text" id="es-inst" value="${esc(s.institution || '')}"></div>
     <div class="form-group"><label>E-mail kontaktowy</label><input type="email" id="es-email" value="${esc(s.contact_email || '')}"></div>
 
+    <div class="modal-section-title">Typ układu</div>
+    <div class="form-group">
+      <label>Układ ekranu uczestnika</label>
+      <select id="es-layout">
+        <option value="feed" ${(s.layout_type || 'feed') !== 'paged' ? 'selected' : ''}>Feed — przewijany (klasyczny)</option>
+        <option value="paged" ${s.layout_type === 'paged' ? 'selected' : ''}>Strona po stronie — jeden post, ocena inline</option>
+      </select>
+    </div>
+    <div id="es-paged-options" style="${s.layout_type === 'paged' ? '' : 'display:none'}">
+      <div class="toggle-row" style="margin-bottom:1rem">
+        <div class="toggle-wrap">
+          <label class="toggle"><input type="checkbox" id="es-reactions" ${s.show_reactions !== 0 ? 'checked' : ''}><span class="toggle-slider"></span></label>
+          <span class="toggle-label">Pokaż przyciski reakcji (like / dislike / share / flag)</span>
+        </div>
+        <div class="toggle-wrap">
+          <label class="toggle"><input type="checkbox" id="es-comments" ${s.enable_comments ? 'checked' : ''}><span class="toggle-slider"></span></label>
+          <span class="toggle-label">Włącz pole komentarza pod postem</span>
+        </div>
+      </div>
+    </div>
+
     <div class="modal-section-title">Ustawienia eksperymentalne</div>
     <div class="form-group"><label>Liczba postów na sesję (1–20)</label><input type="number" id="es-pps" min="1" max="20" value="${s.posts_per_session}"></div>
     <div class="number-row" style="margin-bottom:1rem">
@@ -284,6 +305,10 @@ async function openStudySettings(id) {
       <button class="btn btn-ghost" onclick="closeModal()">Anuluj</button>
     </div>
   `);
+  document.getElementById('es-layout').addEventListener('change', e => {
+    document.getElementById('es-paged-options').style.display =
+      e.target.value === 'paged' ? '' : 'none';
+  });
 }
 
 async function saveStudySettings(id) {
@@ -303,6 +328,11 @@ async function saveStudySettings(id) {
     enable_metrics_high: document.getElementById('es-mh').checked ? 1 : 0,
     enable_metrics_low: document.getElementById('es-ml').checked ? 1 : 0,
     hide_topic_badges: document.getElementById('es-htb').checked ? 1 : 0,
+    layout_type: document.getElementById('es-layout').value,
+    show_reactions: document.getElementById('es-layout').value === 'paged'
+      ? (document.getElementById('es-reactions').checked ? 1 : 0) : 1,
+    enable_comments: document.getElementById('es-layout').value === 'paged'
+      ? (document.getElementById('es-comments').checked ? 1 : 0) : 0,
     consent_text: document.getElementById('es-consent').value.trim() || null,
     instruction_text: document.getElementById('es-instr').value.trim() || null,
     transition_feed_text: document.getElementById('es-tf').value.trim() || null,

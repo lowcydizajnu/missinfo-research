@@ -274,6 +274,10 @@ const migrate = (sql) => { try { db.exec(sql); } catch (_) {} };
 migrate('ALTER TABLE studies ADD COLUMN hide_topic_badges BOOLEAN DEFAULT 0');
 migrate('ALTER TABLE studies ADD COLUMN transition_feed_text TEXT');
 migrate('ALTER TABLE studies ADD COLUMN transition_rating_text TEXT');
+migrate("ALTER TABLE studies ADD COLUMN layout_type TEXT DEFAULT 'feed'");
+migrate('ALTER TABLE studies ADD COLUMN show_reactions BOOLEAN DEFAULT 1');
+migrate('ALTER TABLE studies ADD COLUMN enable_comments BOOLEAN DEFAULT 0');
+migrate('ALTER TABLE ratings ADD COLUMN comment TEXT');
 
 // ── Post content migrations (idempotent UPDATE — safe to run on every boot) ───
 const migratePost = db.prepare(

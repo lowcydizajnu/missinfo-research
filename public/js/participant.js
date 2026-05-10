@@ -5,11 +5,18 @@ const S = {
   config: null,        // window.STUDY_CONFIG
   session: null,       // {token, style_condition, metric_condition, posts, study}
   posts: [],           // posts for this session
+  // Feed mode
   reactions: {},       // {postId: action}
   dwellStart: {},      // {postId: Date.now() when entered viewport}
   dwellAccum: {},      // {postId: accumulated ms}
-  ratingIndex: 0,      // current post index in rating phase
-  ratingValues: {},    // {postId: 1-7}
+  ratingIndex: 0,
+  ratingValues: {},
+  // Paged mode
+  pagedIndex: 0,
+  pagedRatings: {},    // {postId: 1-7}
+  pagedReactions: {},  // {postId: action}
+  pagedComments: {},   // {postId: text}
+  pagedDwellStart: {}, // {postId: timestamp when shown}
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -59,7 +66,6 @@ function showError(msg) {
     return;
   }
   S.config = cfg;
-  // Clear session on every load (fresh start)
   sessionStorage.clear();
   startSession();
 })();
@@ -101,11 +107,25 @@ function renderConsentScreen(study) {
 function renderInstructionScreen(study) {
   $('instruction-text').textContent = study.instruction_text;
 
-  // Pre-populate transition screens
+  // Transition screens
   const feedBody = $('transition-feed-body');
   if (feedBody) feedBody.textContent = study.transition_feed_text;
   const ratingBody = $('transition-rating-body');
   if (ratingBody) ratingBody.textContent = study.transition_rating_text;
+
+  // Paged mode: adapt transition screen wording and hide reaction icons if not used
+  if (study.layout_type === 'paged') {
+    const emoji = $('transition-feed-emoji');
+    const title = $('transition-feed-title');
+    if (emoji) emoji.textContent = '📋';
+    if (title) title.textContent = 'Za chwilę zobaczysz posty do oceny';
+
+    // Hide reaction icons preview if reactions are off
+    if (!study.show_reactions) {
+      const preview = $('instruction-icons-preview');
+      if (preview) preview.style.display = 'none';
+    }
+  }
 
   $('btn-instructions-next').onclick = () => showScreen('screen-demographics');
 }
@@ -140,10 +160,16 @@ function renderInstructionScreen(study) {
   });
 })();
 
-// ── Screen 4: Transition to feed ──────────────────────────────────────────
+// ── Screen 4: Transition ───────────────────────────────────────────────────
 $('btn-start-feed').onclick = () => {
-  renderFeed();
-  showScreen('screen-feed');
+  if (S.session.study.layout_type === 'paged') {
+    S.pagedIndex = 0;
+    renderPagedPost();
+    showScreen('screen-paged');
+  } else {
+    renderFeed();
+    showScreen('screen-feed');
+  }
 };
 
 // ── Screen 5: Feed ────────────────────────────────────────────────────────
@@ -203,7 +229,6 @@ function createPostCard(post) {
     </div>
   `;
 
-  // Action buttons
   div.querySelectorAll('.action-btn').forEach(btn => {
     btn.addEventListener('click', () => handleReaction(post, btn.dataset.action, div));
   });
@@ -221,21 +246,15 @@ function esc(str) {
 }
 
 async function handleReaction(post, action, cardEl) {
-  // Update UI
   cardEl.querySelectorAll('.action-btn').forEach(b => {
     b.className = 'action-btn';
     if (b.dataset.action === action) b.classList.add(`active-${action}`);
   });
-
   S.reactions[post.id] = action;
   cardEl.classList.add('reacted');
-
   updateFeedProgress();
 
-  // Compute dwell
   const dwell = getDwell(post.id);
-
-  // Send to server (fire-and-forget, retry once)
   const payload = {
     session_token: S.session.session_token,
     post_id: post.id,
@@ -252,9 +271,7 @@ async function handleReaction(post, action, cardEl) {
 
 function getDwell(postId) {
   let total = S.dwellAccum[postId] || 0;
-  if (S.dwellStart[postId]) {
-    total += Date.now() - S.dwellStart[postId];
-  }
+  if (S.dwellStart[postId]) total += Date.now() - S.dwellStart[postId];
   return total;
 }
 
@@ -263,10 +280,7 @@ function updateFeedProgress() {
   const total = S.posts.length;
   $('reacted-count').textContent = reacted;
   $('feed-fill').style.width = total > 0 ? `${(reacted / total) * 100}%` : '0%';
-
-  if (reacted >= total) {
-    $('feed-footer').classList.add('visible');
-  }
+  if (reacted >= total) $('feed-footer').classList.add('visible');
 }
 
 function setupDwellObserver() {
@@ -283,7 +297,6 @@ function setupDwellObserver() {
       }
     });
   }, { threshold: 0.4 });
-
   document.querySelectorAll('.feed-post').forEach(el => observer.observe(el));
 }
 
@@ -315,22 +328,20 @@ function renderRatingPost() {
   $('rating-headline').textContent = post.headline;
   $('rating-content').textContent = post.content;
 
-  // Reset Likert
   const nextBtn = $('btn-rating-next');
   nextBtn.disabled = true;
-  document.querySelectorAll('.likert-btn').forEach(b => b.classList.remove('selected'));
+  document.querySelectorAll('#likert-buttons .likert-btn').forEach(b => b.classList.remove('selected'));
 
-  // Restore previous rating if navigating back (not supported, but safe)
   const prev = S.ratingValues[post.id];
   if (prev) {
-    document.querySelector(`.likert-btn[data-value="${prev}"]`)?.classList.add('selected');
+    document.querySelector(`#likert-buttons .likert-btn[data-value="${prev}"]`)?.classList.add('selected');
     nextBtn.disabled = false;
   }
 }
 
-document.querySelectorAll('.likert-btn').forEach(btn => {
+document.querySelectorAll('#likert-buttons .likert-btn').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.likert-btn').forEach(b => b.classList.remove('selected'));
+    document.querySelectorAll('#likert-buttons .likert-btn').forEach(b => b.classList.remove('selected'));
     btn.classList.add('selected');
     const post = S.posts[S.ratingIndex];
     S.ratingValues[post.id] = Number(btn.dataset.value);
@@ -343,7 +354,6 @@ $('btn-rating-next').onclick = async () => {
   const rating = S.ratingValues[post.id];
   if (!rating) return;
 
-  // Send rating
   apiPost('/api/rating', {
     session_token: S.session.session_token,
     post_id: post.id,
@@ -359,6 +369,164 @@ $('btn-rating-next').onclick = async () => {
   } else {
     renderRatingPost();
     window.scrollTo(0, 0);
+  }
+};
+
+// ── Paged screen ───────────────────────────────────────────────────────────
+function renderPagedPost() {
+  const post = S.posts[S.pagedIndex];
+  const study = S.session.study;
+  const total = S.posts.length;
+  const isHighMetric = S.session.metric_condition === 'HIGH';
+  const metricClass = isHighMetric ? 'high' : 'low';
+
+  // Progress
+  $('paged-current').textContent = S.pagedIndex + 1;
+  $('paged-total').textContent = total;
+  $('paged-fill').style.width = `${(S.pagedIndex / total) * 100}%`;
+
+  // Header
+  $('paged-avatar').textContent = avatarInitials(post.source_name);
+  $('paged-source').textContent = post.source_name;
+  $('paged-handle').textContent = `${post.source_handle} · ${post.time_ago}`;
+
+  // Topic pill
+  const pill = $('paged-topic-pill');
+  if (study.hide_topic_badges) {
+    pill.style.display = 'none';
+  } else {
+    pill.style.display = '';
+    pill.textContent = `${post.emoji} ${post.topic}`;
+    pill.className = `topic-pill ${topicClass(post.topic)}`;
+  }
+
+  // Content
+  $('paged-headline').textContent = post.headline;
+  $('paged-content').textContent = post.content;
+
+  // Image
+  const imgWrap = $('paged-image-wrap');
+  if (post.image_url) {
+    $('paged-image').src = post.image_url;
+    imgWrap.style.display = '';
+  } else {
+    imgWrap.style.display = 'none';
+  }
+
+  // Metrics
+  $('paged-metrics').innerHTML = `
+    <span class="metric ${metricClass}">👍 ${formatNum(post.likes_shown)}</span>
+    <span class="metric ${metricClass}">👎 ${formatNum(post.dislikes_shown)}</span>
+    <span class="metric ${metricClass}">🔄 ${formatNum(post.shares_shown)}</span>
+    <span class="metric ${metricClass}">🚩 ${formatNum(post.flags_shown)}</span>
+  `;
+
+  // Reactions row
+  const actionsEl = $('paged-actions');
+  actionsEl.style.display = study.show_reactions ? '' : 'none';
+  actionsEl.querySelectorAll('.action-btn').forEach(b => b.className = 'action-btn');
+  const prevReaction = S.pagedReactions[post.id];
+  if (prevReaction) {
+    actionsEl.querySelector(`[data-action="${prevReaction}"]`)?.classList.add(`active-${prevReaction}`);
+  }
+
+  // Likert
+  const nextBtn = $('btn-paged-next');
+  nextBtn.disabled = true;
+  document.querySelectorAll('#paged-likert-buttons .likert-btn').forEach(b => b.classList.remove('selected'));
+  const prevRating = S.pagedRatings[post.id];
+  if (prevRating) {
+    document.querySelector(`#paged-likert-buttons .likert-btn[data-value="${prevRating}"]`)?.classList.add('selected');
+    nextBtn.disabled = false;
+  }
+
+  // Comment
+  const commentWrap = $('paged-comment-wrap');
+  commentWrap.style.display = study.enable_comments ? '' : 'none';
+  if (study.enable_comments) {
+    $('paged-comment').value = S.pagedComments[post.id] || '';
+  }
+
+  // Navigation
+  $('btn-paged-back').disabled = S.pagedIndex === 0;
+
+  // Track dwell
+  S.pagedDwellStart[post.id] = Date.now();
+
+  window.scrollTo(0, 0);
+}
+
+// Paged reaction buttons
+$('paged-actions').querySelectorAll('.action-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const post = S.posts[S.pagedIndex];
+    $('paged-actions').querySelectorAll('.action-btn').forEach(b => b.className = 'action-btn');
+    btn.classList.add(`active-${btn.dataset.action}`);
+    S.pagedReactions[post.id] = btn.dataset.action;
+  });
+});
+
+// Paged likert buttons
+document.querySelectorAll('#paged-likert-buttons .likert-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#paged-likert-buttons .likert-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    const post = S.posts[S.pagedIndex];
+    S.pagedRatings[post.id] = Number(btn.dataset.value);
+    $('btn-paged-next').disabled = false;
+  });
+});
+
+// Paged comment
+$('paged-comment').addEventListener('input', () => {
+  const post = S.posts[S.pagedIndex];
+  S.pagedComments[post.id] = $('paged-comment').value;
+});
+
+// Back
+$('btn-paged-back').onclick = () => {
+  if (S.pagedIndex === 0) return;
+  S.pagedIndex--;
+  renderPagedPost();
+};
+
+// Next
+$('btn-paged-next').onclick = async () => {
+  const post = S.posts[S.pagedIndex];
+  const rating = S.pagedRatings[post.id];
+  if (!rating) return;
+
+  const dwellMs = S.pagedDwellStart[post.id] ? Date.now() - S.pagedDwellStart[post.id] : 0;
+  const study = S.session.study;
+
+  const payload = {
+    session_token: S.session.session_token,
+    post_id: post.id,
+    post_order: post.post_order,
+    belief_1_7: rating,
+    comment: study.enable_comments ? (S.pagedComments[post.id] || null) : null,
+  };
+
+  if (study.show_reactions && S.pagedReactions[post.id]) {
+    payload.action = S.pagedReactions[post.id];
+    payload.dwell_ms = dwellMs;
+    payload.likes_shown = post.likes_shown;
+    payload.shares_shown = post.shares_shown;
+    payload.dislikes_shown = post.dislikes_shown;
+    payload.flags_shown = post.flags_shown;
+  }
+
+  apiPost('/api/paged-response', payload).catch(() =>
+    apiPost('/api/paged-response', payload).catch(() => {})
+  );
+
+  S.pagedIndex++;
+  $('paged-fill').style.width = `${(S.pagedIndex / S.posts.length) * 100}%`;
+
+  if (S.pagedIndex >= S.posts.length) {
+    await completeSession();
+  } else {
+    renderPagedPost();
   }
 };
 

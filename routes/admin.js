@@ -107,6 +107,7 @@ router.patch('/studies/:id', auth, (req, res) => {
     'enable_condition_a', 'enable_condition_b',
     'enable_metrics_high', 'enable_metrics_low',
     'hide_topic_badges',
+    'layout_type', 'show_reactions', 'enable_comments',
     'consent_text', 'instruction_text', 'transition_feed_text', 'transition_rating_text', 'debrief_text',
   ];
   const updates = {};

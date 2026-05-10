@@ -98,6 +98,9 @@ router.post('/session/start', (req, res) => {
       transition_feed_text: study.transition_feed_text || db.DEFAULT_TRANSITION_FEED_TEXT,
       transition_rating_text: study.transition_rating_text || db.DEFAULT_TRANSITION_RATING_TEXT,
       hide_topic_badges: study.hide_topic_badges ? true : false,
+      layout_type: study.layout_type || 'feed',
+      show_reactions: study.show_reactions !== 0,
+      enable_comments: study.enable_comments ? true : false,
     },
   });
 });
@@ -141,13 +144,35 @@ router.post('/reaction', (req, res) => {
 
 // POST /api/rating
 router.post('/rating', (req, res) => {
-  const { session_token, post_id, post_order, belief_1_7 } = req.body;
+  const { session_token, post_id, post_order, belief_1_7, comment } = req.body;
   const session = getSession(session_token);
   if (!session) return res.status(401).json({ error: 'Invalid session' });
 
   db.prepare('DELETE FROM ratings WHERE session_id = ? AND post_id = ?').run(session.id, post_id);
-  db.prepare('INSERT INTO ratings (session_id, post_id, post_order, belief_1_7) VALUES (?, ?, ?, ?)')
-    .run(session.id, post_id, post_order, belief_1_7);
+  db.prepare('INSERT INTO ratings (session_id, post_id, post_order, belief_1_7, comment) VALUES (?, ?, ?, ?, ?)')
+    .run(session.id, post_id, post_order, belief_1_7, comment || null);
+
+  res.json({ ok: true });
+});
+
+// POST /api/paged-response  — combined reaction + rating + comment for paged layout
+router.post('/paged-response', (req, res) => {
+  const { session_token, post_id, post_order, belief_1_7, comment,
+    action, dwell_ms, likes_shown, shares_shown, dislikes_shown, flags_shown } = req.body;
+  const session = getSession(session_token);
+  if (!session) return res.status(401).json({ error: 'Invalid session' });
+
+  if (action) {
+    db.prepare('DELETE FROM reactions WHERE session_id = ? AND post_id = ?').run(session.id, post_id);
+    db.prepare(`INSERT INTO reactions (session_id, post_id, post_order, action, dwell_ms,
+        likes_shown, shares_shown, dislikes_shown, flags_shown) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(session.id, post_id, post_order, action, dwell_ms || 0,
+        likes_shown || 0, shares_shown || 0, dislikes_shown || 0, flags_shown || 0);
+  }
+
+  db.prepare('DELETE FROM ratings WHERE session_id = ? AND post_id = ?').run(session.id, post_id);
+  db.prepare('INSERT INTO ratings (session_id, post_id, post_order, belief_1_7, comment) VALUES (?, ?, ?, ?, ?)')
+    .run(session.id, post_id, post_order, belief_1_7, comment || null);
 
   res.json({ ok: true });
 });

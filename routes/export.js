@@ -128,6 +128,7 @@ async function generateExcel(studyId) {
     { header: 'is_true', key: 'is_true', width: 10 },
     { header: 'headline_shown', key: 'headline_shown', width: 40 },
     { header: 'belief_1_7', key: 'belief_1_7', width: 12 },
+    { header: 'comment', key: 'comment', width: 40 },
     { header: 'rating_timestamp', key: 'rating_timestamp', width: 20 },
   ];
   styleHeader(s2.getRow(1));
@@ -137,7 +138,7 @@ async function generateExcel(studyId) {
       s.age, s.residence, s.education, s.gender,
       p.id as post_id, rt.post_order, p.topic, p.is_true,
       CASE WHEN s.style_condition='A' THEN p.headline_a ELSE p.headline_b END as headline_shown,
-      rt.belief_1_7, rt.timestamp as rating_timestamp
+      rt.belief_1_7, rt.comment, rt.timestamp as rating_timestamp
     FROM ratings rt
     JOIN sessions s ON rt.session_id = s.id
     JOIN posts p ON rt.post_id = p.id
@@ -151,6 +152,7 @@ async function generateExcel(studyId) {
   const s3 = wb.addWorksheet('Podsumowanie_sesji');
   s3.columns = [
     { header: 'session_id', key: 'session_id', width: 12 },
+    { header: 'layout_type', key: 'layout_type', width: 12 },
     { header: 'full_condition', key: 'full_condition', width: 14 },
     { header: 'style_condition', key: 'style_condition', width: 14 },
     { header: 'metric_condition', key: 'metric_condition', width: 15 },
@@ -172,11 +174,12 @@ async function generateExcel(studyId) {
   styleHeader(s3.getRow(1));
 
   const sessions = db.prepare(`
-    SELECT id, full_condition, style_condition, metric_condition,
-      age, residence, education, gender, started_at, completed_at,
-      ROUND(CAST((strftime('%s', completed_at) - strftime('%s', started_at)) AS REAL) / 60.0, 2) as duration_minutes
-    FROM sessions WHERE study_id = ? AND completed = 1
-    ORDER BY completed_at DESC
+    SELECT s.id, st.layout_type, s.full_condition, s.style_condition, s.metric_condition,
+      s.age, s.residence, s.education, s.gender, s.started_at, s.completed_at,
+      ROUND(CAST((strftime('%s', s.completed_at) - strftime('%s', s.started_at)) AS REAL) / 60.0, 2) as duration_minutes
+    FROM sessions s JOIN studies st ON s.study_id = st.id
+    WHERE s.study_id = ? AND s.completed = 1
+    ORDER BY s.completed_at DESC
   `).all(studyId);
 
   sessions.forEach(sess => {
@@ -210,6 +213,7 @@ async function generateExcel(studyId) {
 
     s3.addRow({
       session_id: sess.id,
+      layout_type: sess.layout_type || 'feed',
       full_condition: sess.full_condition,
       style_condition: sess.style_condition,
       metric_condition: sess.metric_condition,

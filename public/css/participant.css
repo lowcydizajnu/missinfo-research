@@ -12,20 +12,21 @@
   --success: #16a34a;
   --radius: 12px;
   --shadow: 0 2px 16px rgba(79,124,255,0.08), 0 1px 4px rgba(0,0,0,0.06);
+  --font: 'IBM Plex Sans', sans-serif;
 }
 
 /* ── Reset ───────────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
 body {
-  font-family: 'Lato', sans-serif;
+  font-family: var(--font);
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
   font-size: 16px;
   line-height: 1.6;
 }
-h1, h2, h3 { font-family: 'Syne', sans-serif; line-height: 1.2; }
+h1, h2, h3 { font-family: var(--font); font-weight: 600; line-height: 1.2; }
 a { color: var(--accent); }
 p { margin-bottom: 0.75rem; }
 p:last-child { margin-bottom: 0; }
@@ -69,7 +70,7 @@ p:last-child { margin-bottom: 0; }
   padding: 0.75rem 1.75rem;
   border: none;
   border-radius: 8px;
-  font-family: 'Syne', sans-serif;
+  font-family: var(--font);
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
@@ -89,7 +90,7 @@ p:last-child { margin-bottom: 0; }
   color: var(--muted);
   border: 1px solid var(--border);
 }
-.btn-ghost:hover { background: var(--surface2); color: var(--text); }
+.btn-ghost:hover:not(:disabled) { background: var(--surface2); color: var(--text); }
 .btn-large { padding: 1rem 2.5rem; font-size: 1.1rem; }
 
 /* ── Study badge ─────────────────────────────────────────────────────────── */
@@ -102,7 +103,7 @@ p:last-child { margin-bottom: 0; }
   font-size: 0.82rem;
   color: var(--muted);
   margin-bottom: 1rem;
-  font-family: 'Syne', sans-serif;
+  font-weight: 600;
 }
 
 /* ── Consent ─────────────────────────────────────────────────────────────── */
@@ -155,7 +156,6 @@ p:last-child { margin-bottom: 0; }
 .form-group { margin-bottom: 1.75rem; }
 .form-group > label {
   display: block;
-  font-family: 'Syne', sans-serif;
   font-weight: 600;
   margin-bottom: 0.75rem;
   font-size: 0.95rem;
@@ -202,7 +202,7 @@ p:last-child { margin-bottom: 0; }
   color: var(--muted);
   margin-bottom: 0.5rem;
   text-align: center;
-  font-family: 'Syne', sans-serif;
+  font-weight: 600;
 }
 .progress-track {
   height: 5px;
@@ -264,14 +264,13 @@ p:last-child { margin-bottom: 0; }
   background: var(--surface2);
   border: 1px solid var(--border);
   display: flex; align-items: center; justify-content: center;
-  font-family: 'Syne', sans-serif;
   font-weight: 700;
   font-size: 0.8rem;
   color: var(--accent);
   flex-shrink: 0;
 }
 .post-meta { flex: 1; min-width: 0; }
-.post-source { font-weight: 700; font-size: 0.9rem; font-family: 'Syne', sans-serif; }
+.post-source { font-weight: 700; font-size: 0.9rem; }
 .post-handle { font-size: 0.8rem; color: var(--muted); }
 
 .topic-pill {
@@ -282,7 +281,6 @@ p:last-child { margin-bottom: 0; }
   border-radius: 20px;
   font-size: 0.75rem;
   font-weight: 600;
-  font-family: 'Syne', sans-serif;
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -294,7 +292,6 @@ p:last-child { margin-bottom: 0; }
 
 .post-body { padding: 0 1rem 0.75rem; }
 .post-headline {
-  font-family: 'Syne', sans-serif;
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.35;
@@ -335,17 +332,17 @@ p:last-child { margin-bottom: 0; }
   color: var(--muted);
   cursor: pointer;
   font-size: 0.78rem;
-  font-family: 'Lato', sans-serif;
+  font-family: var(--font);
   transition: color 0.15s, background 0.15s;
   border-top: 1px solid var(--border);
 }
 .action-btn:not(:last-child) { border-right: 1px solid var(--border); }
 .action-btn .action-icon { font-size: 1.2rem; }
 .action-btn:hover { background: var(--surface2); color: var(--text); }
-.action-btn.active-like    { color: var(--accent);       background: rgba(79,124,255,0.08); }
-.action-btn.active-dislike { color: var(--error);        background: rgba(220,38,38,0.07); }
-.action-btn.active-share   { color: var(--success);      background: rgba(22,163,74,0.07); }
-.action-btn.active-flag    { color: #ca8a04;             background: rgba(202,138,4,0.07); }
+.action-btn.active-like    { color: var(--accent);  background: rgba(79,124,255,0.08); }
+.action-btn.active-dislike { color: var(--error);   background: rgba(220,38,38,0.07); }
+.action-btn.active-share   { color: var(--success); background: rgba(22,163,74,0.07); }
+.action-btn.active-flag    { color: #ca8a04;        background: rgba(202,138,4,0.07); }
 
 /* ── Rating screen ───────────────────────────────────────────────────────── */
 .rating-card { max-width: 660px; }
@@ -358,13 +355,14 @@ p:last-child { margin-bottom: 0; }
   padding-bottom: 1rem;
   border-bottom: 1px solid var(--border);
 }
-.rating-source { font-weight: 700; font-family: 'Syne', sans-serif; font-size: 0.95rem; }
+.rating-source { font-weight: 700; font-size: 0.95rem; }
 .rating-handle { color: var(--muted); font-size: 0.85rem; }
-.rating-headline { font-family: 'Syne', sans-serif; font-size: 1.1rem; margin-bottom: 0.75rem; line-height: 1.4; }
+.rating-headline { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.75rem; line-height: 1.4; }
 .rating-content { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.75rem; line-height: 1.6; }
 
-.likert-section { margin-bottom: 2rem; }
-.likert-question { font-family: 'Syne', sans-serif; font-weight: 600; margin-bottom: 1rem; font-size: 0.95rem; }
+/* ── Likert ──────────────────────────────────────────────────────────────── */
+.likert-section { margin-bottom: 1.5rem; }
+.likert-question { font-weight: 600; margin-bottom: 1rem; font-size: 0.95rem; }
 .likert-labels {
   display: flex;
   justify-content: space-between;
@@ -377,13 +375,21 @@ p:last-child { margin-bottom: 0; }
   grid-template-columns: repeat(7, 1fr);
   gap: 0.4rem;
 }
+.likert-number-labels {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-align: center;
+  margin-top: 0.3rem;
+}
 .likert-btn {
   aspect-ratio: 1;
   border: 2px solid var(--border);
   border-radius: 8px;
   background: var(--surface2);
   color: var(--muted);
-  font-family: 'Syne', sans-serif;
+  font-family: var(--font);
   font-weight: 700;
   font-size: 1rem;
   cursor: pointer;
@@ -403,14 +409,58 @@ p:last-child { margin-bottom: 0; }
 .likert-btn.selected { background: var(--lc); border-color: var(--lc); color: #fff; }
 .likert-btn:not(.selected):hover { color: var(--lc); border-color: var(--lc); }
 
+/* ── Paged screen ────────────────────────────────────────────────────────── */
+.paged-card {
+  max-width: 660px;
+  padding: 0;
+  overflow: hidden;
+}
+.paged-card .post-header { padding: 1.25rem 1.25rem 0.75rem; }
+.paged-card .post-body   { padding: 0 1.25rem 0.75rem; }
+.paged-card .post-metrics { padding: 0.6rem 1.25rem; }
+.paged-card .likert-section { padding: 1.25rem 1.25rem 0; }
+.paged-card .likert-question { font-size: 0.92rem; }
+
+.paged-comment-area {
+  width: 100%;
+  font-family: var(--font);
+  font-size: 0.9rem;
+  color: var(--text);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  resize: vertical;
+  min-height: 80px;
+  line-height: 1.6;
+  transition: border-color 0.15s;
+}
+.paged-comment-area:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--surface);
+}
+
+#paged-comment-wrap { padding: 0 1.25rem 0; }
+
+.paged-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem;
+  border-top: 1px solid var(--border);
+  background: var(--surface2);
+  margin-top: 1.25rem;
+}
+
 /* ── Debrief ─────────────────────────────────────────────────────────────── */
 .debrief-card { max-width: 760px; }
 .debrief-header { text-align: center; margin-bottom: 2rem; }
 .debrief-header h1 { font-size: 1.8rem; }
 .debrief-section { margin-bottom: 2rem; }
 .debrief-section h3 {
-  font-family: 'Syne', sans-serif;
   font-size: 1.1rem;
+  font-weight: 600;
   color: var(--accent);
   margin-bottom: 0.75rem;
   padding-bottom: 0.5rem;
@@ -438,7 +488,6 @@ p:last-child { margin-bottom: 0; }
   border-radius: 6px;
   font-size: 0.72rem;
   font-weight: 700;
-  font-family: 'Syne', sans-serif;
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -461,4 +510,6 @@ p:last-child { margin-bottom: 0; }
   .consent-actions { flex-direction: column; }
   .consent-actions .btn { width: 100%; }
   .likert-btn { font-size: 0.85rem; }
+  .paged-nav { flex-direction: column-reverse; gap: 0.75rem; }
+  .paged-nav .btn { width: 100%; }
 }
