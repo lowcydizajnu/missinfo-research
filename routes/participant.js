@@ -7,17 +7,12 @@ function getSession(token) {
   return db.prepare('SELECT * FROM sessions WHERE session_token = ?').get(token);
 }
 
-function randInt(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-function calcMetrics(post, condObj) {
-  const { min, max } = condObj;
+function calcMetrics(post) {
   return {
-    likes_shown: randInt(min, max),
-    shares_shown: randInt(min, max),
-    dislikes_shown: randInt(min, max),
-    flags_shown: randInt(min, max),
+    likes_shown:    post.base_likes    || 0,
+    shares_shown:   post.base_shares   || 0,
+    dislikes_shown: post.base_dislikes || 0,
+    flags_shown:    post.base_flags    || 0,
   };
 }
 
@@ -67,7 +62,7 @@ router.post('/session/start', (req, res) => {
   `).run(study_id, token, style_condition, metric_condition, full_condition);
 
   const posts = shuffled.map((post, idx) => {
-    const metrics = calcMetrics(post, metricCondObj);
+    const metrics = calcMetrics(post);
     return {
       id: post.id,
       post_order: idx + 1,

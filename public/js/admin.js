@@ -277,9 +277,6 @@ async function openStudySettings(id) {
       { key: 'LOW',  label: 'Bez komentarza',   min: s.low_metrics_min  || 100, max: s.low_metrics_max  || 500, enabled: s.enable_metrics_low  ? true : false, show_comment: false },
     ];
   }
-  // Global metric range — use first condition's values as the shared placeholder range
-  const globalMetricsMin = mcArr[0]?.min ?? s.high_metrics_min ?? 100;
-  const globalMetricsMax = mcArr[0]?.max ?? s.high_metrics_max ?? 500;
   const mcHTML = mcArr.map(c => metricConditionRowHTML(c)).join('');
 
   showModal(`
@@ -375,13 +372,6 @@ async function openStudySettings(id) {
     <p style="font-size:0.8rem;color:var(--muted);margin-bottom:0.75rem">Każdy uczestnik losowo trafia do jednego z aktywnych warunków. Użyj przełącznika 💬, aby pokazać komentarz debunkujący tylko w wybranych warunkach.</p>
     <div id="es-metric-conditions" style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:0.75rem">
       ${mcHTML}
-    </div>
-    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1.25rem;flex-wrap:wrap">
-      <span style="font-size:0.8rem;color:var(--muted)">Zakres liczb metryk (placeholder):</span>
-      <input type="number" id="es-global-metrics-min" value="${globalMetricsMin}" style="width:5.5rem">
-      <span style="font-size:0.8rem;color:var(--muted)">–</span>
-      <input type="number" id="es-global-metrics-max" value="${globalMetricsMax}" style="width:5.5rem">
-      <span style="font-size:0.75rem;color:var(--muted)">(liczby losowane z tego zakresu dla wszystkich warunków)</span>
     </div>
 
     <div class="toggle-row" style="margin-bottom:1rem">
@@ -484,13 +474,9 @@ async function openStudySettings(id) {
 async function saveStudySettings(id) {
   // Collect metric conditions from DOM
   const metricRows = document.querySelectorAll('#es-metric-conditions .metric-condition-row');
-  const globalMin = Number(document.getElementById('es-global-metrics-min').value) || 100;
-  const globalMax = Number(document.getElementById('es-global-metrics-max').value) || 500;
   const metric_conditions_json = JSON.stringify(Array.from(metricRows).map(row => ({
     key: row.dataset.key || ('K' + Date.now()),
     label: row.querySelector('.mc-label').value.trim() || 'Warunek',
-    min: globalMin,
-    max: globalMax,
     enabled: row.querySelector('.mc-enabled').checked,
     show_comment: row.querySelector('.mc-show-comment').checked,
   })));
