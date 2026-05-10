@@ -687,6 +687,10 @@ function postFormHTML(p, techs) {
     <div class="form-group"><label>Nagłówek B</label><textarea id="pf-hb-${p.id}" rows="2">${esc(p.headline_b||'')}</textarea></div>
     <div class="form-group"><label>Treść B</label><textarea id="pf-cb-${p.id}" rows="3">${esc(p.content_b||'')}</textarea></div>
 
+    <div class="form-section-title">Komentarz eksperymentatora (opcjonalnie)</div>
+    <div class="form-group"><label>Autor komentarza (wyświetlany nick/nazwa)</label><input type="text" id="pf-cauth-${p.id}" value="${esc(p.post_comment_author||'')}" placeholder="np. Zdrowie Polska"></div>
+    <div class="form-group"><label>Treść komentarza</label><textarea id="pf-cmt-${p.id}" rows="2" placeholder="Komentarz wyświetlany pod postem jako wpis społecznościowy...">${esc(p.post_comment||'')}</textarea></div>
+
     <div class="form-section-title">Techniki manipulacji</div>
     <div class="checkbox-grid">${techCbs}</div>
 
@@ -736,6 +740,8 @@ async function savePost(id) {
     base_shares: Number(document.getElementById(`pf-shares-${id}`).value),
     base_dislikes: Number(document.getElementById(`pf-dislikes-${id}`).value),
     base_flags: Number(document.getElementById(`pf-flags-${id}`).value),
+    post_comment: document.getElementById(`pf-cmt-${id}`).value.trim() || null,
+    post_comment_author: document.getElementById(`pf-cauth-${id}`).value.trim() || null,
   };
   const data = await api('PATCH', `/posts/${id}`, body);
   if (!data) return;

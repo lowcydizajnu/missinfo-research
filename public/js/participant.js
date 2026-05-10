@@ -15,7 +15,6 @@ const S = {
   pagedIndex: 0,
   pagedRatings: {},    // {postId: 1-7}
   pagedReactions: {},  // {postId: action}
-  pagedComments: {},   // {postId: text}
   pagedDwellStart: {}, // {postId: timestamp when shown}
 };
 
@@ -470,11 +469,16 @@ function renderPagedPost() {
     nextBtn.disabled = false;
   }
 
-  // Comment
-  const commentWrap = $('paged-comment-wrap');
-  commentWrap.style.display = study.enable_comments ? '' : 'none';
-  if (study.enable_comments) {
-    $('paged-comment').value = S.pagedComments[post.id] || '';
+  // Researcher comment
+  const postCommentEl = $('paged-post-comment');
+  if (post.post_comment) {
+    postCommentEl.style.display = '';
+    const author = post.post_comment_author || post.source_name;
+    $('paged-comment-avatar').textContent = avatarInitials(author);
+    $('paged-comment-author').textContent = author;
+    $('paged-comment-text').textContent = post.post_comment;
+  } else {
+    postCommentEl.style.display = 'none';
   }
 
   // Navigation
@@ -507,12 +511,6 @@ document.querySelectorAll('#paged-likert-buttons .likert-btn').forEach(btn => {
   });
 });
 
-// Paged comment
-$('paged-comment').addEventListener('input', () => {
-  const post = S.posts[S.pagedIndex];
-  S.pagedComments[post.id] = $('paged-comment').value;
-});
-
 // Back
 $('btn-paged-back').onclick = () => {
   if (S.pagedIndex === 0) return;
@@ -534,7 +532,6 @@ $('btn-paged-next').onclick = async () => {
     post_id: post.id,
     post_order: post.post_order,
     belief_1_7: rating,
-    comment: study.enable_comments ? (S.pagedComments[post.id] || null) : null,
   };
 
   if (study.show_reactions && S.pagedReactions[post.id]) {

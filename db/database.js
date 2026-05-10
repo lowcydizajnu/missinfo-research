@@ -282,6 +282,8 @@ migrate('ALTER TABLE studies ADD COLUMN show_instructions BOOLEAN DEFAULT 1');
 migrate('ALTER TABLE studies ADD COLUMN show_transition_feed BOOLEAN DEFAULT 1');
 migrate('ALTER TABLE studies ADD COLUMN show_transition_rating BOOLEAN DEFAULT 1');
 migrate('ALTER TABLE studies ADD COLUMN show_debrief BOOLEAN DEFAULT 1');
+migrate('ALTER TABLE posts ADD COLUMN post_comment TEXT');
+migrate('ALTER TABLE posts ADD COLUMN post_comment_author TEXT');
 migrate("ALTER TABLE studies ADD COLUMN label_style_a TEXT DEFAULT 'Styl A (manipulacyjny)'");
 migrate("ALTER TABLE studies ADD COLUMN label_style_b TEXT DEFAULT 'Styl B (neutralny)'");
 migrate('ALTER TABLE studies ADD COLUMN metric_conditions_json TEXT DEFAULT NULL');

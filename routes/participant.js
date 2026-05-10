@@ -81,6 +81,8 @@ router.post('/session/start', (req, res) => {
       is_true: post.is_true ? true : false,
       image_url: post.image_path ? `/uploads/${study_id}/${post.image_path}` : null,
       manipulation_techniques: JSON.parse(post.manipulation_techniques || '[]'),
+      post_comment: post.post_comment || null,
+      post_comment_author: post.post_comment_author || null,
       ...metrics,
     };
   });

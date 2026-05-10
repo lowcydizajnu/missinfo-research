@@ -410,47 +410,96 @@ p:last-child { margin-bottom: 0; }
 .likert-btn:not(.selected):hover { color: var(--lc); border-color: var(--lc); }
 
 /* ── Paged screen ────────────────────────────────────────────────────────── */
-.paged-card {
+#screen-paged .screen-inner { padding: 0 1.25rem; }
+
+.paged-outer {
+  width: 100%;
   max-width: 660px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.5rem 0 3rem;
+}
+
+.paged-card {
   padding: 0;
   overflow: hidden;
 }
-.paged-card .post-header { padding: 1.25rem 1.25rem 0.75rem; }
-.paged-card .post-body   { padding: 0 1.25rem 0.75rem; }
+.paged-card .post-header  { padding: 1.25rem 1.25rem 0.75rem; }
+.paged-card .post-body    { padding: 0 1.25rem 0.75rem; }
 .paged-card .post-metrics { padding: 0.6rem 1.25rem; }
-.paged-card .likert-section { padding: 1.25rem 1.25rem 0; }
-.paged-card .likert-question { font-size: 0.92rem; }
 
-.paged-comment-area {
-  width: 100%;
-  font-family: var(--font);
-  font-size: 0.9rem;
-  color: var(--text);
+/* Researcher comment block inside the white card */
+.post-comment-divider {
+  border-top: 1px solid var(--border);
+}
+.post-comment-entry {
+  display: flex;
+  gap: 0.65rem;
+  padding: 0.85rem 1.25rem;
+}
+.post-comment-avatar {
+  width: 28px; height: 28px;
+  border-radius: 50%;
   background: var(--surface2);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
-  resize: vertical;
-  min-height: 80px;
-  line-height: 1.6;
-  transition: border-color 0.15s;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700;
+  font-size: 0.65rem;
+  color: var(--muted);
+  flex-shrink: 0;
 }
-.paged-comment-area:focus {
-  outline: none;
-  border-color: var(--accent);
-  background: var(--surface);
+.post-comment-body { flex: 1; min-width: 0; }
+.post-comment-author {
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--text);
+  display: block;
+  margin-bottom: 0.15rem;
+}
+.post-comment-text {
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.55;
+  margin-bottom: 0;
 }
 
-#paged-comment-wrap { padding: 0 1.25rem 0; }
+/* Likert outside the card */
+.paged-rating-section {
+  background: transparent;
+  padding: 0.5rem 0.25rem;
+}
+.paged-rating-section .likert-question {
+  font-size: 0.92rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: var(--text);
+}
+.paged-rating-section .likert-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+}
+.paged-rating-section .likert-buttons {
+  display: flex;
+  gap: 0.4rem;
+}
+.paged-rating-section .likert-btn {
+  flex: 1;
+  aspect-ratio: unset;
+  height: 46px;
+  font-size: 0.88rem;
+}
 
+/* Navigation below likert */
 .paged-nav {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.25rem;
-  border-top: 1px solid var(--border);
-  background: var(--surface2);
-  margin-top: 1.25rem;
+  gap: 1rem;
 }
 
 /* ── Debrief ─────────────────────────────────────────────────────────────── */

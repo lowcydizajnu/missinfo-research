@@ -230,7 +230,8 @@ router.patch('/posts/:id', auth, (req, res) => {
 
   const fields = ['topic', 'emoji', 'source_name', 'source_handle', 'time_ago',
     'headline_a', 'content_a', 'headline_b', 'content_b', 'is_true',
-    'manipulation_techniques', 'base_likes', 'base_shares', 'base_dislikes', 'base_flags', 'is_active'];
+    'manipulation_techniques', 'base_likes', 'base_shares', 'base_dislikes', 'base_flags', 'is_active',
+    'post_comment', 'post_comment_author'];
 
   const updates = {};
   fields.forEach(f => {
