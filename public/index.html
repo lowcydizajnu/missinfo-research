@@ -150,10 +150,10 @@
       <h3 class="rating-headline" id="rating-headline"></h3>
       <p class="rating-content" id="rating-content"></p>
       <div class="likert-section">
-        <p class="likert-question">Jak oceniasz wiarygodność tego postu?</p>
+        <p class="likert-question" id="rating-likert-question">Jak oceniasz wiarygodność tego postu?</p>
         <div class="likert-labels">
-          <span>Zupełnie niewiarygodna</span>
-          <span>W pełni wiarygodna</span>
+          <span id="rating-likert-min">Zupełnie niewiarygodna</span>
+          <span id="rating-likert-max">W pełni wiarygodna</span>
         </div>
         <div class="likert-buttons" id="likert-buttons">
           <button class="likert-btn" data-value="1">1</button>
@@ -163,9 +163,6 @@
           <button class="likert-btn" data-value="5">5</button>
           <button class="likert-btn" data-value="6">6</button>
           <button class="likert-btn" data-value="7">7</button>
-        </div>
-        <div class="likert-number-labels">
-          <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span>
         </div>
       </div>
       <button class="btn btn-primary" id="btn-rating-next" disabled>Dalej</button>
@@ -203,10 +200,10 @@
         </div>
         <div class="post-metrics" id="paged-metrics"></div>
         <div class="post-actions" id="paged-actions">
-          <button class="action-btn" data-action="like"><span class="action-icon">👍</span>Lubię to</button>
-          <button class="action-btn" data-action="dislike"><span class="action-icon">👎</span>Nie lubię</button>
-          <button class="action-btn" data-action="share"><span class="action-icon">🔄</span>Udostępnij</button>
-          <button class="action-btn" data-action="flag"><span class="action-icon">🚩</span>Zgłoś</button>
+          <button class="action-btn" data-action="like"><span class="action-icon">👍</span><span id="paged-lbl-like">Lubię to</span></button>
+          <button class="action-btn" data-action="dislike"><span class="action-icon">👎</span><span id="paged-lbl-dislike">Nie lubię</span></button>
+          <button class="action-btn" data-action="share"><span class="action-icon">🔄</span><span id="paged-lbl-share">Udostępnij</span></button>
+          <button class="action-btn" data-action="flag"><span class="action-icon">🚩</span><span id="paged-lbl-flag">Zgłoś</span></button>
         </div>
         <!-- Researcher comment shown as social-media comment -->
         <div id="paged-post-comment" style="display:none">
@@ -223,10 +220,10 @@
 
       <!-- ── Outside card: Likert scale ── -->
       <div class="paged-rating-section">
-        <p class="likert-question">Jak oceniasz wiarygodność tego postu?</p>
+        <p class="likert-question" id="paged-likert-question">Jak oceniasz wiarygodność tego postu?</p>
         <div class="likert-labels">
-          <span>Zupełnie niewiarygodna</span>
-          <span>W pełni wiarygodna</span>
+          <span id="paged-likert-min">Zupełnie niewiarygodna</span>
+          <span id="paged-likert-max">W pełni wiarygodna</span>
         </div>
         <div class="likert-buttons" id="paged-likert-buttons">
           <button class="likert-btn" data-value="1">1</button>
@@ -237,6 +234,11 @@
           <button class="likert-btn" data-value="6">6</button>
           <button class="likert-btn" data-value="7">7</button>
         </div>
+      </div>
+
+      <!-- ── Participant comment (custom mode only) ── -->
+      <div id="paged-participant-comment-wrap" style="display:none">
+        <textarea id="paged-participant-comment" class="paged-comment-area" rows="3"></textarea>
       </div>
 
       <!-- ── Navigation ── -->

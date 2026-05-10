@@ -284,6 +284,14 @@ migrate('ALTER TABLE studies ADD COLUMN show_transition_rating BOOLEAN DEFAULT 1
 migrate('ALTER TABLE studies ADD COLUMN show_debrief BOOLEAN DEFAULT 1');
 migrate('ALTER TABLE posts ADD COLUMN post_comment TEXT');
 migrate('ALTER TABLE posts ADD COLUMN post_comment_author TEXT');
+migrate("ALTER TABLE studies ADD COLUMN label_action_like TEXT DEFAULT 'Lubię to'");
+migrate("ALTER TABLE studies ADD COLUMN label_action_dislike TEXT DEFAULT 'Nie lubię'");
+migrate("ALTER TABLE studies ADD COLUMN label_action_share TEXT DEFAULT 'Udostępnij'");
+migrate("ALTER TABLE studies ADD COLUMN label_action_flag TEXT DEFAULT 'Zgłoś'");
+migrate("ALTER TABLE studies ADD COLUMN label_likert_question TEXT DEFAULT 'Jak oceniasz wiarygodność tego postu?'");
+migrate("ALTER TABLE studies ADD COLUMN label_likert_min TEXT DEFAULT 'Zupełnie niewiarygodna'");
+migrate("ALTER TABLE studies ADD COLUMN label_likert_max TEXT DEFAULT 'W pełni wiarygodna'");
+migrate("ALTER TABLE studies ADD COLUMN comment_placeholder TEXT DEFAULT 'Napisz komentarz do tego postu...'");
 migrate("ALTER TABLE studies ADD COLUMN label_style_a TEXT DEFAULT 'Styl A (manipulacyjny)'");
 migrate("ALTER TABLE studies ADD COLUMN label_style_b TEXT DEFAULT 'Styl B (neutralny)'");
 migrate('ALTER TABLE studies ADD COLUMN metric_conditions_json TEXT DEFAULT NULL');

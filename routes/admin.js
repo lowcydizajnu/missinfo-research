@@ -110,6 +110,8 @@ router.patch('/studies/:id', auth, (req, res) => {
     'layout_type', 'show_reactions', 'enable_comments',
     'show_instructions', 'show_transition_feed', 'show_transition_rating', 'show_debrief',
     'label_style_a', 'label_style_b', 'metric_conditions_json', 'show_metrics',
+    'label_action_like', 'label_action_dislike', 'label_action_share', 'label_action_flag',
+    'label_likert_question', 'label_likert_min', 'label_likert_max', 'comment_placeholder',
     'consent_text', 'instruction_text', 'transition_feed_text', 'transition_rating_text', 'debrief_text',
   ];
   const updates = {};

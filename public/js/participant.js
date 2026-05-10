@@ -516,14 +516,16 @@ function renderPagedPost() {
   // Participant comment textarea (custom layout)
   const commentWrap  = $('paged-participant-comment-wrap');
   const commentInput = $('paged-participant-comment');
-  if (study.enable_comments) {
-    commentWrap.style.display = '';
-    if (commentInput) {
-      commentInput.placeholder = study.comment_placeholder || 'Napisz komentarz do tego postu...';
-      commentInput.value = S.pagedComments[post.id] || '';
+  if (commentWrap) {
+    if (study.enable_comments) {
+      commentWrap.style.display = '';
+      if (commentInput) {
+        commentInput.placeholder = study.comment_placeholder || 'Napisz komentarz do tego postu...';
+        commentInput.value = S.pagedComments[post.id] || '';
+      }
+    } else {
+      commentWrap.style.display = 'none';
     }
-  } else {
-    commentWrap.style.display = 'none';
   }
 
   // Navigation
@@ -588,8 +590,8 @@ $('btn-paged-next').onclick = async () => {
     payload.flags_shown = post.flags_shown;
   }
 
-  if (study.enable_comments) {
-    const commentVal = ($('paged-participant-comment')?.value || '').trim();
+  if (study.enable_comments && $('paged-participant-comment')) {
+    const commentVal = ($('paged-participant-comment').value || '').trim();
     S.pagedComments[post.id] = commentVal;
     payload.comment = commentVal || null;
   }

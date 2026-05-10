@@ -115,6 +115,14 @@ router.post('/session/start', (req, res) => {
       show_comment_in_condition: metricCondObj.show_comment ? true : false,
       label_style_a: study.label_style_a || 'Styl A (manipulacyjny)',
       label_style_b: study.label_style_b || 'Styl B (neutralny)',
+      label_action_like: study.label_action_like || 'Lubię to',
+      label_action_dislike: study.label_action_dislike || 'Nie lubię',
+      label_action_share: study.label_action_share || 'Udostępnij',
+      label_action_flag: study.label_action_flag || 'Zgłoś',
+      label_likert_question: study.label_likert_question || 'Jak oceniasz wiarygodność tego postu?',
+      label_likert_min: study.label_likert_min || 'Zupełnie niewiarygodna',
+      label_likert_max: study.label_likert_max || 'W pełni wiarygodna',
+      comment_placeholder: study.comment_placeholder || 'Napisz komentarz do tego postu...',
     },
   });
 });
