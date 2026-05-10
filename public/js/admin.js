@@ -494,7 +494,6 @@ async function loadDashboard(studyId) {
 }
 
 function renderDashboard(d, studyId) {
-  const conds = ['A-HIGH', 'A-LOW', 'B-HIGH', 'B-LOW'];
   const comp = d.conditions_completion || {};
   const bf = d.conditions_mean_belief_false || {};
   const bt = d.conditions_mean_belief_true || {};
@@ -504,25 +503,52 @@ function renderDashboard(d, studyId) {
   const study = S.studies.find(s => s.id == studyId);
   const slug = study?.slug || '';
 
+  // ── Resolve actual condition names from study settings ──────────────────
+  const styleConds = [
+    { key: 'A', label: study?.label_style_a || 'Styl A', enabled: study?.enable_condition_a },
+    { key: 'B', label: study?.label_style_b || 'Styl B', enabled: study?.enable_condition_b },
+  ].filter(c => c.enabled);
+
+  let metricConds = [];
+  try { metricConds = JSON.parse(study?.metric_conditions_json || '[]'); } catch {}
+  if (!metricConds.length) {
+    if (study?.enable_metrics_high) metricConds.push({ key: 'HIGH', label: 'HIGH', enabled: true });
+    if (study?.enable_metrics_low)  metricConds.push({ key: 'LOW',  label: 'LOW',  enabled: true });
+  }
+  metricConds = metricConds.filter(c => c.enabled);
+
+  // Fallback: derive from keys actually present in the data
+  if (!metricConds.length || !styleConds.length) {
+    const allKeys = Object.keys({ ...comp, ...bf, ...bt });
+    const styleKeys  = [...new Set(allKeys.map(k => k.split('-')[0]))].filter(Boolean);
+    const metricKeys = [...new Set(allKeys.map(k => k.split('-').slice(1).join('-')))].filter(Boolean);
+    if (!styleConds.length)  styleKeys.forEach(k  => styleConds.push({ key: k, label: k }));
+    if (!metricConds.length) metricKeys.forEach(k => metricConds.push({ key: k, label: k }));
+  }
+
+  // All full condition combos in order
+  const allCondKeys   = styleConds.flatMap(sc => metricConds.map(mc => `${sc.key}-${mc.key}`));
+  const allCondLabels = styleConds.flatMap(sc => metricConds.map(mc => `${sc.label} / ${mc.label}`));
+
   const pivot2x2 = (label, obj) => `
     <div style="margin-bottom:1.5rem">
       <div class="section-title">${label}</div>
       <div class="table-wrap">
         <table class="pivot-table">
-          <thead><tr><th>Styl</th><th>HIGH</th><th>LOW</th><th>Łącznie</th></tr></thead>
+          <thead><tr><th>Styl</th>${metricConds.map(mc=>`<th>${esc(mc.label)}</th>`).join('')}<th>Łącznie</th></tr></thead>
           <tbody>
-            ${['A','B'].map(style => {
-              const h = obj[`${style}-HIGH`] ?? null;
-              const l = obj[`${style}-LOW`] ?? null;
-              const tot = typeof h === 'number' && typeof l === 'number' ? ((h + l) / 2) : (h ?? l ?? null);
-              return `<tr><td>Styl ${style}</td><td>${fmt(h)}</td><td>${fmt(l)}</td><td>${fmt(tot)}</td></tr>`;
+            ${styleConds.map(sc => {
+              const vals = metricConds.map(mc => obj[`${sc.key}-${mc.key}`] ?? null);
+              const nums = vals.filter(v => v != null);
+              const avg  = nums.length ? nums.reduce((a,b)=>a+b,0)/nums.length : null;
+              return `<tr><td>${esc(sc.label)}</td>${vals.map(v=>`<td>${fmt(v)}</td>`).join('')}<td>${fmt(avg)}</td></tr>`;
             }).join('')}
             <tr class="total-row"><td>Łącznie</td>
-              ${['HIGH','LOW'].map(m => {
-                const vals = ['A','B'].map(s => obj[`${s}-${m}`]).filter(v => v != null);
+              ${metricConds.map(mc => {
+                const vals = styleConds.map(sc => obj[`${sc.key}-${mc.key}`]).filter(v => v != null);
                 return `<td>${vals.length ? fmt(vals.reduce((a,b)=>a+b,0)/vals.length) : '–'}</td>`;
               }).join('')}
-              <td>${fmt(Object.values(obj).filter(v=>v!=null).reduce((a,b,_,arr)=>a+b/arr.length,0) || null)}</td>
+              <td>${(() => { const all = Object.values(obj).filter(v=>v!=null); return fmt(all.length ? all.reduce((a,b)=>a+b,0)/all.length : null); })()}</td>
             </tr>
           </tbody>
         </table>
@@ -560,14 +586,14 @@ function renderDashboard(d, studyId) {
     </div>
 
     <div style="margin-bottom:1.5rem">
-      <div class="section-title">Śr. ocena wiarygodności — prawdziwe posty</div>
+      <div class="section-title">Śr. ocena wiarygodności — porównanie warunków</div>
       <div class="table-wrap">
         <table class="pivot-table">
-          <thead><tr><th>Warunek</th>${conds.map(c=>`<th>${c}</th>`).join('')}</tr></thead>
+          <thead><tr><th>Typ posta</th>${allCondKeys.map((_,i)=>`<th style="font-size:0.7rem">${esc(allCondLabels[i])}</th>`).join('')}</tr></thead>
           <tbody>
-            <tr><td>Fałszywe posty</td>${conds.map(c=>`<td>${fmt(bf[c])}</td>`).join('')}</tr>
-            <tr><td>Prawdziwe posty</td>${conds.map(c=>`<td>${fmt(bt[c])}</td>`).join('')}</tr>
-            <tr class="total-row"><td>Różnica</td>${conds.map(c=>`<td>${bf[c]!=null&&bt[c]!=null ? fmt(bt[c]-bf[c]) : '–'}</td>`).join('')}</tr>
+            <tr><td>Fałszywe posty</td>${allCondKeys.map(k=>`<td>${fmt(bf[k])}</td>`).join('')}</tr>
+            <tr><td>Prawdziwe posty</td>${allCondKeys.map(k=>`<td>${fmt(bt[k])}</td>`).join('')}</tr>
+            <tr class="total-row"><td>Różnica</td>${allCondKeys.map(k=>`<td>${bf[k]!=null&&bt[k]!=null ? fmt(bt[k]-bf[k]) : '–'}</td>`).join('')}</tr>
           </tbody>
         </table>
       </div>
