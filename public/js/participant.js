@@ -92,8 +92,12 @@ function renderConsentScreen(study) {
   $('btn-consent-agree').onclick = async () => {
     try {
       await apiPost('/api/session/consent', { session_token: S.session.session_token, consented: true });
-      renderInstructionScreen(study);
-      showScreen('screen-instructions');
+      if (study.show_instructions) {
+        renderInstructionScreen(study);
+        showScreen('screen-instructions');
+      } else {
+        showScreen('screen-demographics');
+      }
     } catch (e) { showError(e.message); }
   };
 
@@ -155,13 +159,18 @@ function renderInstructionScreen(study) {
         education: fd.get('education'),
         gender: fd.get('gender'),
       });
-      showScreen('screen-transition-feed');
+      const study = S.session.study;
+      if (study.show_transition_feed) {
+        showScreen('screen-transition-feed');
+      } else {
+        startMainPhase();
+      }
     } catch (err) { showError(err.message); }
   });
 })();
 
 // ── Screen 4: Transition ───────────────────────────────────────────────────
-$('btn-start-feed').onclick = () => {
+function startMainPhase() {
   if (S.session.study.layout_type === 'paged') {
     S.pagedIndex = 0;
     renderPagedPost();
@@ -170,7 +179,9 @@ $('btn-start-feed').onclick = () => {
     renderFeed();
     showScreen('screen-feed');
   }
-};
+}
+
+$('btn-start-feed').onclick = () => startMainPhase();
 
 // ── Screen 5: Feed ────────────────────────────────────────────────────────
 function renderFeed() {
@@ -300,7 +311,15 @@ function setupDwellObserver() {
   document.querySelectorAll('.feed-post').forEach(el => observer.observe(el));
 }
 
-$('btn-proceed-feed').onclick = () => showScreen('screen-transition-rating');
+$('btn-proceed-feed').onclick = () => {
+  if (S.session.study.show_transition_rating) {
+    showScreen('screen-transition-rating');
+  } else {
+    S.ratingIndex = 0;
+    renderRatingPost();
+    showScreen('screen-rating');
+  }
+};
 
 // ── Screen 6: Transition to rating ────────────────────────────────────────
 $('btn-start-rating').onclick = () => {
@@ -534,8 +553,12 @@ $('btn-paged-next').onclick = async () => {
 async function completeSession() {
   try {
     const data = await apiPost('/api/session/complete', { session_token: S.session.session_token });
-    renderDebrief(data);
-    showScreen('screen-debrief');
+    if (S.session.study.show_debrief) {
+      renderDebrief(data);
+      showScreen('screen-debrief');
+    } else {
+      showScreen('screen-complete');
+    }
   } catch (e) {
     showError('Błąd podczas kończenia sesji: ' + e.message);
   }

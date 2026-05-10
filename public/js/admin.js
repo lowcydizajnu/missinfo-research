@@ -288,17 +288,41 @@ async function openStudySettings(id) {
     <div class="modal-section-title">Ekran 1 — Zgoda uczestnika</div>
     <div class="form-group"><label>Treść zgody (puste = domyślna)</label><textarea id="es-consent" rows="5">${esc(s.consent_text || '')}</textarea></div>
 
-    <div class="modal-section-title">Ekran 2 — Instrukcja</div>
-    <div class="form-group"><label>Treść instrukcji (puste = domyślna)</label><textarea id="es-instr" rows="5">${esc(s.instruction_text || '')}</textarea></div>
+    <div class="modal-section-title screen-toggle-title">
+      <span>Ekran 2 — Instrukcja</span>
+      <label class="toggle-wrap" style="margin-left:auto;gap:0.5rem">
+        <label class="toggle"><input type="checkbox" id="es-show-instr" ${s.show_instructions !== 0 ? 'checked' : ''}><span class="toggle-slider"></span></label>
+        <span class="toggle-label">Pokaż ekran</span>
+      </label>
+    </div>
+    <div class="form-group screen-section" id="es-instr-wrap"><label>Treść instrukcji (puste = domyślna)</label><textarea id="es-instr" rows="5">${esc(s.instruction_text || '')}</textarea></div>
 
-    <div class="modal-section-title">Ekran 4 — Przejście do feeda</div>
-    <div class="form-group"><label>Tekst przejścia (puste = domyślny)</label><textarea id="es-tf" rows="4">${esc(s.transition_feed_text || '')}</textarea></div>
+    <div class="modal-section-title screen-toggle-title">
+      <span>Ekran 4 — Przejście do feeda / oceny</span>
+      <label class="toggle-wrap" style="margin-left:auto;gap:0.5rem">
+        <label class="toggle"><input type="checkbox" id="es-show-tf" ${s.show_transition_feed !== 0 ? 'checked' : ''}><span class="toggle-slider"></span></label>
+        <span class="toggle-label">Pokaż ekran</span>
+      </label>
+    </div>
+    <div class="form-group screen-section" id="es-tf-wrap"><label>Tekst przejścia (puste = domyślny)</label><textarea id="es-tf" rows="4">${esc(s.transition_feed_text || '')}</textarea></div>
 
-    <div class="modal-section-title">Ekran 6 — Przejście do oceny</div>
-    <div class="form-group"><label>Tekst przejścia (puste = domyślny)</label><textarea id="es-tr" rows="4">${esc(s.transition_rating_text || '')}</textarea></div>
+    <div class="modal-section-title screen-toggle-title">
+      <span>Ekran 6 — Przejście do oceny <span style="font-size:0.75rem;color:var(--muted)">(tylko tryb Feed)</span></span>
+      <label class="toggle-wrap" style="margin-left:auto;gap:0.5rem">
+        <label class="toggle"><input type="checkbox" id="es-show-tr" ${s.show_transition_rating !== 0 ? 'checked' : ''}><span class="toggle-slider"></span></label>
+        <span class="toggle-label">Pokaż ekran</span>
+      </label>
+    </div>
+    <div class="form-group screen-section" id="es-tr-wrap"><label>Tekst przejścia (puste = domyślny)</label><textarea id="es-tr" rows="4">${esc(s.transition_rating_text || '')}</textarea></div>
 
-    <div class="modal-section-title">Ekran 8 — Debriefing</div>
-    <div class="form-group"><label>Tekst debriefingu (puste = domyślny)</label><textarea id="es-debrief" rows="5">${esc(s.debrief_text || '')}</textarea></div>
+    <div class="modal-section-title screen-toggle-title">
+      <span>Ekran 8 — Debriefing</span>
+      <label class="toggle-wrap" style="margin-left:auto;gap:0.5rem">
+        <label class="toggle"><input type="checkbox" id="es-show-debrief" ${s.show_debrief !== 0 ? 'checked' : ''}><span class="toggle-slider"></span></label>
+        <span class="toggle-label">Pokaż ekran</span>
+      </label>
+    </div>
+    <div class="form-group screen-section" id="es-debrief-wrap"><label>Tekst debriefingu (puste = domyślny)</label><textarea id="es-debrief" rows="5">${esc(s.debrief_text || '')}</textarea></div>
 
     <div class="modal-footer">
       <button class="btn btn-primary" onclick="saveStudySettings(${id})">Zapisz</button>
@@ -308,6 +332,24 @@ async function openStudySettings(id) {
   document.getElementById('es-layout').addEventListener('change', e => {
     document.getElementById('es-paged-options').style.display =
       e.target.value === 'paged' ? '' : 'none';
+  });
+
+  // Screen toggle visibility
+  [
+    { cb: 'es-show-instr',   wrap: 'es-instr-wrap' },
+    { cb: 'es-show-tf',      wrap: 'es-tf-wrap' },
+    { cb: 'es-show-tr',      wrap: 'es-tr-wrap' },
+    { cb: 'es-show-debrief', wrap: 'es-debrief-wrap' },
+  ].forEach(({ cb, wrap }) => {
+    const cbEl = document.getElementById(cb);
+    const wrapEl = document.getElementById(wrap);
+    if (!cbEl || !wrapEl) return;
+    wrapEl.style.opacity = cbEl.checked ? '1' : '0.4';
+    wrapEl.style.pointerEvents = cbEl.checked ? '' : 'none';
+    cbEl.addEventListener('change', () => {
+      wrapEl.style.opacity = cbEl.checked ? '1' : '0.4';
+      wrapEl.style.pointerEvents = cbEl.checked ? '' : 'none';
+    });
   });
 }
 
@@ -334,9 +376,13 @@ async function saveStudySettings(id) {
     enable_comments: document.getElementById('es-layout').value === 'paged'
       ? (document.getElementById('es-comments').checked ? 1 : 0) : 0,
     consent_text: document.getElementById('es-consent').value.trim() || null,
+    show_instructions: document.getElementById('es-show-instr').checked ? 1 : 0,
     instruction_text: document.getElementById('es-instr').value.trim() || null,
+    show_transition_feed: document.getElementById('es-show-tf').checked ? 1 : 0,
     transition_feed_text: document.getElementById('es-tf').value.trim() || null,
+    show_transition_rating: document.getElementById('es-show-tr').checked ? 1 : 0,
     transition_rating_text: document.getElementById('es-tr').value.trim() || null,
+    show_debrief: document.getElementById('es-show-debrief').checked ? 1 : 0,
     debrief_text: document.getElementById('es-debrief').value.trim() || null,
   };
   await api('PATCH', `/studies/${id}`, body);

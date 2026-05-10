@@ -278,6 +278,10 @@ migrate("ALTER TABLE studies ADD COLUMN layout_type TEXT DEFAULT 'feed'");
 migrate('ALTER TABLE studies ADD COLUMN show_reactions BOOLEAN DEFAULT 1');
 migrate('ALTER TABLE studies ADD COLUMN enable_comments BOOLEAN DEFAULT 0');
 migrate('ALTER TABLE ratings ADD COLUMN comment TEXT');
+migrate('ALTER TABLE studies ADD COLUMN show_instructions BOOLEAN DEFAULT 1');
+migrate('ALTER TABLE studies ADD COLUMN show_transition_feed BOOLEAN DEFAULT 1');
+migrate('ALTER TABLE studies ADD COLUMN show_transition_rating BOOLEAN DEFAULT 1');
+migrate('ALTER TABLE studies ADD COLUMN show_debrief BOOLEAN DEFAULT 1');
 
 // ── Post content migrations (idempotent UPDATE — safe to run on every boot) ───
 const migratePost = db.prepare(

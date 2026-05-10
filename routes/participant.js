@@ -101,6 +101,10 @@ router.post('/session/start', (req, res) => {
       layout_type: study.layout_type || 'feed',
       show_reactions: study.show_reactions !== 0,
       enable_comments: study.enable_comments ? true : false,
+      show_instructions: study.show_instructions !== 0,
+      show_transition_feed: study.show_transition_feed !== 0,
+      show_transition_rating: study.show_transition_rating !== 0,
+      show_debrief: study.show_debrief !== 0,
     },
   });
 });
