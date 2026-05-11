@@ -224,6 +224,13 @@ function metricConditionRowHTML(cond) {
     <div class="metric-condition-row" data-key="${esc(String(cond.key))}">
       <label class="toggle"><input type="checkbox" class="mc-enabled" ${cond.enabled ? 'checked' : ''}><span class="toggle-slider"></span></label>
       <input type="text" class="mc-label" value="${esc(cond.label)}" placeholder="Nazwa warunku" style="flex:1;min-width:0">
+      <div style="display:flex;align-items:center;gap:0.4rem;flex-shrink:0">
+        <span style="font-size:0.75rem;color:var(--muted)">min</span>
+        <input type="number" class="mc-min" value="${cond.min ?? 0}" placeholder="0" style="width:5rem">
+        <span style="font-size:0.75rem;color:var(--muted)">max</span>
+        <input type="number" class="mc-max" value="${cond.max ?? 0}" placeholder="0" style="width:5rem">
+        <span style="font-size:0.72rem;color:var(--muted)">(0 = użyj bazy)</span>
+      </div>
       <label style="display:flex;align-items:center;gap:0.3rem;flex-shrink:0;cursor:pointer" title="Pokaż komentarz debunkujący uczestnikom w tym warunku">
         <input type="checkbox" class="mc-show-comment" ${cond.show_comment ? 'checked' : ''} style="accent-color:var(--accent);width:14px;height:14px">
         <span style="font-size:0.8rem;color:var(--muted);white-space:nowrap">💬 komentarz</span>
@@ -241,6 +248,13 @@ function addMetricCondition() {
   div.innerHTML = `
     <label class="toggle"><input type="checkbox" class="mc-enabled" checked><span class="toggle-slider"></span></label>
     <input type="text" class="mc-label" value="Nowy warunek" placeholder="Nazwa warunku" style="flex:1;min-width:0">
+    <div style="display:flex;align-items:center;gap:0.4rem;flex-shrink:0">
+      <span style="font-size:0.75rem;color:var(--muted)">min</span>
+      <input type="number" class="mc-min" value="0" placeholder="0" style="width:5rem">
+      <span style="font-size:0.75rem;color:var(--muted)">max</span>
+      <input type="number" class="mc-max" value="0" placeholder="0" style="width:5rem">
+      <span style="font-size:0.72rem;color:var(--muted)">(0 = użyj bazy)</span>
+    </div>
     <label style="display:flex;align-items:center;gap:0.3rem;flex-shrink:0;cursor:pointer" title="Pokaż komentarz debunkujący uczestnikom w tym warunku">
       <input type="checkbox" class="mc-show-comment" style="accent-color:var(--accent);width:14px;height:14px">
       <span style="font-size:0.8rem;color:var(--muted);white-space:nowrap">💬 komentarz</span>
@@ -477,6 +491,8 @@ async function saveStudySettings(id) {
   const metric_conditions_json = JSON.stringify(Array.from(metricRows).map(row => ({
     key: row.dataset.key || ('K' + Date.now()),
     label: row.querySelector('.mc-label').value.trim() || 'Warunek',
+    min: Number(row.querySelector('.mc-min').value) || 0,
+    max: Number(row.querySelector('.mc-max').value) || 0,
     enabled: row.querySelector('.mc-enabled').checked,
     show_comment: row.querySelector('.mc-show-comment').checked,
   })));
@@ -758,6 +774,32 @@ function postFormHTML(p, techs) {
        <button type="button" class="btn btn-danger btn-sm" onclick="deletePostImage(${p.id})" style="margin-bottom:0.5rem">Usuń zdjęcie</button><br>`
     : `<img class="image-preview" id="img-preview-${p.id}" style="display:none" alt="">`;
 
+  // Per-condition metric overrides
+  const study = S.studies.find(s => s.id == S.selectedPostsStudy);
+  let metricConds = [];
+  try { metricConds = JSON.parse(study?.metric_conditions_json || '[]'); } catch {}
+  const activeConds = metricConds.filter(c => c.enabled);
+  let overrides = {};
+  try { overrides = JSON.parse(p.metrics_override_json || '{}'); } catch {}
+
+  const condOverrideHTML = activeConds.length ? `
+    <div class="form-section-title">Metryki per warunek <span style="font-weight:400;font-size:0.75rem;color:var(--muted)">(puste = losowe z zakresu warunku lub wartość bazowa)</span></div>
+    ${activeConds.map(cond => {
+      const ov = overrides[cond.key] || {};
+      const rangeHint = cond.max > 0 ? ` zakres ${cond.min}–${cond.max}` : ' (brak zakresu → wartość bazowa)';
+      return `
+        <div style="margin-bottom:0.5rem">
+          <div style="font-size:0.8rem;font-weight:600;margin-bottom:0.35rem">${esc(cond.label)}<span style="font-weight:400;color:var(--muted)">${rangeHint}</span></div>
+          <div class="form-grid form-grid-4">
+            <div class="form-group"><label>👍 Polubienia</label><input type="number" data-cond-key="${esc(cond.key)}" data-metric="likes" value="${ov.likes ?? ''}" placeholder="losowe" style="max-width:none"></div>
+            <div class="form-group"><label>🔄 Udostępnienia</label><input type="number" data-cond-key="${esc(cond.key)}" data-metric="shares" value="${ov.shares ?? ''}" placeholder="losowe" style="max-width:none"></div>
+            <div class="form-group"><label>👎 Nie lubię</label><input type="number" data-cond-key="${esc(cond.key)}" data-metric="dislikes" value="${ov.dislikes ?? ''}" placeholder="losowe" style="max-width:none"></div>
+            <div class="form-group"><label>🚩 Zgłoszenia</label><input type="number" data-cond-key="${esc(cond.key)}" data-metric="flags" value="${ov.flags ?? ''}" placeholder="losowe" style="max-width:none"></div>
+          </div>
+        </div>`;
+    }).join('')}
+  ` : '';
+
   return `
     <div class="form-section-title">Podstawowe</div>
     <div class="form-grid">
@@ -793,13 +835,15 @@ function postFormHTML(p, techs) {
     <div class="form-section-title">Techniki manipulacji</div>
     <div class="checkbox-grid">${techCbs}</div>
 
-    <div class="form-section-title">Metryki bazowe</div>
+    <div class="form-section-title">Metryki bazowe <span style="font-weight:400;font-size:0.75rem;color:var(--muted)">(fallback gdy warunek nie ma zakresu i brak nadpisania)</span></div>
     <div class="form-grid form-grid-4">
       <div class="form-group"><label>Polubienia</label><input type="number" id="pf-likes-${p.id}" value="${p.base_likes||0}" style="max-width:none"></div>
       <div class="form-group"><label>Udostępnienia</label><input type="number" id="pf-shares-${p.id}" value="${p.base_shares||0}" style="max-width:none"></div>
       <div class="form-group"><label>Nie lubię</label><input type="number" id="pf-dislikes-${p.id}" value="${p.base_dislikes||0}" style="max-width:none"></div>
       <div class="form-group"><label>Zgłoszenia</label><input type="number" id="pf-flags-${p.id}" value="${p.base_flags||0}" style="max-width:none"></div>
     </div>
+
+    ${condOverrideHTML}
 
     <div class="form-section-title">Zdjęcie (opcjonalne, max 5 MB — jpg/png/webp)</div>
     <div class="image-upload-area" onclick="document.getElementById('pf-img-input-${p.id}').click()">
@@ -842,6 +886,19 @@ async function savePost(id) {
     post_comment: document.getElementById(`pf-cmt-${id}`).value.trim() || null,
     post_comment_author: document.getElementById(`pf-cauth-${id}`).value.trim() || null,
   };
+
+  // Collect per-condition metric overrides
+  const overrideMap = {};
+  row.querySelectorAll('input[data-cond-key][data-metric]').forEach(input => {
+    const key = input.dataset.condKey;
+    const metric = input.dataset.metric;
+    if (input.value.trim() !== '') {
+      if (!overrideMap[key]) overrideMap[key] = {};
+      overrideMap[key][metric] = Number(input.value);
+    }
+  });
+  body.metrics_override_json = JSON.stringify(overrideMap);
+
   const data = await api('PATCH', `/posts/${id}`, body);
   if (!data) return;
 

@@ -7,12 +7,28 @@ function getSession(token) {
   return db.prepare('SELECT * FROM sessions WHERE session_token = ?').get(token);
 }
 
-function calcMetrics(post) {
+function randInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function calcMetrics(post, condObj) {
+  // Priority: per-post override → condition range → post base values
+  let overrides = {};
+  try { overrides = JSON.parse(post.metrics_override_json || '{}'); } catch {}
+  const ov = overrides[condObj.key] || {};
+  const useRange = condObj.max > 0;
+
+  const val = (field, baseField) => {
+    if (ov[field] != null) return ov[field];           // explicit override
+    if (useRange) return randInt(condObj.min, condObj.max); // range
+    return post[baseField] || 0;                         // base value fallback
+  };
+
   return {
-    likes_shown:    post.base_likes    || 0,
-    shares_shown:   post.base_shares   || 0,
-    dislikes_shown: post.base_dislikes || 0,
-    flags_shown:    post.base_flags    || 0,
+    likes_shown:    val('likes',    'base_likes'),
+    shares_shown:   val('shares',   'base_shares'),
+    dislikes_shown: val('dislikes', 'base_dislikes'),
+    flags_shown:    val('flags',    'base_flags'),
   };
 }
 
@@ -62,7 +78,7 @@ router.post('/session/start', (req, res) => {
   `).run(study_id, token, style_condition, metric_condition, full_condition);
 
   const posts = shuffled.map((post, idx) => {
-    const metrics = calcMetrics(post);
+    const metrics = calcMetrics(post, metricCondObj);
     return {
       id: post.id,
       post_order: idx + 1,

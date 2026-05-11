@@ -296,6 +296,7 @@ migrate("ALTER TABLE studies ADD COLUMN label_style_a TEXT DEFAULT 'Styl A (mani
 migrate("ALTER TABLE studies ADD COLUMN label_style_b TEXT DEFAULT 'Styl B (neutralny)'");
 migrate('ALTER TABLE studies ADD COLUMN metric_conditions_json TEXT DEFAULT NULL');
 migrate('ALTER TABLE studies ADD COLUMN show_metrics INTEGER DEFAULT 1');
+migrate('ALTER TABLE posts ADD COLUMN metrics_override_json TEXT DEFAULT NULL');
 
 // Initialise metric_conditions_json from legacy columns for any study that doesn't have it yet
 {
