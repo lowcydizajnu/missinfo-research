@@ -80,12 +80,12 @@ router.post('/session/start', (req, res) => {
   const posts = shuffled.map((post, idx) => {
     const metrics = calcMetrics(post, metricCondObj);
 
-    // Resolve per-condition comment (falls back to global post_comment)
+    // Resolve comment: keyed by style condition (A/B); only shown when metric condition has show_comment=true
     let postComments = {};
     try { postComments = JSON.parse(post.post_comments_json || '{}'); } catch {}
-    const condComment = postComments[metricCondObj.key];
-    const post_comment        = (condComment?.text   || '').trim() || post.post_comment        || null;
-    const post_comment_author = (condComment?.author || '').trim() || post.post_comment_author || null;
+    const styleComment = postComments[style_condition] || {};
+    const post_comment        = metricCondObj.show_comment ? ((styleComment.text   || '').trim() || post.post_comment        || null) : null;
+    const post_comment_author = metricCondObj.show_comment ? ((styleComment.author || '').trim() || post.post_comment_author || null) : null;
 
     return {
       id: post.id,

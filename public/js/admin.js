@@ -785,7 +785,7 @@ function postFormHTML(p, techs) {
   try { postComments = JSON.parse(p.post_comments_json || '{}'); } catch {}
 
   const condOverrideHTML = activeConds.length ? `
-    <div class="form-section-title">Metryki per warunek <span style="font-weight:400;font-size:0.75rem;color:var(--muted)">(puste = losowe z zakresu warunku lub wartość bazowa)</span></div>
+    <div class="form-section-title">Metryki per warunek <span style="font-weight:400;font-size:0.75rem;color:var(--muted)">(puste = losowe z zakresu warunku)</span></div>
     ${activeConds.map(cond => {
       const ov = overrides[cond.key] || {};
       const rangeHint = cond.max > 0 ? ` zakres ${cond.min}–${cond.max}` : ' (brak zakresu → wartość bazowa)';
@@ -830,39 +830,22 @@ function postFormHTML(p, techs) {
     <div class="form-group"><label>Nagłówek B</label><textarea id="pf-hb-${p.id}" rows="2">${esc(p.headline_b||'')}</textarea></div>
     <div class="form-group"><label>Treść B</label><textarea id="pf-cb-${p.id}" rows="3">${esc(p.content_b||'')}</textarea></div>
 
-    <div class="form-section-title">Komentarz eksperymentatora <span style="font-weight:400;font-size:0.75rem;color:var(--muted)">(wymaga włączonego 💬 w warunku)</span></div>
-    ${activeConds.length ? `
-      ${activeConds.map(cond => {
-        const pc = postComments[cond.key] || {};
-        return `
-          <div style="margin-bottom:0.6rem;padding:0.6rem 0.75rem;background:var(--surface2);border-radius:8px">
-            <div style="font-size:0.8rem;font-weight:600;margin-bottom:0.4rem">${esc(cond.label)} ${cond.show_comment ? '<span style="color:var(--accent)">💬</span>' : '<span style="color:var(--muted);font-weight:400">(show_comment wyłączony)</span>'}</div>
-            <div class="form-grid" style="grid-template-columns:1fr 2fr;gap:0.5rem">
-              <div class="form-group" style="margin:0"><label>Autor (nick)</label><input type="text" data-cond-key="${esc(cond.key)}" data-comment="author" value="${esc(pc.author||'')}" placeholder="np. Zdrowie Polska"></div>
-              <div class="form-group" style="margin:0"><label>Treść komentarza</label><input type="text" data-cond-key="${esc(cond.key)}" data-comment="text" value="${esc(pc.text||'')}" placeholder="Komentarz pod postem..."></div>
-            </div>
-          </div>`;
-      }).join('')}
-      <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.5rem">Fallback (gdy warunek nie ma komentarza powyżej):</p>
-      <div class="form-grid" style="grid-template-columns:1fr 2fr;gap:0.5rem;margin-bottom:0.5rem">
-        <div class="form-group" style="margin:0"><label>Autor (domyślny)</label><input type="text" id="pf-cauth-${p.id}" value="${esc(p.post_comment_author||'')}" placeholder="np. Zdrowie Polska"></div>
-        <div class="form-group" style="margin:0"><label>Treść (domyślna)</label><input type="text" id="pf-cmt-${p.id}" value="${esc(p.post_comment||'')}" placeholder="Komentarz domyślny..."></div>
-      </div>
-    ` : `
-      <div class="form-group"><label>Autor komentarza (wyświetlany nick/nazwa)</label><input type="text" id="pf-cauth-${p.id}" value="${esc(p.post_comment_author||'')}" placeholder="np. Zdrowie Polska"></div>
-      <div class="form-group"><label>Treść komentarza</label><textarea id="pf-cmt-${p.id}" rows="2" placeholder="Komentarz wyświetlany pod postem jako wpis społecznościowy...">${esc(p.post_comment||'')}</textarea></div>
-    `}
+    <div class="form-section-title">Komentarz eksperymentatora <span style="font-weight:400;font-size:0.75rem;color:var(--muted)">(wyświetlany tylko w warunkach z włączonym 💬)</span></div>
+    ${['A','B'].map(v => {
+      const pc = postComments[v] || {};
+      const label = v === 'A' ? (study?.label_style_a || 'Wersja A') : (study?.label_style_b || 'Wersja B');
+      return `
+        <div style="margin-bottom:0.6rem;padding:0.6rem 0.75rem;background:var(--surface2);border-radius:8px">
+          <div style="font-size:0.8rem;font-weight:600;margin-bottom:0.4rem">${esc(label)}</div>
+          <div class="form-grid" style="grid-template-columns:1fr 2fr;gap:0.5rem">
+            <div class="form-group" style="margin:0"><label>Autor (nick)</label><input type="text" data-cond-key="${v}" data-comment="author" value="${esc(pc.author||'')}" placeholder="np. Zdrowie Polska"></div>
+            <div class="form-group" style="margin:0"><label>Treść komentarza</label><input type="text" data-cond-key="${v}" data-comment="text" value="${esc(pc.text||'')}" placeholder="Komentarz pod postem..."></div>
+          </div>
+        </div>`;
+    }).join('')}
 
     <div class="form-section-title">Techniki manipulacji</div>
     <div class="checkbox-grid">${techCbs}</div>
-
-    <div class="form-section-title">Metryki bazowe <span style="font-weight:400;font-size:0.75rem;color:var(--muted)">(fallback gdy warunek nie ma zakresu i brak nadpisania)</span></div>
-    <div class="form-grid form-grid-4">
-      <div class="form-group"><label>Polubienia</label><input type="number" id="pf-likes-${p.id}" value="${p.base_likes||0}" style="max-width:none"></div>
-      <div class="form-group"><label>Udostępnienia</label><input type="number" id="pf-shares-${p.id}" value="${p.base_shares||0}" style="max-width:none"></div>
-      <div class="form-group"><label>Nie lubię</label><input type="number" id="pf-dislikes-${p.id}" value="${p.base_dislikes||0}" style="max-width:none"></div>
-      <div class="form-group"><label>Zgłoszenia</label><input type="number" id="pf-flags-${p.id}" value="${p.base_flags||0}" style="max-width:none"></div>
-    </div>
 
     ${condOverrideHTML}
 
@@ -900,12 +883,6 @@ async function savePost(id) {
     headline_b: document.getElementById(`pf-hb-${id}`).value,
     content_b: document.getElementById(`pf-cb-${id}`).value,
     manipulation_techniques: techs,
-    base_likes: Number(document.getElementById(`pf-likes-${id}`).value),
-    base_shares: Number(document.getElementById(`pf-shares-${id}`).value),
-    base_dislikes: Number(document.getElementById(`pf-dislikes-${id}`).value),
-    base_flags: Number(document.getElementById(`pf-flags-${id}`).value),
-    post_comment: document.getElementById(`pf-cmt-${id}`)?.value.trim() || null,
-    post_comment_author: document.getElementById(`pf-cauth-${id}`)?.value.trim() || null,
   };
 
   // Collect per-condition comments
