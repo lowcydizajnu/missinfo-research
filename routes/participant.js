@@ -79,6 +79,14 @@ router.post('/session/start', (req, res) => {
 
   const posts = shuffled.map((post, idx) => {
     const metrics = calcMetrics(post, metricCondObj);
+
+    // Resolve per-condition comment (falls back to global post_comment)
+    let postComments = {};
+    try { postComments = JSON.parse(post.post_comments_json || '{}'); } catch {}
+    const condComment = postComments[metricCondObj.key];
+    const post_comment        = (condComment?.text   || '').trim() || post.post_comment        || null;
+    const post_comment_author = (condComment?.author || '').trim() || post.post_comment_author || null;
+
     return {
       id: post.id,
       post_order: idx + 1,
@@ -92,8 +100,8 @@ router.post('/session/start', (req, res) => {
       is_true: post.is_true ? true : false,
       image_url: post.image_path ? `/uploads/${study_id}/${post.image_path}` : null,
       manipulation_techniques: JSON.parse(post.manipulation_techniques || '[]'),
-      post_comment: post.post_comment || null,
-      post_comment_author: post.post_comment_author || null,
+      post_comment,
+      post_comment_author,
       ...metrics,
     };
   });
