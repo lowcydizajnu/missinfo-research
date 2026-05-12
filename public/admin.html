@@ -42,20 +42,29 @@
 
   <nav class="tab-nav">
     <button class="tab-btn active" data-tab="dashboard">📊 Pulpit</button>
-    <button class="tab-btn" data-tab="studies">📋 Badania</button>
+    <button class="tab-btn" data-tab="studies">⚙️ Ustawienia</button>
     <button class="tab-btn" data-tab="posts">✏️ Posty</button>
     <button class="tab-btn" data-tab="export">📥 Eksport</button>
+    <div class="study-picker" id="study-picker">
+      <button type="button" class="study-picker-btn" id="study-picker-btn">
+        <span id="study-picker-label">— wybierz badanie —</span>
+        <span class="study-picker-chevron">▾</span>
+      </button>
+      <ul class="study-picker-list" id="study-picker-list"></ul>
+    </div>
   </nav>
 
   <main class="admin-main">
+
+    <!-- hidden legacy selects – kept for JS compatibility, not shown -->
+    <select id="dashboard-study-select" style="display:none"></select>
+    <select id="posts-study-select" style="display:none"></select>
+    <select id="export-study-select" style="display:none"></select>
 
     <!-- TAB: Dashboard -->
     <div class="tab-pane active" id="tab-dashboard">
       <div class="tab-toolbar">
         <h2>Pulpit</h2>
-        <select id="dashboard-study-select" class="select-input">
-          <option value="">— wybierz badanie —</option>
-        </select>
       </div>
       <div id="dashboard-content">
         <div class="empty-state">Wybierz badanie z listy powyżej.</div>
@@ -65,7 +74,7 @@
     <!-- TAB: Studies -->
     <div class="tab-pane" id="tab-studies">
       <div class="tab-toolbar">
-        <h2>Badania</h2>
+        <h2>Ustawienia badań</h2>
         <button class="btn btn-primary btn-sm" id="btn-create-study">+ Nowe badanie</button>
       </div>
       <div id="studies-list"></div>
@@ -75,9 +84,6 @@
     <div class="tab-pane" id="tab-posts">
       <div class="tab-toolbar">
         <h2>Edytor Postów</h2>
-        <select id="posts-study-select" class="select-input">
-          <option value="">— wybierz badanie —</option>
-        </select>
       </div>
       <div id="posts-toolbar" style="display:none">
         <button class="btn btn-primary btn-sm" id="btn-add-post">+ Dodaj post</button>
@@ -91,9 +97,6 @@
     <div class="tab-pane" id="tab-export">
       <div class="tab-toolbar">
         <h2>Eksport danych</h2>
-        <select id="export-study-select" class="select-input">
-          <option value="">— wybierz badanie —</option>
-        </select>
       </div>
       <div id="export-content">
         <div class="empty-state">Wybierz badanie z listy powyżej.</div>

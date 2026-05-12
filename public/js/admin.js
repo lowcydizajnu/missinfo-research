@@ -54,12 +54,57 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+    // Auto-load tab content when switching if a study is already selected
+    const id = S.activeStudy;
+    if (!id) return;
+    const tab = btn.dataset.tab;
+    if (tab === 'dashboard') loadDashboard(id);
+    else if (tab === 'posts') { document.getElementById('posts-toolbar').style.display = ''; loadPosts(id); }
+    else if (tab === 'export') loadExportView(id);
   });
 });
 
 function switchTab(name) {
   document.querySelector(`.tab-btn[data-tab="${name}"]`)?.click();
 }
+
+// ── Global study picker ────────────────────────────────────────────────────
+function setActiveStudy(id) {
+  S.activeStudy = id ? String(id) : '';
+  S.selectedDashboardStudy = S.activeStudy;
+  S.selectedPostsStudy     = S.activeStudy;
+  S.selectedExportStudy    = S.activeStudy;
+  if (S.activeStudy) localStorage.setItem('lastSelectedStudy', S.activeStudy);
+
+  const study = S.studies.find(s => String(s.id) === S.activeStudy);
+  const label = document.getElementById('study-picker-label');
+  label.textContent = study ? study.name : '— wybierz badanie —';
+  document.querySelectorAll('#study-picker-list li').forEach(li => {
+    li.classList.toggle('selected', li.dataset.id === S.activeStudy);
+  });
+
+  // Load content for currently active tab
+  const activeTab = document.querySelector('.tab-btn.active')?.dataset.tab;
+  if (!S.activeStudy) return;
+  if (activeTab === 'dashboard') loadDashboard(S.activeStudy);
+  else if (activeTab === 'posts') { document.getElementById('posts-toolbar').style.display = ''; loadPosts(S.activeStudy); }
+  else if (activeTab === 'export') loadExportView(S.activeStudy);
+}
+
+(function initStudyPicker() {
+  const btn  = document.getElementById('study-picker-btn');
+  const list = document.getElementById('study-picker-list');
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const open = list.classList.toggle('open');
+    btn.classList.toggle('open', open);
+  });
+  document.addEventListener('click', () => {
+    list.classList.remove('open');
+    btn.classList.remove('open');
+  });
+  list.addEventListener('click', e => e.stopPropagation());
+})();
 
 // ── Auth ───────────────────────────────────────────────────────────────────
 document.getElementById('login-form').addEventListener('submit', async e => {
@@ -110,34 +155,39 @@ async function loadStudies() {
 }
 
 function populateStudySelects() {
-  const persisted = {
-    'dashboard-study-select': localStorage.getItem('lastDashboardStudy'),
-    'posts-study-select':     localStorage.getItem('lastPostsStudy'),
-    'export-study-select':    localStorage.getItem('lastExportStudy'),
-  };
+  // Populate the global picker list
+  const list = document.getElementById('study-picker-list');
+  list.innerHTML = '';
+  S.studies.forEach(s => {
+    const li = document.createElement('li');
+    li.dataset.id = s.id;
+    li.textContent = `${s.name}${s.is_active ? '' : ' (nieaktywne)'}`;
+    li.addEventListener('click', () => {
+      setActiveStudy(s.id);
+      list.classList.remove('open');
+      document.getElementById('study-picker-btn').classList.remove('open');
+    });
+    list.appendChild(li);
+  });
+
+  // Also keep hidden legacy selects in sync (some JS paths still use them)
   ['dashboard-study-select', 'posts-study-select', 'export-study-select'].forEach(id => {
     const sel = document.getElementById(id);
-    const cur = sel.value || persisted[id] || '';
-    sel.innerHTML = '<option value="">— wybierz badanie —</option>';
+    if (!sel) return;
+    sel.innerHTML = '<option value="">—</option>';
     S.studies.forEach(s => {
       const opt = document.createElement('option');
       opt.value = s.id;
-      opt.textContent = `${s.name}${s.is_active ? '' : ' (nieaktywne)'}`;
+      opt.textContent = s.name;
       sel.appendChild(opt);
     });
-    if (cur && S.studies.some(s => String(s.id) === String(cur))) sel.value = cur;
   });
-  // Auto-load content for restored selections
-  const dash = document.getElementById('dashboard-study-select').value;
-  if (dash && !S.selectedDashboardStudy) { S.selectedDashboardStudy = dash; loadDashboard(dash); }
-  const posts = document.getElementById('posts-study-select').value;
-  if (posts && !S.selectedPostsStudy) {
-    S.selectedPostsStudy = posts;
-    document.getElementById('posts-toolbar').style.display = '';
-    loadPosts(posts);
+
+  // Restore last selected study
+  const saved = S.activeStudy || localStorage.getItem('lastSelectedStudy') || '';
+  if (saved && S.studies.some(s => String(s.id) === saved)) {
+    setActiveStudy(saved);
   }
-  const exp = document.getElementById('export-study-select').value;
-  if (exp && !S.selectedExportStudy) { S.selectedExportStudy = exp; loadExportView(exp); }
 }
 
 function renderStudiesList() {
@@ -597,15 +647,6 @@ async function saveStudySettings(id) {
 }
 
 // ── Dashboard ──────────────────────────────────────────────────────────────
-document.getElementById('dashboard-study-select').addEventListener('change', async e => {
-  S.selectedDashboardStudy = e.target.value;
-  if (S.selectedDashboardStudy) localStorage.setItem('lastDashboardStudy', S.selectedDashboardStudy);
-  if (!S.selectedDashboardStudy) {
-    document.getElementById('dashboard-content').innerHTML = '<div class="empty-state">Wybierz badanie z listy powyżej.</div>';
-    return;
-  }
-  await loadDashboard(S.selectedDashboardStudy);
-});
 
 async function loadDashboard(studyId) {
   document.getElementById('dashboard-content').innerHTML = '<div class="empty-state">Ładowanie...</div>';
@@ -741,17 +782,6 @@ const TOPICS = ['zdrowie', 'klimat', 'polityka', 'ekonomia', 'nauka'];
 const TECHNIQUES = ['pilność', 'fałszywy ekspert', 'spisek', 'liczby bez źródła', 'emocjonalne słowa', 'kozioł ofiarny'];
 const TOPIC_CLASS = { zdrowie: 'topic-zdrowie', klimat: 'topic-klimat', polityka: 'topic-polityka', ekonomia: 'topic-ekonomia', nauka: 'topic-nauka' };
 
-document.getElementById('posts-study-select').addEventListener('change', async e => {
-  S.selectedPostsStudy = e.target.value;
-  if (S.selectedPostsStudy) localStorage.setItem('lastPostsStudy', S.selectedPostsStudy);
-  if (!S.selectedPostsStudy) {
-    document.getElementById('posts-list').innerHTML = '<div class="empty-state">Wybierz badanie z listy powyżej.</div>';
-    document.getElementById('posts-toolbar').style.display = 'none';
-    return;
-  }
-  document.getElementById('posts-toolbar').style.display = '';
-  await loadPosts(S.selectedPostsStudy);
-});
 
 document.getElementById('btn-add-post').onclick = async () => {
   if (!S.selectedPostsStudy) return;
@@ -1007,24 +1037,11 @@ async function deletePostImage(postId) {
 }
 
 function goToPostEditor(studyId) {
+  setActiveStudy(studyId);
   switchTab('posts');
-  S.selectedPostsStudy = String(studyId);
-  const sel = document.getElementById('posts-study-select');
-  sel.value = studyId;
-  document.getElementById('posts-toolbar').style.display = '';
-  loadPosts(studyId);
 }
 
 // ── Export ─────────────────────────────────────────────────────────────────
-document.getElementById('export-study-select').addEventListener('change', async e => {
-  S.selectedExportStudy = e.target.value;
-  if (S.selectedExportStudy) localStorage.setItem('lastExportStudy', S.selectedExportStudy);
-  if (!S.selectedExportStudy) {
-    document.getElementById('export-content').innerHTML = '<div class="empty-state">Wybierz badanie z listy powyżej.</div>';
-    return;
-  }
-  await loadExportView(S.selectedExportStudy);
-});
 
 async function loadExportView(studyId) {
   const dashboard = await api('GET', `/dashboard/${studyId}`);
