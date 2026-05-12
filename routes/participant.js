@@ -11,6 +11,29 @@ function randInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// Builds a permuted block of exactly `blockSize` slots drawn from `conditions`.
+// Each condition appears as equally often as possible (±1 slot).
+function generateBlock(conditions, blockSize) {
+  const k = conditions.length;
+  const base = Math.floor(blockSize / k);
+  const extra = blockSize % k;
+  const pool = [];
+  conditions.forEach((c, i) => {
+    const reps = base + (i < extra ? 1 : 0);
+    for (let r = 0; r < reps; r++) pool.push(c);
+  });
+  return shuffle(pool);
+}
+
 function calcMetrics(post, condObj) {
   // Priority: per-post override → condition range → post base values
   let overrides = {};
@@ -60,10 +83,31 @@ router.post('/session/start', (req, res) => {
     return res.status(400).json({ error: 'No conditions enabled in study settings' });
   }
 
-  const style_condition = styleOptions[Math.floor(Math.random() * styleOptions.length)];
-  const metricCondObj   = metricOptions[Math.floor(Math.random() * metricOptions.length)];
+  // Build the full condition list (all style × metric combinations)
+  const fullConditions = [];
+  for (const s of styleOptions) {
+    for (const m of metricOptions) {
+      fullConditions.push({ style: s, metricKey: m.key });
+    }
+  }
+
+  // Permuted block randomization (block size 4).
+  // Queue is stored per-study in condition_queue_json and refilled when empty.
+  // Items in the queue are validated against current enabled conditions so that
+  // changing study settings doesn't leave stale entries in the queue.
+  const validKeys = new Set(fullConditions.map(c => `${c.style}-${c.metricKey}`));
+  let queue = [];
+  try { queue = JSON.parse(study.condition_queue_json || '[]'); } catch {}
+  queue = queue.filter(c => validKeys.has(`${c.style}-${c.metricKey}`));
+  if (!queue.length) queue = generateBlock(fullConditions, 4);
+  const chosen = queue.shift();
+  db.prepare('UPDATE studies SET condition_queue_json = ? WHERE id = ?')
+    .run(JSON.stringify(queue), study_id);
+
+  const style_condition  = chosen.style;
+  const metricCondObj    = metricOptions.find(m => m.key === chosen.metricKey) || metricOptions[0];
   const metric_condition = metricCondObj.key;
-  const full_condition = `${style_condition}-${metric_condition}`;
+  const full_condition   = `${style_condition}-${metric_condition}`;
 
   const allPosts = db.prepare('SELECT * FROM posts WHERE study_id = ? AND is_active = 1').all(study_id);
   if (!allPosts.length) return res.status(400).json({ error: 'No active posts in study' });
