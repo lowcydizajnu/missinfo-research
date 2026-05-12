@@ -110,9 +110,14 @@ async function loadStudies() {
 }
 
 function populateStudySelects() {
+  const persisted = {
+    'dashboard-study-select': localStorage.getItem('lastDashboardStudy'),
+    'posts-study-select':     localStorage.getItem('lastPostsStudy'),
+    'export-study-select':    localStorage.getItem('lastExportStudy'),
+  };
   ['dashboard-study-select', 'posts-study-select', 'export-study-select'].forEach(id => {
     const sel = document.getElementById(id);
-    const cur = sel.value;
+    const cur = sel.value || persisted[id] || '';
     sel.innerHTML = '<option value="">— wybierz badanie —</option>';
     S.studies.forEach(s => {
       const opt = document.createElement('option');
@@ -120,8 +125,19 @@ function populateStudySelects() {
       opt.textContent = `${s.name}${s.is_active ? '' : ' (nieaktywne)'}`;
       sel.appendChild(opt);
     });
-    if (cur) sel.value = cur;
+    if (cur && S.studies.some(s => String(s.id) === String(cur))) sel.value = cur;
   });
+  // Auto-load content for restored selections
+  const dash = document.getElementById('dashboard-study-select').value;
+  if (dash && !S.selectedDashboardStudy) { S.selectedDashboardStudy = dash; loadDashboard(dash); }
+  const posts = document.getElementById('posts-study-select').value;
+  if (posts && !S.selectedPostsStudy) {
+    S.selectedPostsStudy = posts;
+    document.getElementById('posts-toolbar').style.display = '';
+    loadPosts(posts);
+  }
+  const exp = document.getElementById('export-study-select').value;
+  if (exp && !S.selectedExportStudy) { S.selectedExportStudy = exp; loadExportView(exp); }
 }
 
 function renderStudiesList() {
@@ -192,10 +208,10 @@ async function createStudy() {
   const data = await api('POST', '/studies', body);
   if (!data) return;
   closeModal();
-  toast('Badanie utworzone! Możesz teraz edytować posty.');
+  toast('Badanie utworzone!');
   await loadStudies();
   populateStudySelects();
-  goToPostEditor(data.id);
+  openStudySettings(data.id);
 }
 
 async function duplicateStudy(id) {
@@ -332,8 +348,7 @@ async function openStudySettings(id) {
       <label>Układ ekranu uczestnika</label>
       <select id="es-layout">
         <option value="feed" ${(s.layout_type || 'feed') === 'feed' ? 'selected' : ''}>Feed — przewijany (klasyczny)</option>
-        <option value="paged" ${s.layout_type === 'paged' ? 'selected' : ''}>Strona po stronie — jeden post, ocena inline</option>
-        <option value="custom" ${s.layout_type === 'custom' ? 'selected' : ''}>Custom Builder — w pełni konfigurowalny</option>
+        <option value="custom" ${(s.layout_type === 'custom' || s.layout_type === 'paged') ? 'selected' : ''}>Pager — post per strona</option>
       </select>
     </div>
 
@@ -584,6 +599,7 @@ async function saveStudySettings(id) {
 // ── Dashboard ──────────────────────────────────────────────────────────────
 document.getElementById('dashboard-study-select').addEventListener('change', async e => {
   S.selectedDashboardStudy = e.target.value;
+  if (S.selectedDashboardStudy) localStorage.setItem('lastDashboardStudy', S.selectedDashboardStudy);
   if (!S.selectedDashboardStudy) {
     document.getElementById('dashboard-content').innerHTML = '<div class="empty-state">Wybierz badanie z listy powyżej.</div>';
     return;
@@ -727,6 +743,7 @@ const TOPIC_CLASS = { zdrowie: 'topic-zdrowie', klimat: 'topic-klimat', polityka
 
 document.getElementById('posts-study-select').addEventListener('change', async e => {
   S.selectedPostsStudy = e.target.value;
+  if (S.selectedPostsStudy) localStorage.setItem('lastPostsStudy', S.selectedPostsStudy);
   if (!S.selectedPostsStudy) {
     document.getElementById('posts-list').innerHTML = '<div class="empty-state">Wybierz badanie z listy powyżej.</div>';
     document.getElementById('posts-toolbar').style.display = 'none';
@@ -1001,6 +1018,7 @@ function goToPostEditor(studyId) {
 // ── Export ─────────────────────────────────────────────────────────────────
 document.getElementById('export-study-select').addEventListener('change', async e => {
   S.selectedExportStudy = e.target.value;
+  if (S.selectedExportStudy) localStorage.setItem('lastExportStudy', S.selectedExportStudy);
   if (!S.selectedExportStudy) {
     document.getElementById('export-content').innerHTML = '<div class="empty-state">Wybierz badanie z listy powyżej.</div>';
     return;
