@@ -294,7 +294,10 @@ function buildCondLabelMap(study) {
 
   const map = {};
   styleConds.forEach(sc => metricConds.forEach(mc => {
-    map[`${sc.key}-${mc.key}`] = `${sc.label} / ${mc.label}`;
+    map[`${sc.key}-${mc.key}`] = {
+      label: `${sc.label} / ${mc.label}`,
+      short: `${sc.key} / ${mc.label}`,
+    };
   }));
   return map;
 }
@@ -663,8 +666,8 @@ function renderDashboard(d, studyId) {
   const recentRows = (d.recent_sessions || []).map(s => `
     <tr>
       <td class="mono">${s.id}</td>
-      <td><span class="badge badge-active" title="${esc(s.full_condition||'')}">
-        ${esc(condLabelMap[s.full_condition] || s.full_condition || '–')}</span></td>
+      <td><span class="badge badge-active" title="${esc(condLabelMap[s.full_condition]?.label || s.full_condition || '')}">
+        ${esc(condLabelMap[s.full_condition]?.short || s.full_condition || '–')}</span></td>
       <td>${esc(s.age || '–')}</td>
       <td>${esc(s.residence || '–')}</td>
       <td>${esc(s.education || '–')}</td>
@@ -1075,8 +1078,8 @@ async function loadExportView(studyId) {
               return (dashboard.recent_sessions || []).slice(0, 10).map(s => `
               <tr>
                 <td class="mono">${s.id}</td>
-                <td><span class="badge badge-active" title="${esc(s.full_condition||'')}">
-                  ${esc(lm[s.full_condition] || s.full_condition || '–')}</span></td>
+                <td><span class="badge badge-active" title="${esc(lm[s.full_condition]?.label || s.full_condition || '')}">
+                  ${esc(lm[s.full_condition]?.short || s.full_condition || '–')}</span></td>
                 <td>${esc(s.age||'–')}</td>
                 <td>${esc(s.gender||'–')}</td>
                 <td>${s.avg_belief_false != null ? Number(s.avg_belief_false).toFixed(2) : '–'}</td>
