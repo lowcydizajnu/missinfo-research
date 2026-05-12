@@ -183,6 +183,7 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.6; }
   box-shadow: 0 1px 4px rgba(0,0,0,0.05);
 }
 .header-brand { display: flex; align-items: center; gap: 0.6rem; }
+#logout-btn { margin-left: auto; }
 .brand-icon { font-size: 1.3rem; }
 .brand-name { font-family: 'IBM Plex Sans', sans-serif; font-weight: 700; font-size: 1.05rem; color: var(--text); }
 
