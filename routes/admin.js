@@ -285,6 +285,25 @@ router.post('/posts/:id/image', auth, (req, res, next) => {
   });
 });
 
+router.delete('/posts/:id', auth, (req, res) => {
+  const post = db.prepare('SELECT * FROM posts WHERE id = ?').get(req.params.id);
+  if (!post) return res.status(404).json({ error: 'Not found' });
+  // Remove image file if present
+  if (post.image_path) {
+    const filePath = path.join(uploadsDir, String(post.study_id), post.image_path);
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  }
+  // Cascade-delete reactions and ratings
+  const sessions = db.prepare('SELECT id FROM sessions WHERE study_id = ?').all(post.study_id).map(s => s.id);
+  if (sessions.length) {
+    const placeholders = sessions.map(() => '?').join(',');
+    db.prepare(`DELETE FROM reactions WHERE post_id = ? AND session_id IN (${placeholders})`).run(post.id, ...sessions);
+    db.prepare(`DELETE FROM ratings  WHERE post_id = ? AND session_id IN (${placeholders})`).run(post.id, ...sessions);
+  }
+  db.prepare('DELETE FROM posts WHERE id = ?').run(req.params.id);
+  res.json({ ok: true });
+});
+
 router.delete('/posts/:id/image', auth, (req, res) => {
   const post = db.prepare('SELECT * FROM posts WHERE id = ?').get(req.params.id);
   if (!post) return res.status(404).json({ error: 'Not found' });

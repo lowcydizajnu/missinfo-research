@@ -754,6 +754,7 @@ function postRowHTML(p) {
         <div class="post-row-actions" onclick="event.stopPropagation()">
           <button class="btn btn-ghost btn-icon" title="Przesuń w górę" onclick="reorderPost(${p.id},'up')">↑</button>
           <button class="btn btn-ghost btn-icon" title="Przesuń w dół" onclick="reorderPost(${p.id},'down')">↓</button>
+          <button class="btn btn-danger btn-icon" title="Usuń post" onclick="deletePost(${p.id}, ${JSON.stringify(p.source_name || '—')})">🗑</button>
         </div>
         <span class="expand-icon">▼</span>
       </div>
@@ -941,6 +942,13 @@ async function handleImageUpload(postId, input) {
   prev.src = data.image_url + '?t=' + Date.now();
   prev.style.display = 'block';
   toast('Zdjęcie zapisane.');
+}
+
+async function deletePost(id, title) {
+  if (!confirm(`Usunąć post "${title}"?\nTa operacja usunie też powiązane reakcje i oceny. Nie można jej cofnąć.`)) return;
+  await api('DELETE', `/posts/${id}`);
+  toast('Post usunięty.');
+  await loadPosts(S.selectedPostsStudy);
 }
 
 async function deletePostImage(postId) {
