@@ -183,11 +183,11 @@ function populateStudySelects() {
     });
   });
 
-  // Restore last selected study
+  // Restore last selected study, or fall back to first in list
   const saved = S.activeStudy || localStorage.getItem('lastSelectedStudy') || '';
-  if (saved && S.studies.some(s => String(s.id) === saved)) {
-    setActiveStudy(saved);
-  }
+  const validSaved = saved && S.studies.some(s => String(s.id) === saved);
+  const toSelect = validSaved ? saved : (S.studies[0]?.id ?? '');
+  if (toSelect) setActiveStudy(toSelect);
 }
 
 function renderStudiesList() {

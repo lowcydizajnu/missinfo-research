@@ -177,7 +177,7 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.6; }
   height: var(--header-h);
   background: var(--surface);
   border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: center; gap: 1rem;
   padding: 0 1.5rem;
   position: sticky; top: 0; z-index: 200;
   box-shadow: 0 1px 4px rgba(0,0,0,0.05);
@@ -201,9 +201,8 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.6; }
 /* ── Global study picker ─────────────────────────────────────────────────── */
 .study-picker {
   position: relative;
-  margin-left: auto;
-  flex-shrink: 0;
-  align-self: center;
+  flex: 1;
+  max-width: 280px;
 }
 .study-picker-btn {
   display: flex;
@@ -272,6 +271,7 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.6; }
 }
 .tab-btn:hover { color: var(--text); }
 .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-btn-right { margin-left: auto; }
 
 /* ── Main / Panes ────────────────────────────────────────────────────────── */
 .admin-main { padding: 1.5rem; max-width: 1200px; margin: 0 auto; }
