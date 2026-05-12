@@ -277,6 +277,28 @@ function updateMetricRemoveButtons() {
   });
 }
 
+// Returns a map of full_condition key → human-readable label for any study object
+function buildCondLabelMap(study) {
+  const styleConds = [
+    { key: 'A', label: study?.label_style_a || 'Styl A' },
+    { key: 'B', label: study?.label_style_b || 'Styl B' },
+  ].filter((_, i) => i === 0 ? study?.enable_condition_a : study?.enable_condition_b);
+
+  let metricConds = [];
+  try { metricConds = JSON.parse(study?.metric_conditions_json || '[]'); } catch {}
+  if (!metricConds.length) {
+    if (study?.enable_metrics_high) metricConds.push({ key: 'HIGH', label: 'HIGH', enabled: true });
+    if (study?.enable_metrics_low)  metricConds.push({ key: 'LOW',  label: 'LOW',  enabled: true });
+  }
+  metricConds = metricConds.filter(c => c.enabled);
+
+  const map = {};
+  styleConds.forEach(sc => metricConds.forEach(mc => {
+    map[`${sc.key}-${mc.key}`] = `${sc.label} / ${mc.label}`;
+  }));
+  return map;
+}
+
 // Study settings modal
 async function openStudySettings(id) {
   const s = S.studies.find(x => x.id == id);
@@ -610,6 +632,9 @@ function renderDashboard(d, studyId) {
   const allCondKeys   = styleConds.flatMap(sc => metricConds.map(mc => `${sc.key}-${mc.key}`));
   const allCondLabels = styleConds.flatMap(sc => metricConds.map(mc => `${sc.label} / ${mc.label}`));
 
+  // Map raw full_condition key → human-readable label for badges
+  const condLabelMap = buildCondLabelMap(study);
+
   const pivot2x2 = (label, obj) => `
     <div style="margin-bottom:1.5rem">
       <div class="section-title">${label}</div>
@@ -638,7 +663,8 @@ function renderDashboard(d, studyId) {
   const recentRows = (d.recent_sessions || []).map(s => `
     <tr>
       <td class="mono">${s.id}</td>
-      <td><span class="badge badge-active">${esc(s.full_condition || '–')}</span></td>
+      <td><span class="badge badge-active" title="${esc(s.full_condition||'')}">
+        ${esc(condLabelMap[s.full_condition] || s.full_condition || '–')}</span></td>
       <td>${esc(s.age || '–')}</td>
       <td>${esc(s.residence || '–')}</td>
       <td>${esc(s.education || '–')}</td>
@@ -1044,15 +1070,19 @@ async function loadExportView(studyId) {
         <table>
           <thead><tr><th>ID</th><th>Warunek</th><th>Wiek</th><th>Płeć</th><th>Śr. wiara (fałsz.)</th><th>Data</th></tr></thead>
           <tbody>
-            ${(dashboard.recent_sessions || []).slice(0, 10).map(s => `
+            ${(() => {
+              const lm = buildCondLabelMap(study);
+              return (dashboard.recent_sessions || []).slice(0, 10).map(s => `
               <tr>
                 <td class="mono">${s.id}</td>
-                <td><span class="badge badge-active">${esc(s.full_condition||'–')}</span></td>
+                <td><span class="badge badge-active" title="${esc(s.full_condition||'')}">
+                  ${esc(lm[s.full_condition] || s.full_condition || '–')}</span></td>
                 <td>${esc(s.age||'–')}</td>
                 <td>${esc(s.gender||'–')}</td>
                 <td>${s.avg_belief_false != null ? Number(s.avg_belief_false).toFixed(2) : '–'}</td>
                 <td class="text-muted">${s.completed_at ? s.completed_at.slice(0,16).replace('T',' ') : '–'}</td>
-              </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--muted)">Brak danych</td></tr>'}
+              </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--muted)">Brak danych</td></tr>';
+            })()}
           </tbody>
         </table>
       </div>
