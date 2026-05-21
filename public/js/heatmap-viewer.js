@@ -317,14 +317,15 @@ function drawBackgroundPaged(canvas) {
   const pad = 14;
   const cW  = W - pad * 2;
 
-  // ── AOI regions for paged layout
+  // ── AOI regions for paged/rating layout
+  // Matches actual rating screen: no image, author header, headline, content, Likert
   const pagedRegions = {
-    image:    { y0: 0.02, y1: 0.38 },
-    headline: { y0: 0.39, y1: 0.52 },
-    content:  { y0: 0.53, y1: 0.63 },
-    avatar:   { y0: 0.64, y1: 0.71 },
-    metrics:  { y0: 0.72, y1: 0.78 },
-    actions:  { y0: 0.80, y1: 0.96 }, // Likert / buttons
+    avatar:   { y0: 0.02, y1: 0.10 }, // author/source row
+    headline: { y0: 0.11, y1: 0.28 },
+    image:    { y0: 0.29, y1: 0.52 }, // only shown in paged layout (not rating)
+    content:  { y0: 0.53, y1: 0.64 },
+    metrics:  { y0: 0.65, y1: 0.72 },
+    actions:  { y0: 0.74, y1: 0.97 }, // Likert scale 1–7
   };
 
   Object.entries(pagedRegions).forEach(([name, { y0, y1 }]) => {

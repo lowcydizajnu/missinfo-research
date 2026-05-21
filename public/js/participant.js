@@ -116,20 +116,50 @@ function loadWebGazer() {
 }
 
 function detectAOI(x, y) {
-  // Returns the named area-of-interest that contains viewport point (x, y)
+  // Returns the named area-of-interest that contains viewport point (x, y).
+  //
+  // Selector coverage:
+  //   feed layout   → .post-* classes (multiple cards in DOM)
+  //   paged layout  → #paged-* ids (single post per screen)
+  //   rating layout → #rating-* ids + #likert-buttons
   const checks = [
-    { name: 'headline', sels: ['.post-headline', '#paged-headline', '#rating-headline'] },
-    { name: 'content',  sels: ['.post-content',  '#paged-content',  '#rating-content'] },
-    { name: 'image',    sels: ['.post-image img', '#paged-image-wrap'] },
-    { name: 'metrics',  sels: ['.post-metrics',   '#paged-metrics'] },
-    { name: 'actions',  sels: ['.post-actions',   '#paged-actions'] },
-    { name: 'avatar',   sels: ['.post-avatar',    '.post-avatar-img', '#paged-avatar'] },
+    { name: 'headline', sels: [
+        '.post-headline', '#paged-headline', '#rating-headline',
+    ]},
+    { name: 'content',  sels: [
+        '.post-content',  '#paged-content',  '#rating-content',
+    ]},
+    { name: 'image',    sels: [
+        '.post-image', '.post-image img',    // feed (wrapper + img)
+        '#paged-image-wrap', '#paged-image', // paged
+        // rating screen has no image element
+    ]},
+    { name: 'metrics',  sels: [
+        '.post-metrics', '#paged-metrics',
+    ]},
+    { name: 'actions',  sels: [
+        '.post-actions', '#paged-actions',
+        '#paged-likert-buttons',             // paged Likert scale
+        '#likert-buttons',                   // rating Likert scale
+    ]},
+    { name: 'avatar',   sels: [
+        '.post-avatar', '.post-avatar-img',  // feed avatars
+        '#paged-avatar',                     // paged avatar
+        '#rating-source', '#rating-handle',  // rating author line (no avatar img)
+        '#rating-topic-pill',                // rating topic badge (part of header)
+    ]},
   ];
+
+  const vh = window.innerHeight;
+
   for (const { name, sels } of checks) {
     for (const sel of sels) {
       for (const el of document.querySelectorAll(sel)) {
-        if (!el.offsetParent && el.id !== 'paged-avatar') continue; // hidden
         const r = el.getBoundingClientRect();
+        // Skip zero-size elements (display:none, visibility:hidden, collapsed)
+        if (r.width === 0 || r.height === 0) continue;
+        // Skip elements fully outside viewport (off-screen feed posts)
+        if (r.bottom < 0 || r.top > vh) continue;
         if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return name;
       }
     }
