@@ -367,13 +367,19 @@ function showCameraConsent() {
       if (e && e.name === 'NotAllowedError') {
         btn.textContent = '📷 Wyrażam zgodę na śledzenie wzroku';
         const note = document.querySelector('.camera-consent-note');
-        if (note) {
-          note.innerHTML = '<p style="color:#e74c3c;font-weight:600">⚠️ Dostęp do kamery został zablokowany przez przeglądarkę. Sprawdź uprawnienia i spróbuj ponownie, lub kontynuuj bez śledzenia wzroku.</p>' + note.innerHTML;
+        if (note && !note.querySelector('.et-cam-err')) {
+          const p = document.createElement('p');
+          p.className = 'et-cam-err';
+          p.style.cssText = 'color:#e74c3c;font-weight:600;margin-bottom:.5rem';
+          p.textContent = '⚠️ Dostęp do kamery zablokowany. Sprawdź uprawnienia i spróbuj ponownie.';
+          note.prepend(p);
         }
       } else {
         btn.textContent = '📷 Wyrażam zgodę na śledzenie wzroku';
       }
-      storeEyetrackingConsent(false, null);
+      // Do NOT record consent here — user hasn't made a final choice yet.
+      // They can retry. Consent is only stored after calibration (success/fail)
+      // or when they explicitly click "nie wyrażam zgody".
     }
   };
 
