@@ -94,6 +94,31 @@ function clarityLink(sessionId, fullCondition, styleCondition, metricCondition) 
   clarity("set", "metrics", metricCondition || '');
 }
 
+// ── Virtual page tracking (Clarity heatmap segmentation) ──────────────────
+// Sets a Clarity custom tag AND pushes a hash-based virtual URL so each
+// screen / post gets its own heatmap page.  The hash is ONLY for analytics —
+// it has no effect on the SPA routing.
+let _clarityVirtualNav = false;   // guard: prevents reacting to our own pushState
+
+function clarityPageView(screenName) {
+  if (typeof clarity === 'undefined') return;
+  clarity('set', 'screen', screenName);
+}
+
+function setVirtualUrl(screenName) {
+  try {
+    _clarityVirtualNav = true;
+    history.pushState({ screen: screenName }, '', window.location.pathname + '#' + screenName);
+  } catch (e) { /* non-critical */ } finally {
+    _clarityVirtualNav = false;
+  }
+}
+
+function trackScreen(screenName) {
+  clarityPageView(screenName);
+  setVirtualUrl(screenName);
+}
+
 // ── Apply study custom labels to all relevant DOM elements ─────────────────
 function applyStudyLabels(study) {
   // Action button labels (paged / custom layout)
@@ -143,6 +168,7 @@ async function startSession() {
     applyStudyLabels(data.study);
     renderConsentScreen(data.study);
     showScreen('screen-consent');
+    trackScreen('consent');
   } catch (e) {
     showError('Nie udało się uruchomić sesji: ' + e.message);
   }
@@ -160,8 +186,10 @@ function renderConsentScreen(study) {
       if (study.show_instructions) {
         renderInstructionScreen(study);
         showScreen('screen-instructions');
+        trackScreen('instructions');
       } else {
         showScreen('screen-demographics');
+        trackScreen('demographics');
       }
     } catch (e) { showError(e.message); }
   };
@@ -196,7 +224,7 @@ function renderInstructionScreen(study) {
     }
   }
 
-  $('btn-instructions-next').onclick = () => showScreen('screen-demographics');
+  $('btn-instructions-next').onclick = () => { showScreen('screen-demographics'); trackScreen('demographics'); };
 }
 
 // ── Screen 3: Demographics ─────────────────────────────────────────────────
@@ -366,9 +394,12 @@ function updateFeedProgress() {
 function setupDwellObserver() {
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
-      const postId = Number(entry.target.dataset.postId);
+      const postId    = Number(entry.target.dataset.postId);
+      const postOrder = Number(entry.target.dataset.postOrder);
       if (entry.isIntersecting) {
         S.dwellStart[postId] = Date.now();
+        // Virtual page for Clarity heatmap segmentation
+        trackScreen('post_' + postOrder + '_id' + postId);
       } else {
         if (S.dwellStart[postId]) {
           S.dwellAccum[postId] = (S.dwellAccum[postId] || 0) + (Date.now() - S.dwellStart[postId]);
@@ -415,6 +446,9 @@ function renderRatingPost() {
 
   $('rating-headline').textContent = post.headline;
   $('rating-content').textContent = post.content;
+
+  // Virtual page for Clarity heatmap segmentation
+  trackScreen('post_' + post.post_order + '_id' + post.id);
 
   const nextBtn = $('btn-rating-next');
   nextBtn.disabled = true;
@@ -574,6 +608,9 @@ function renderPagedPost() {
   // Track dwell
   S.pagedDwellStart[post.id] = Date.now();
 
+  // Virtual page for Clarity heatmap segmentation
+  trackScreen('post_' + post.post_order + '_id' + post.id);
+
   window.scrollTo(0, 0);
 }
 
@@ -657,8 +694,10 @@ async function completeSession() {
     if (S.session.study.show_debrief) {
       renderDebrief(data);
       showScreen('screen-debrief');
+      trackScreen('debrief');
     } else {
       showScreen('screen-complete');
+      trackScreen('complete');
     }
   } catch (e) {
     showError('Błąd podczas kończenia sesji: ' + e.message);

@@ -229,3 +229,17 @@ Visit:
 > Settings → Masking i ustaw tryb **"Balanced"** lub
 > **"Mask only form fields"** zamiast **"Mask all text"** — ustawienie
 > na poziomie projektu może nadpisywać atrybuty elementów.
+
+### Heatmapy per ekran / per post
+
+Aplikacja to SPA — wszystkie ekrany działają pod jednym URL, przez co Clarity
+domyślnie nakłada kliknięcia ze wszystkich ekranów na jeden heatmap.
+Aby temu zaradzić, przy każdej zmianie ekranu ustawiane są:
+- custom tag `screen` (np. `post_3_id5`, `consent`, `demographics`)
+- wirtualny URL w historii przeglądarki (hash, np. `#post_3_id5`)
+
+**Jak filtrować heatmapy w Clarity:**
+w panelu Clarity filtruj nagrania i heatmapy po custom tagu `screen`
+(np. `screen = post_3_id5`) albo wybierz odpowiedni wirtualny adres URL
+z listy stron, aby zobaczyć heatmapę pojedynczego ekranu lub posta
+zamiast nałożonych klików ze wszystkich ekranów.
