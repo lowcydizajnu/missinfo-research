@@ -50,6 +50,7 @@ async function generateExcel(studyId) {
   const study = db.prepare('SELECT * FROM studies WHERE id = ?').get(studyId);
   if (!study) throw new Error('Study not found');
 
+  // Clarity tags are set with session_token (UUID), not the numeric session_id
   const clarityBase = (study.clarity_enabled && study.clarity_project_id)
     ? `https://clarity.microsoft.com/projects/view/${study.clarity_project_id}/impressions?CustomTag=session_id%3A%3A`
     : null;
@@ -61,7 +62,8 @@ async function generateExcel(studyId) {
   // ── Sheet 1: Raw reactions ──────────────────────────────────────────────────
   const s1 = wb.addWorksheet('Dane_surowe');
   s1.columns = [
-    { header: 'session_id', key: 'session_id', width: 12 },
+    { header: 'session_id',    key: 'session_id',    width: 12 },
+    { header: 'session_token', key: 'session_token', width: 36 },
     { header: 'full_condition', key: 'full_condition', width: 14 },
     { header: 'style_condition', key: 'style_condition', width: 14 },
     { header: 'metric_condition', key: 'metric_condition', width: 15 },
@@ -90,7 +92,7 @@ async function generateExcel(studyId) {
   styleHeader(s1.getRow(1));
 
   const rawRows = db.prepare(`
-    SELECT s.id as session_id, s.full_condition, s.style_condition, s.metric_condition,
+    SELECT s.id as session_id, s.session_token, s.full_condition, s.style_condition, s.metric_condition,
       s.age, s.residence, s.education, s.gender,
       p.id as post_id, r.post_order, p.topic, p.is_true,
       CASE WHEN s.style_condition='A' THEN p.headline_a ELSE p.headline_b END as headline_shown,
@@ -106,7 +108,6 @@ async function generateExcel(studyId) {
   `).all(studyId);
 
   rawRows.forEach(row => {
-    const sessionId = row.session_id;
     s1.addRow({
       ...row,
       ...addDemoCodes(row),
@@ -118,7 +119,7 @@ async function generateExcel(studyId) {
       disliked: row.reaction === 'dislike' ? 1 : 0,
       flagged: row.reaction === 'flag' ? 1 : 0,
       clarity_link: clarityBase
-        ? { text: 'Otwórz nagranie', hyperlink: clarityBase + sessionId }
+        ? { text: 'Otwórz nagranie', hyperlink: clarityBase + row.session_token }
         : '',
     });
   });
@@ -126,7 +127,8 @@ async function generateExcel(studyId) {
   // ── Sheet 2: Credibility ratings ────────────────────────────────────────────
   const s2 = wb.addWorksheet('Oceny_wiarygodnosci');
   s2.columns = [
-    { header: 'session_id', key: 'session_id', width: 12 },
+    { header: 'session_id',    key: 'session_id',    width: 12 },
+    { header: 'session_token', key: 'session_token', width: 36 },
     { header: 'full_condition', key: 'full_condition', width: 14 },
     { header: 'style_condition', key: 'style_condition', width: 14 },
     { header: 'metric_condition', key: 'metric_condition', width: 15 },
@@ -143,7 +145,7 @@ async function generateExcel(studyId) {
   styleHeader(s2.getRow(1));
 
   const ratingRows = db.prepare(`
-    SELECT s.id as session_id, s.full_condition, s.style_condition, s.metric_condition,
+    SELECT s.id as session_id, s.session_token, s.full_condition, s.style_condition, s.metric_condition,
       s.age, s.residence, s.education, s.gender,
       p.id as post_id, rt.post_order, p.topic, p.is_true,
       CASE WHEN s.style_condition='A' THEN p.headline_a ELSE p.headline_b END as headline_shown,
@@ -161,6 +163,7 @@ async function generateExcel(studyId) {
   const s3 = wb.addWorksheet('Dane_polaczone');
   s3.columns = [
     { header: 'session_id',              key: 'session_id',              width: 12 },
+    { header: 'session_token',           key: 'session_token',           width: 36 },
     { header: 'full_condition',          key: 'full_condition',          width: 14 },
     { header: 'style_condition',         key: 'style_condition',         width: 14 },
     { header: 'metric_condition',        key: 'metric_condition',        width: 15 },
@@ -191,7 +194,7 @@ async function generateExcel(studyId) {
   // Base: all reactions; LEFT JOIN ratings so rows without a rating are kept
   // (edge-case: paged layout without mandatory reaction gets a UNION row below)
   const combinedRows = db.prepare(`
-    SELECT s.id as session_id, s.full_condition, s.style_condition, s.metric_condition,
+    SELECT s.id as session_id, s.session_token, s.full_condition, s.style_condition, s.metric_condition,
       s.age, s.residence, s.education, s.gender,
       p.id as post_id, r.post_order, p.topic, p.is_true,
       CASE WHEN s.style_condition='A' THEN p.headline_a ELSE p.headline_b END as headline_shown,
@@ -209,7 +212,7 @@ async function generateExcel(studyId) {
     UNION ALL
 
     -- Ratings that have no matching reaction (optional-reaction layouts)
-    SELECT s.id as session_id, s.full_condition, s.style_condition, s.metric_condition,
+    SELECT s.id as session_id, s.session_token, s.full_condition, s.style_condition, s.metric_condition,
       s.age, s.residence, s.education, s.gender,
       p.id as post_id, rt.post_order, p.topic, p.is_true,
       CASE WHEN s.style_condition='A' THEN p.headline_a ELSE p.headline_b END as headline_shown,
@@ -247,7 +250,8 @@ async function generateExcel(studyId) {
   // ── Sheet 4: Session summary ─────────────────────────────────────────────────
   const s4 = wb.addWorksheet('Podsumowanie_sesji');
   s4.columns = [
-    { header: 'session_id', key: 'session_id', width: 12 },
+    { header: 'session_id',    key: 'session_id',    width: 12 },
+    { header: 'session_token', key: 'session_token', width: 36 },
     { header: 'layout_type', key: 'layout_type', width: 12 },
     { header: 'full_condition', key: 'full_condition', width: 14 },
     { header: 'style_condition', key: 'style_condition', width: 14 },
@@ -271,7 +275,7 @@ async function generateExcel(studyId) {
   styleHeader(s4.getRow(1));
 
   const sessions = db.prepare(`
-    SELECT s.id, st.layout_type, s.full_condition, s.style_condition, s.metric_condition,
+    SELECT s.id, s.session_token, st.layout_type, s.full_condition, s.style_condition, s.metric_condition,
       s.age, s.residence, s.education, s.gender, s.started_at, s.completed_at,
       ROUND(CAST((strftime('%s', s.completed_at) - strftime('%s', s.started_at)) AS REAL) / 60.0, 2) as duration_minutes
     FROM sessions s JOIN studies st ON s.study_id = st.id
@@ -309,8 +313,9 @@ async function generateExcel(studyId) {
       : null;
 
     s4.addRow({
-      session_id: sess.id,
-      layout_type: sess.layout_type || 'feed',
+      session_id:    sess.id,
+      session_token: sess.session_token,
+      layout_type:   sess.layout_type || 'feed',
       full_condition: sess.full_condition,
       style_condition: sess.style_condition,
       metric_condition: sess.metric_condition,
@@ -330,7 +335,7 @@ async function generateExcel(studyId) {
       n_negative_on_false: agg.n_neg_false,
       misinfo_susceptibility_pct: susceptPct,
       clarity_link: clarityBase
-        ? { text: 'Otwórz nagranie', hyperlink: clarityBase + sess.id }
+        ? { text: 'Otwórz nagranie', hyperlink: clarityBase + sess.session_token }
         : '',
     });
   });
