@@ -813,6 +813,10 @@ function renderDashboard(d, studyId) {
         <div class="stat-value" style="font-size:1.1rem;color:#6d28d9">${etStats.gaze_points.toLocaleString('pl-PL')}</div>
         <div class="stat-label">Punkty wzroku</div>
       </div>
+      <div class="stat-card" style="background:#f5f3ff;cursor:pointer" onclick="window.open('/admin/heatmap','_blank')">
+        <div class="stat-value" style="color:#6d28d9;font-size:1.4rem">👁</div>
+        <div class="stat-label">Otwórz Viewer →</div>
+      </div>
     </div>` : '';
 
   document.getElementById('dashboard-content').innerHTML = `

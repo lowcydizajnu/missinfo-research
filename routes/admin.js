@@ -501,4 +501,54 @@ router.get('/gaze-csv/:studyId', auth, (req, res) => {
   res.send(csv);
 });
 
+// ── Eye-tracking viewer API ────────────────────────────────────────────────
+
+// Sessions with gaze data for a study
+router.get('/gaze-sessions/:studyId', auth, (req, res) => {
+  const studyId = parseInt(req.params.studyId);
+  const sessions = db.prepare(`
+    SELECT s.id, s.session_token, s.full_condition, s.style_condition, s.metric_condition,
+           s.eyetracking_consent, s.calibration_error, s.n_recalibrations,
+           s.created_at, s.completed_at,
+           COUNT(g.id) as n_gaze_pts
+    FROM sessions s
+    LEFT JOIN gaze_points g ON g.session_id = s.id
+    WHERE s.study_id = ? AND s.eyetracking_consent = 1
+    GROUP BY s.id
+    ORDER BY s.created_at DESC
+  `).all(studyId);
+  res.json(sessions);
+});
+
+// Full gaze data for one session
+router.get('/gaze-data/:sessionId', auth, (req, res) => {
+  const sessionId = parseInt(req.params.sessionId);
+  const session = db.prepare(`
+    SELECT s.*, st.name as study_name, st.slug as study_slug
+    FROM sessions s
+    JOIN studies st ON s.study_id = st.id
+    WHERE s.id = ?
+  `).get(sessionId);
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+
+  const gaze = db.prepare(`
+    SELECT post_id, post_order, screen_name, t, x, y, vw, vh, scroll_y, aoi
+    FROM gaze_points WHERE session_id = ? ORDER BY t
+  `).all(sessionId);
+
+  const postIds = [...new Set(gaze.filter(g => g.post_id != null).map(g => g.post_id))];
+  let posts = [];
+  if (postIds.length) {
+    const ph = postIds.map(() => '?').join(',');
+    posts = db.prepare(
+      `SELECT id, post_order, topic, is_true, headline, author_name FROM posts WHERE id IN (${ph})`
+    ).all(...postIds);
+  }
+
+  let feedSnapshot = null;
+  try { if (session.feed_snapshot) feedSnapshot = JSON.parse(session.feed_snapshot); } catch (_) {}
+
+  res.json({ session, gaze, posts, feedSnapshot });
+});
+
 module.exports = router;

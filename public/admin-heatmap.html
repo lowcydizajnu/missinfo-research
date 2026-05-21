@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eye-tracking Viewer — MissInfo Research</title>
+  <link rel="stylesheet" href="/css/admin.css">
+  <link rel="stylesheet" href="/css/heatmap-viewer.css">
+</head>
+<body class="hv-body">
+
+  <header class="hv-header">
+    <a href="/admin" class="hv-back">← Panel admina</a>
+    <h1 class="hv-title">👁 Eye-tracking Viewer</h1>
+  </header>
+
+  <div class="hv-layout">
+
+    <!-- ── Sidebar ─────────────────────────────────── -->
+    <aside class="hv-sidebar">
+
+      <div class="hv-ctrl">
+        <label class="hv-label">Badanie</label>
+        <select id="hv-study" class="hv-select">
+          <option value="">— wybierz —</option>
+        </select>
+      </div>
+
+      <div class="hv-ctrl" id="hv-session-ctrl" hidden>
+        <label class="hv-label">
+          Sesje z eye-tracking
+          <span class="hv-badge" id="hv-session-badge">0</span>
+        </label>
+        <div id="hv-session-list" class="hv-session-list"></div>
+      </div>
+
+      <div class="hv-ctrl" id="hv-post-ctrl" hidden>
+        <label class="hv-label">Filtr: post</label>
+        <select id="hv-post-filter" class="hv-select">
+          <option value="all">Wszystkie posty</option>
+        </select>
+      </div>
+
+      <div class="hv-session-meta" id="hv-session-meta" hidden></div>
+
+    </aside>
+
+    <!-- ── Main ──────────────────────────────────────── -->
+    <main class="hv-main">
+
+      <!-- Empty state -->
+      <div class="hv-empty" id="hv-empty">
+        <div class="hv-empty-icon">👁</div>
+        <p>Wybierz badanie i sesję,<br>aby zobaczyć dane eye-tracking.</p>
+      </div>
+
+      <!-- Viewer (shown after session selected) -->
+      <div id="hv-viewer" hidden>
+
+        <nav class="hv-tabs">
+          <button class="hv-tab active" data-tab="heatmap">🔥 Mapa ciepła</button>
+          <button class="hv-tab" data-tab="scanpath">〰 Ścieżka wzroku</button>
+          <button class="hv-tab" data-tab="playback">▶ Odtwarzanie</button>
+          <button class="hv-tab" data-tab="compare">⚖ Porównaj</button>
+          <button class="hv-tab" data-tab="aoi">📊 AOI</button>
+        </nav>
+
+        <div class="hv-panels">
+
+          <!-- Heatmap ───────────────────────────── -->
+          <div class="hv-panel active" id="tab-heatmap">
+            <div class="hv-canvas-host" id="hm-host">
+              <canvas id="hm-bg"></canvas>
+              <div id="hm-heat"></div>
+            </div>
+            <p class="hv-hint" id="hm-hint"></p>
+          </div>
+
+          <!-- Scanpath ─────────────────────────── -->
+          <div class="hv-panel" id="tab-scanpath">
+            <div class="hv-canvas-host">
+              <canvas id="sp-canvas"></canvas>
+            </div>
+            <p class="hv-hint">
+              Koła = fiksacje (rozmiar ∝ czas).
+              Kolor: <span style="color:#4fc3f7">●</span> początek →
+              <span style="color:#ef5350">●</span> koniec.
+            </p>
+          </div>
+
+          <!-- Playback ─────────────────────────── -->
+          <div class="hv-panel" id="tab-playback">
+            <div class="hv-canvas-host">
+              <canvas id="pb-canvas"></canvas>
+            </div>
+            <div class="hv-playback-bar">
+              <button class="hv-play-btn" id="pb-play" title="Play / Pause">▶</button>
+              <input type="range" id="pb-timeline" class="hv-timeline" min="0" max="1000" value="0">
+              <span class="hv-time" id="pb-time">0s / 0s</span>
+              <label class="hv-speed-wrap">
+                Prędkość:
+                <select id="pb-speed" class="hv-select-sm">
+                  <option value="0.5">0.5×</option>
+                  <option value="1" selected>1×</option>
+                  <option value="2">2×</option>
+                  <option value="4">4×</option>
+                  <option value="8">8×</option>
+                </select>
+              </label>
+            </div>
+          </div>
+
+          <!-- Compare ──────────────────────────── -->
+          <div class="hv-panel" id="tab-compare">
+            <div id="cmp-selector">
+              <p class="hv-hint">Wybierz 2–4 sesje do porównania:</p>
+              <div id="cmp-list" class="cmp-list"></div>
+              <button class="hv-btn-primary" id="cmp-go" disabled>Pokaż porównanie →</button>
+            </div>
+            <div id="cmp-result" hidden>
+              <button class="hv-btn-ghost" id="cmp-back">← Zmień wybór</button>
+              <div id="cmp-heatmaps" class="cmp-heatmaps"></div>
+            </div>
+          </div>
+
+          <!-- AOI Table ────────────────────────── -->
+          <div class="hv-panel" id="tab-aoi">
+            <div id="aoi-content" class="aoi-content"></div>
+          </div>
+
+        </div><!-- /hv-panels -->
+      </div><!-- /hv-viewer -->
+
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/heatmap.js@2.0.5/build/heatmap.min.js"></script>
+  <script src="/js/heatmap-viewer.js"></script>
+</body>
+</html>

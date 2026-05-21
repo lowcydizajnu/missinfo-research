@@ -62,6 +62,11 @@ app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
+// Eye-tracking heatmap viewer
+app.get('/admin/heatmap', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin-heatmap.html'));
+});
+
 // Root → admin
 app.get('/', (req, res) => res.redirect('/admin'));
 
