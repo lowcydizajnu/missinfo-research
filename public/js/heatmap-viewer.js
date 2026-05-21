@@ -66,7 +66,13 @@ const HV = {
 // ── API helpers ────────────────────────────────────────────────────────────
 function apiFetch(path) {
   return fetch(path, { headers: { Authorization: `Bearer ${HV.token}` } })
-    .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); });
+    .then(async r => {
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}));
+        throw new Error(`HTTP ${r.status}: ${body.error || '(brak szczegółów)'}`);
+      }
+      return r.json();
+    });
 }
 
 // ── Load studies ───────────────────────────────────────────────────────────
