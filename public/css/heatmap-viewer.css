@@ -1,5 +1,8 @@
 /* ── Eye-tracking Viewer styles ───────────────────────────────────────────── */
 
+/* Ensure [hidden] always wins over display:flex on our elements */
+[hidden] { display: none !important; }
+
 /* Reset / base */
 .hv-body {
   margin: 0;

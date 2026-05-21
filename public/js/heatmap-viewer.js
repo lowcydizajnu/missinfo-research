@@ -74,16 +74,19 @@ async function loadStudies() {
   try {
     HV.studies = await apiFetch('/api/admin/studies');
     const sel = document.getElementById('hv-study');
-    HV.studies.filter(s => s.eyetracking_enabled).forEach(s => {
+    HV.studies.forEach(s => {
       const opt = document.createElement('option');
-      opt.value = s.id; opt.textContent = s.name;
+      opt.value = s.id;
+      opt.textContent = s.name + (s.eyetracking_enabled ? ' 👁' : '');
       sel.appendChild(opt);
     });
-    if (!sel.options.length > 1) {
-      sel.innerHTML = '<option value="">Brak badań z eye-tracking</option>';
+    if (HV.studies.length === 0) {
+      sel.innerHTML = '<option value="">Brak badań</option>';
     }
   } catch (e) {
     console.error('loadStudies:', e);
+    alert('Błąd autoryzacji — zaloguj się ponownie w panelu admina.');
+    location.href = '/admin';
   }
 }
 
