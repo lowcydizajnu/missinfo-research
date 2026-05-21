@@ -570,6 +570,105 @@ p:last-child { margin-bottom: 0; }
   font-size: 0.9rem;
 }
 
+/* ── Camera consent note ─────────────────────────────────────────────────── */
+.camera-consent-note {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  margin: 1.25rem 0;
+  font-size: 0.88rem;
+}
+.camera-consent-note ul {
+  margin: 0.5rem 0 0 1.25rem;
+  color: var(--muted);
+  line-height: 1.7;
+}
+.camera-consent-note p { margin-bottom: 0; }
+
+/* ── Calibration screen ──────────────────────────────────────────────────── */
+#screen-calibration { background: #0f1023; }
+.calibration-outer {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.cal-instructions {
+  position: relative;
+  z-index: 5;
+  color: #c8ceee;
+  text-align: center;
+  padding: 2rem 1.5rem 1rem;
+  font-size: 1rem;
+  line-height: 1.6;
+  max-width: 480px;
+}
+.cal-instructions button { margin-top: 0.5rem; }
+#cal-dots-wrap {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+}
+.cal-dot {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #4f7cff;
+  border: 3px solid #fff;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: calPulse 1.4s ease-in-out infinite;
+  transition: transform 0.15s, background 0.2s;
+}
+.cal-dot:hover { transform: translate(-50%, -50%) scale(1.25); }
+.cal-dot.done {
+  background: #16a34a;
+  border-color: #bbf7d0;
+  animation: none;
+  transform: translate(-50%, -50%) scale(0.7);
+  pointer-events: none;
+}
+.cal-dot.cal-dot-validation {
+  background: #f59e0b;
+  border-color: #fde68a;
+  cursor: default;
+  pointer-events: none;
+  animation: none;
+}
+@keyframes calPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(79,124,255,0.6); }
+  50% { box-shadow: 0 0 0 12px rgba(79,124,255,0); }
+}
+.cal-progress-bar-outer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 5px;
+  background: rgba(255,255,255,0.08);
+  z-index: 10;
+}
+.cal-progress-bar-fill {
+  height: 100%;
+  background: #4f7cff;
+  transition: width 0.3s ease;
+  width: 0%;
+}
+
+/* Hide all WebGazer-injected UI elements */
+#webgazerVideoFeed, #webgazerVideoCanvas,
+#webgazerFaceOverlay, #webgazerFaceFeedbackBox,
+#webgazerPredictionPoints { display: none !important; }
+
 /* ── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 600px) {
   .card { padding: 1.5rem 1.25rem; }

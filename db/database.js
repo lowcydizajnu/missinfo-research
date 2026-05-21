@@ -305,6 +305,28 @@ migrate('ALTER TABLE posts ADD COLUMN image_path_b TEXT DEFAULT NULL');
 migrate('ALTER TABLE posts ADD COLUMN avatar_path TEXT DEFAULT NULL');
 migrate('ALTER TABLE studies ADD COLUMN clarity_enabled INTEGER DEFAULT 0');
 migrate('ALTER TABLE studies ADD COLUMN clarity_project_id TEXT DEFAULT NULL');
+migrate('ALTER TABLE studies ADD COLUMN eyetracking_enabled INTEGER DEFAULT 0');
+migrate('ALTER TABLE sessions ADD COLUMN eyetracking_consent INTEGER DEFAULT NULL');
+migrate('ALTER TABLE sessions ADD COLUMN calibration_error REAL DEFAULT NULL');
+migrate('ALTER TABLE sessions ADD COLUMN n_recalibrations INTEGER DEFAULT 0');
+migrate('ALTER TABLE sessions ADD COLUMN feed_snapshot TEXT DEFAULT NULL');
+migrate(`CREATE TABLE IF NOT EXISTS gaze_points (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  session_id INTEGER NOT NULL,
+  post_id INTEGER,
+  post_order INTEGER,
+  screen_name TEXT,
+  t INTEGER NOT NULL,
+  x REAL NOT NULL,
+  y REAL NOT NULL,
+  vw INTEGER,
+  vh INTEGER,
+  scroll_y INTEGER,
+  aoi TEXT,
+  FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+)`);
+migrate('CREATE INDEX IF NOT EXISTS idx_gaze_session ON gaze_points(session_id)');
+migrate('CREATE INDEX IF NOT EXISTS idx_gaze_post ON gaze_points(session_id, post_id)');
 
 // Initialise metric_conditions_json from legacy columns for any study that doesn't have it yet
 {

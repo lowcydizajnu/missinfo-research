@@ -119,6 +119,7 @@ router.patch('/studies/:id', auth, (req, res) => {
     'label_likert_question', 'label_likert_min', 'label_likert_max', 'comment_placeholder',
     'consent_text', 'instruction_text', 'transition_feed_text', 'transition_rating_text', 'debrief_text',
     'clarity_enabled', 'clarity_project_id',
+    'eyetracking_enabled',
   ];
   const updates = {};
   fields.forEach(f => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
@@ -420,6 +421,23 @@ router.get('/dashboard/:studyId', auth, (req, res) => {
     ORDER BY s.completed_at DESC LIMIT 20
   `).all(studyId);
 
+  // Eye-tracking stats (only if the study has it enabled)
+  const study = db.prepare('SELECT * FROM studies WHERE id = ?').get(studyId);
+  let eyetracking_stats = null;
+  if (study && study.eyetracking_enabled) {
+    const etConsented = db.prepare(
+      'SELECT COUNT(*) as n FROM sessions WHERE study_id = ? AND eyetracking_consent = 1'
+    ).get(studyId)?.n || 0;
+    const etDeclined = db.prepare(
+      'SELECT COUNT(*) as n FROM sessions WHERE study_id = ? AND eyetracking_consent = 0'
+    ).get(studyId)?.n || 0;
+    const etGazePts = db.prepare(
+      `SELECT COUNT(*) as n FROM gaze_points g
+       JOIN sessions s ON g.session_id = s.id WHERE s.study_id = ?`
+    ).get(studyId)?.n || 0;
+    eyetracking_stats = { consented: etConsented, declined: etDeclined, gaze_points: etGazePts };
+  }
+
   res.json({
     total_sessions: total,
     completed_sessions: completed,
@@ -428,6 +446,7 @@ router.get('/dashboard/:studyId', auth, (req, res) => {
     conditions_mean_belief_false: Object.fromEntries(beliefByCondFalse.map(r => [r.full_condition, r.mean_belief])),
     conditions_mean_belief_true: Object.fromEntries(beliefByCondTrue.map(r => [r.full_condition, r.mean_belief])),
     recent_sessions: recentSessions,
+    eyetracking_stats,
   });
 });
 
@@ -449,6 +468,37 @@ router.get('/export/:studyId', auth, async (req, res) => {
     console.error('Export error:', err);
     res.status(500).json({ error: err.message });
   }
+});
+
+// ── Gaze CSV ──────────────────────────────────────────────────────────────────
+router.get('/gaze-csv/:studyId', auth, (req, res) => {
+  const study = db.prepare('SELECT * FROM studies WHERE id = ?').get(req.params.studyId);
+  if (!study) return res.status(404).json({ error: 'Study not found' });
+
+  const rows = db.prepare(`
+    SELECT g.session_id, s.session_token, s.full_condition,
+           g.post_id, g.post_order, g.screen_name, g.t,
+           g.x, g.y, g.vw, g.vh, g.scroll_y, g.aoi
+    FROM gaze_points g
+    JOIN sessions s ON g.session_id = s.id
+    WHERE s.study_id = ?
+    ORDER BY g.session_id, g.t
+  `).all(req.params.studyId);
+
+  const header = 'session_id,session_token,full_condition,post_id,post_order,screen_name,t,x,y,vw,vh,scroll_y,aoi';
+  const csv = [
+    header,
+    ...rows.map(r => [
+      r.session_id, r.session_token, r.full_condition ?? '',
+      r.post_id ?? '', r.post_order ?? '', r.screen_name ?? '',
+      r.t, r.x, r.y, r.vw ?? '', r.vh ?? '', r.scroll_y ?? '', r.aoi ?? '',
+    ].join(',')),
+  ].join('\n');
+
+  const date = new Date().toISOString().slice(0, 10);
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${study.slug}_gaze_${date}.csv"`);
+  res.send(csv);
 });
 
 module.exports = router;

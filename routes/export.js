@@ -432,14 +432,71 @@ async function generateExcel(studyId) {
 
   s5.columns = s5.columns.map(c => ({ ...c, width: Math.max(c.width || 12, 14) }));
 
-  // ── Sheet 6: Codebook ─────────────────────────────────────────────────────────
-  const s6 = wb.addWorksheet('Klucz_kodowania');
-  s6.columns = [
+  // ── Sheet 6: Eye-tracking aggregated per session × post ─────────────────────
+  const s6et = wb.addWorksheet('Eye_tracking');
+  s6et.columns = [
+    { header: 'session_id',          key: 'session_id',          width: 12 },
+    { header: 'session_token',       key: 'session_token',       width: 36 },
+    { header: 'full_condition',      key: 'full_condition',      width: 14 },
+    { header: 'style_condition',     key: 'style_condition',     width: 14 },
+    { header: 'metric_condition',    key: 'metric_condition',    width: 15 },
+    ...DEMO_COLS,
+    { header: 'eyetracking_consent', key: 'eyetracking_consent', width: 20 },
+    { header: 'calibration_error_px',key: 'calibration_error',  width: 22 },
+    { header: 'n_recalibrations',    key: 'n_recalibrations',   width: 18 },
+    { header: 'post_id',             key: 'post_id',             width: 10 },
+    { header: 'post_order',          key: 'post_order',          width: 11 },
+    { header: 'topic',               key: 'topic',               width: 12 },
+    { header: 'is_true',             key: 'is_true',             width: 10 },
+    { header: 'n_gaze_pts',          key: 'n_gaze_pts',          width: 12 },
+    { header: 'pct_headline',        key: 'pct_headline',        width: 15 },
+    { header: 'pct_content',         key: 'pct_content',         width: 14 },
+    { header: 'pct_image',           key: 'pct_image',           width: 13 },
+    { header: 'pct_metrics',         key: 'pct_metrics',         width: 14 },
+    { header: 'pct_actions',         key: 'pct_actions',         width: 14 },
+    { header: 'pct_avatar',          key: 'pct_avatar',          width: 13 },
+    { header: 'pct_other',           key: 'pct_other',           width: 12 },
+  ];
+  styleHeader(s6et.getRow(1));
+
+  try {
+    const gazeRows = db.prepare(`
+      SELECT s.id as session_id, s.session_token, s.full_condition,
+             s.style_condition, s.metric_condition,
+             s.age, s.residence, s.education, s.gender,
+             s.eyetracking_consent, s.calibration_error, s.n_recalibrations,
+             g.post_id, g.post_order, p.topic, p.is_true,
+             COUNT(*) as n_gaze_pts,
+             ROUND(100.0 * SUM(CASE WHEN g.aoi='headline' THEN 1 ELSE 0 END) / COUNT(*), 1) as pct_headline,
+             ROUND(100.0 * SUM(CASE WHEN g.aoi='content'  THEN 1 ELSE 0 END) / COUNT(*), 1) as pct_content,
+             ROUND(100.0 * SUM(CASE WHEN g.aoi='image'    THEN 1 ELSE 0 END) / COUNT(*), 1) as pct_image,
+             ROUND(100.0 * SUM(CASE WHEN g.aoi='metrics'  THEN 1 ELSE 0 END) / COUNT(*), 1) as pct_metrics,
+             ROUND(100.0 * SUM(CASE WHEN g.aoi='actions'  THEN 1 ELSE 0 END) / COUNT(*), 1) as pct_actions,
+             ROUND(100.0 * SUM(CASE WHEN g.aoi='avatar'   THEN 1 ELSE 0 END) / COUNT(*), 1) as pct_avatar,
+             ROUND(100.0 * SUM(CASE WHEN g.aoi NOT IN ('headline','content','image','metrics','actions','avatar') OR g.aoi IS NULL THEN 1 ELSE 0 END) / COUNT(*), 1) as pct_other
+        FROM gaze_points g
+        JOIN sessions s ON g.session_id = s.id
+        JOIN posts    p ON g.post_id    = p.id
+       WHERE s.study_id = ? AND s.eyetracking_consent = 1 AND g.post_id IS NOT NULL
+       GROUP BY s.id, g.post_id
+       ORDER BY s.id, g.post_order
+    `).all(studyId);
+
+    gazeRows.forEach(row => s6et.addRow({
+      ...row,
+      ...addDemoCodes(row),
+      is_true: row.is_true ? 1 : 0,
+    }));
+  } catch (_) { /* table may not exist on old deployments — sheet stays empty */ }
+
+  // ── Sheet 7: Codebook ─────────────────────────────────────────────────────────
+  const s7 = wb.addWorksheet('Klucz_kodowania');
+  s7.columns = [
     { header: 'Zmienna', key: 'variable', width: 28 },
     { header: 'Wartość tekstowa', key: 'label', width: 30 },
     { header: 'Kod numeryczny', key: 'code_val', width: 16 },
   ];
-  styleCodebookHeader(s6.getRow(1));
+  styleCodebookHeader(s7.getRow(1));
 
   const codebookEntries = [
     { variable: 'PŁEĆ (gender / gender_kod)', label: '', code_val: '' },
@@ -475,7 +532,7 @@ async function generateExcel(studyId) {
   ];
 
   codebookEntries.forEach((entry, i) => {
-    const row = s6.addRow(entry);
+    const row = s7.addRow(entry);
     if (entry.variable && entry.label === '') {
       row.getCell(1).font = { bold: true, color: { argb: 'FF3B4A8A' } };
       row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFf0f2fa' } };

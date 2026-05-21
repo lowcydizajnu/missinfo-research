@@ -74,6 +74,270 @@ function showError(msg) {
   startSession();
 })();
 
+// ── Eye-tracking (WebGazer) ────────────────────────────────────────────────
+// ISOLATION: all ET code is guarded by ET.enabled — studies with
+// eyetracking_enabled=false never load WebGazer, never show calibration screens.
+const ET = {
+  enabled:         false,  // set from study.eyetracking_enabled in startSession()
+  consented:       false,  // participant agreed to camera
+  gazeBuffer:      [],     // pending gaze points (flushed in batches)
+  flushTimer:      null,
+  currentPostId:   null,
+  currentPostOrder:null,
+  currentScreen:   null,
+  paused:          true,   // start paused; resume after calibration
+  calibrated:      false,
+  lastCalibTime:   0,
+  recalibCount:    0,
+  postsSinceCalib: 0,
+  startTs:         0,      // Date.now() when eye-tracking started
+  calIndex:        0,      // current calibration dot index
+};
+
+const WEBGAZER_CDN   = 'https://webgazer.cs.brown.edu/webgazer.js';
+const GAZE_THROTTLE  = 80;   // ms between stored samples (~12.5 Hz)
+const GAZE_BATCH_MAX = 60;   // flush when buffer reaches this size
+const GAZE_FLUSH_MS  = 3000; // flush every N ms regardless
+const RECALIB_POSTS  = 4;    // recalibrate after N posts in paged mode
+const RECALIB_MS     = 5 * 60 * 1000; // …or after 5 minutes
+
+let _lastGazeTs = 0; // timestamp of last stored sample
+
+function loadWebGazer() {
+  return new Promise((resolve, reject) => {
+    if (window.webgazer) return resolve(window.webgazer);
+    const s = document.createElement('script');
+    s.src = WEBGAZER_CDN;
+    s.async = true;
+    s.onload  = () => window.webgazer ? resolve(window.webgazer) : reject(new Error('webgazer not found'));
+    s.onerror = () => reject(new Error('WebGazer CDN load failed'));
+    document.head.appendChild(s);
+  });
+}
+
+function detectAOI(x, y) {
+  // Returns the named area-of-interest that contains viewport point (x, y)
+  const checks = [
+    { name: 'headline', sels: ['.post-headline', '#paged-headline', '#rating-headline'] },
+    { name: 'content',  sels: ['.post-content',  '#paged-content',  '#rating-content'] },
+    { name: 'image',    sels: ['.post-image img', '#paged-image-wrap'] },
+    { name: 'metrics',  sels: ['.post-metrics',   '#paged-metrics'] },
+    { name: 'actions',  sels: ['.post-actions',   '#paged-actions'] },
+    { name: 'avatar',   sels: ['.post-avatar',    '.post-avatar-img', '#paged-avatar'] },
+  ];
+  for (const { name, sels } of checks) {
+    for (const sel of sels) {
+      for (const el of document.querySelectorAll(sel)) {
+        if (!el.offsetParent && el.id !== 'paged-avatar') continue; // hidden
+        const r = el.getBoundingClientRect();
+        if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return name;
+      }
+    }
+  }
+  return 'other';
+}
+
+function startGazeListener() {
+  webgazer.setGazeListener((data) => {
+    if (!data || ET.paused || !ET.consented) return;
+    const now = Date.now();
+    if (now - _lastGazeTs < GAZE_THROTTLE) return;
+    _lastGazeTs = now;
+    ET.gazeBuffer.push({
+      post_id:      ET.currentPostId,
+      post_order:   ET.currentPostOrder,
+      screen_name:  ET.currentScreen,
+      t:            now - ET.startTs,
+      x:            Math.round(data.x),
+      y:            Math.round(data.y),
+      vw:           window.innerWidth,
+      vh:           window.innerHeight,
+      scroll_y:     Math.round(window.scrollY),
+      aoi:          detectAOI(data.x, data.y),
+    });
+    if (ET.gazeBuffer.length >= GAZE_BATCH_MAX) flushGaze();
+  });
+}
+
+function flushGaze() {
+  if (!ET.gazeBuffer.length || !ET.consented || !S.session) return;
+  const pts = ET.gazeBuffer.splice(0);
+  apiPost('/api/gaze', { session_token: S.session.session_token, points: pts }).catch(() => {});
+}
+
+function startGazeFlushTimer() {
+  if (ET.flushTimer) clearInterval(ET.flushTimer);
+  ET.flushTimer = setInterval(() => { if (ET.gazeBuffer.length) flushGaze(); }, GAZE_FLUSH_MS);
+}
+
+function storeEyetrackingConsent(consented, calibrationError) {
+  if (!S.session) return;
+  apiPost('/api/session/eyetracking-consent', {
+    session_token:    S.session.session_token,
+    eyetracking_consent: consented,
+    calibration_error:   calibrationError ?? null,
+    n_recalibrations:    ET.recalibCount,
+  }).catch(() => {});
+}
+
+function shouldRecalibrate() {
+  return ET.postsSinceCalib >= RECALIB_POSTS ||
+         (Date.now() - ET.lastCalibTime) >= RECALIB_MS;
+}
+
+// ── 9-point calibration ────────────────────────────────────────────────────
+const CAL_POSITIONS = [
+  [10, 10], [50, 10], [90, 10],
+  [10, 50], [50, 50], [90, 50],
+  [10, 90], [50, 90], [90, 90],
+];
+
+function runCalibration(onComplete) {
+  ET.calIndex = 0;
+  const wrap = $('cal-dots-wrap');
+  const instr = $('cal-instructions');
+  wrap.innerHTML = '';
+
+  CAL_POSITIONS.forEach(([xPct, yPct], i) => {
+    const dot = document.createElement('div');
+    dot.className = 'cal-dot';
+    dot.id = 'cal-dot-' + i;
+    dot.style.left = xPct + 'vw';
+    dot.style.top  = yPct + 'vh';
+    dot.style.display = i === 0 ? 'flex' : 'none';
+    dot.addEventListener('click', () => {
+      if (i !== ET.calIndex) return;
+      dot.classList.add('done');
+      ET.calIndex++;
+      const fill = $('cal-progress-fill');
+      if (fill) fill.style.width = `${(ET.calIndex / 9) * 100}%`;
+      const next = $('cal-dot-' + ET.calIndex);
+      if (next) {
+        setTimeout(() => {
+          dot.style.display = 'none';
+          next.style.display = 'flex';
+          const numEl = $('cal-dot-num');
+          if (numEl) numEl.textContent = ET.calIndex + 1;
+        }, 180);
+      } else {
+        // All 9 clicked → validate
+        setTimeout(() => _runCalibrationValidation(onComplete), 300);
+      }
+    });
+    wrap.appendChild(dot);
+  });
+
+  if (instr) instr.innerHTML = 'Spójrz na punkt i kliknij go.<br>Punkt <strong id="cal-dot-num">1</strong> z 9';
+  const fill = $('cal-progress-fill');
+  if (fill) fill.style.width = '0%';
+}
+
+async function _runCalibrationValidation(onComplete) {
+  const wrap = $('cal-dots-wrap');
+  const instr = $('cal-instructions');
+  wrap.innerHTML = '';
+  if (instr) instr.innerHTML = '<span>Sprawdzam dokładność kalibracji…</span>';
+  await new Promise(r => setTimeout(r, 900));
+
+  const valPts = [[25, 25], [75, 50], [50, 75]];
+  let totalErr = 0, measured = 0;
+
+  for (const [xPct, yPct] of valPts) {
+    wrap.innerHTML = '';
+    const dot = document.createElement('div');
+    dot.className = 'cal-dot cal-dot-validation';
+    dot.style.left = xPct + 'vw';
+    dot.style.top  = yPct + 'vh';
+    wrap.appendChild(dot);
+    if (instr) instr.textContent = 'Spójrz na punkt…';
+    await new Promise(r => setTimeout(r, 1800));
+    try {
+      const pred = await webgazer.getCurrentPrediction();
+      if (pred) {
+        const tx = (xPct / 100) * window.innerWidth;
+        const ty = (yPct / 100) * window.innerHeight;
+        totalErr += Math.sqrt((pred.x - tx) ** 2 + (pred.y - ty) ** 2);
+        measured++;
+      }
+    } catch (_) {}
+  }
+
+  wrap.innerHTML = '';
+  const avgErr = measured > 0 ? Math.round(totalErr / measured) : null;
+  const fill = $('cal-progress-fill');
+  if (fill) fill.style.width = '100%';
+
+  // Offer retry if error > 180px and recalibrations < 2
+  if ((avgErr === null || avgErr > 180) && ET.recalibCount < 2) {
+    if (instr) instr.innerHTML = `
+      <span>Kalibracja niedokładna${avgErr ? ` (błąd: ${avgErr}px)` : ''}. Spróbuj ponownie lub kontynuuj bez śledzenia wzroku.</span>
+      <div style="margin-top:1.25rem;display:flex;gap:1rem;justify-content:center;flex-wrap:wrap">
+        <button class="btn btn-primary" id="cal-retry-btn">Kalibruj ponownie</button>
+        <button class="btn btn-ghost" id="cal-skip-btn" style="color:#9aa;border-color:#334">Pomiń śledzenie</button>
+      </div>`;
+    $('cal-retry-btn').onclick = () => {
+      ET.recalibCount++;
+      webgazer.clearData();
+      runCalibration(onComplete);
+    };
+    $('cal-skip-btn').onclick = () => onComplete(false, null);
+  } else {
+    onComplete(avgErr !== null && avgErr <= 180, avgErr);
+  }
+}
+
+// ── Camera consent + calibration flow ─────────────────────────────────────
+function showCameraConsent() {
+  showScreen('screen-camera-consent');
+  trackScreen('camera-consent');
+
+  $('btn-camera-consent-yes').onclick = async () => {
+    try {
+      const wg = await loadWebGazer();
+      wg.setRegression('ridge')
+        .showVideo(false)
+        .showFaceOverlay(false)
+        .showFaceFeedbackBox(false)
+        .showPredictionPoints(false);
+      await wg.begin();
+      ET.consented = true;
+      ET.startTs   = Date.now();
+
+      showScreen('screen-calibration');
+      trackScreen('calibration');
+      runCalibration((ok, err) => {
+        if (ok) {
+          ET.calibrated    = true;
+          ET.lastCalibTime = Date.now();
+          storeEyetrackingConsent(true, err);
+          startGazeListener();
+          startGazeFlushTimer();
+        } else {
+          ET.consented = false;
+          storeEyetrackingConsent(false, null);
+        }
+        goToDemographics();
+      });
+    } catch (e) {
+      console.warn('WebGazer init failed:', e);
+      storeEyetrackingConsent(false, null);
+      goToDemographics();
+    }
+  };
+
+  $('btn-camera-consent-no').onclick = () => {
+    storeEyetrackingConsent(false, null);
+    goToDemographics();
+  };
+}
+
+// Go to demographics; pause gaze while personal data is on screen (RODO)
+function goToDemographics() {
+  ET.paused = true;
+  showScreen('screen-demographics');
+  trackScreen('demographics');
+}
+
 // ── MS Clarity ─────────────────────────────────────────────────────────────
 function injectClarity(projectId) {
   if (!projectId) return;
@@ -153,6 +417,8 @@ async function startSession() {
     const data = await apiPost('/api/session/start', { study_id: S.config.id });
     S.session = data;
     S.posts = data.posts;
+    // Enable eye-tracking if study has it configured
+    ET.enabled = data.study.eyetracking_enabled === true;
     // Inject Clarity only for this study's project
     if (data.study.clarity_enabled && data.study.clarity_project_id) {
       injectClarity(data.study.clarity_project_id);
@@ -187,9 +453,10 @@ function renderConsentScreen(study) {
         renderInstructionScreen(study);
         showScreen('screen-instructions');
         trackScreen('instructions');
+      } else if (ET.enabled) {
+        showCameraConsent();
       } else {
-        showScreen('screen-demographics');
-        trackScreen('demographics');
+        goToDemographics();
       }
     } catch (e) { showError(e.message); }
   };
@@ -224,7 +491,13 @@ function renderInstructionScreen(study) {
     }
   }
 
-  $('btn-instructions-next').onclick = () => { showScreen('screen-demographics'); trackScreen('demographics'); };
+  $('btn-instructions-next').onclick = () => {
+    if (ET.enabled) {
+      showCameraConsent();
+    } else {
+      goToDemographics();
+    }
+  };
 }
 
 // ── Screen 3: Demographics ─────────────────────────────────────────────────
@@ -252,6 +525,7 @@ function renderInstructionScreen(study) {
         education: fd.get('education'),
         gender: fd.get('gender'),
       });
+      ET.paused = false; // resume gaze tracking — personal data screen is done (RODO)
       const study = S.session.study;
       if (study.show_transition_feed) {
         showScreen('screen-transition-feed');
@@ -291,6 +565,18 @@ function renderFeed() {
   });
 
   setupDwellObserver();
+
+  // Capture feed layout snapshot for eye-tracking heatmap (Part 2)
+  if (ET.enabled && ET.consented) {
+    setTimeout(() => {
+      const snapshot = S.posts.map(post => {
+        const el = document.querySelector(`[data-post-id="${post.id}"]`);
+        if (!el) return null;
+        return { post_id: post.id, post_order: post.post_order, height: Math.round(el.getBoundingClientRect().height) };
+      }).filter(Boolean);
+      apiPost('/api/session/feed-snapshot', { session_token: S.session.session_token, snapshot }).catch(() => {});
+    }, 600);
+  }
 }
 
 function createPostCard(post) {
@@ -398,6 +684,9 @@ function setupDwellObserver() {
       const postOrder = Number(entry.target.dataset.postOrder);
       if (entry.isIntersecting) {
         S.dwellStart[postId] = Date.now();
+        ET.currentPostId    = postId;
+        ET.currentPostOrder = postOrder;
+        ET.currentScreen    = 'feed_post_' + postOrder;
         // Virtual page for Clarity heatmap segmentation
         trackScreen('post_' + postOrder + '_id' + postId);
       } else {
@@ -608,6 +897,11 @@ function renderPagedPost() {
   // Track dwell
   S.pagedDwellStart[post.id] = Date.now();
 
+  // Eye-tracking: update current post context
+  ET.currentPostId    = post.id;
+  ET.currentPostOrder = post.post_order;
+  ET.currentScreen    = 'paged_post_' + post.post_order;
+
   // Virtual page for Clarity heatmap segmentation
   trackScreen('post_' + post.post_order + '_id' + post.id);
 
@@ -682,6 +976,28 @@ $('btn-paged-next').onclick = async () => {
 
   if (S.pagedIndex >= S.posts.length) {
     await completeSession();
+    return;
+  }
+
+  // Check if eye-tracking recalibration is needed between posts
+  ET.postsSinceCalib++;
+  if (ET.enabled && ET.consented && ET.calibrated && shouldRecalibrate()) {
+    ET.paused = true;
+    flushGaze();
+    ET.recalibCount++;
+    webgazer.clearData();
+    showScreen('screen-calibration');
+    trackScreen('recalibration');
+    runCalibration((ok, err) => {
+      if (ok) {
+        ET.lastCalibTime    = Date.now();
+        ET.postsSinceCalib  = 0;
+        storeEyetrackingConsent(true, err);
+      }
+      ET.paused = false;
+      renderPagedPost();
+      showScreen('screen-paged');
+    });
   } else {
     renderPagedPost();
   }
@@ -689,6 +1005,13 @@ $('btn-paged-next').onclick = async () => {
 
 // ── Screen 8: Debrief ─────────────────────────────────────────────────────
 async function completeSession() {
+  // Flush any remaining gaze points before marking session complete
+  if (ET.enabled && ET.consented) {
+    ET.paused = true;
+    flushGaze();
+    if (ET.flushTimer) { clearInterval(ET.flushTimer); ET.flushTimer = null; }
+    try { webgazer.pause(); } catch (_) {}
+  }
   try {
     const data = await apiPost('/api/session/complete', { session_token: S.session.session_token });
     if (S.session.study.show_debrief) {

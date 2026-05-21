@@ -278,6 +278,43 @@
   </div>
 </section>
 
+<!-- ── Screen: Camera Consent (eye-tracking, only shown when study has it enabled) ── -->
+<section class="screen" id="screen-camera-consent">
+  <div class="screen-inner centered">
+    <div class="card consent-card">
+      <div class="big-emoji">👁️</div>
+      <h2>Śledzenie wzroku (opcjonalne)</h2>
+      <p>To badanie może opcjonalnie rejestrować ruch Twoich oczu za pomocą kamery, aby lepiej zrozumieć, jak przeglądasz posty.</p>
+      <div class="camera-consent-note">
+        <p><strong>Ważne informacje:</strong></p>
+        <ul>
+          <li>Kamera służy wyłącznie do estymacji kierunku wzroku</li>
+          <li>Obraz z kamery <strong>nigdy nie jest zapisywany ani przesyłany</strong></li>
+          <li>Zapisywane są jedynie współrzędne punktu patrzenia (x, y)</li>
+          <li>Odmowa nie wpływa na przebieg badania</li>
+        </ul>
+      </div>
+      <div class="consent-actions" style="flex-direction:column;gap:0.75rem">
+        <button class="btn btn-primary" id="btn-camera-consent-yes">Wyrażam zgodę na śledzenie wzroku</button>
+        <button class="btn btn-ghost" id="btn-camera-consent-no">Nie wyrażam zgody — kontynuuj bez śledzenia</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Screen: Calibration (9-point gaze calibration) ──────────────────── -->
+<section class="screen" id="screen-calibration">
+  <div class="calibration-outer">
+    <p class="cal-instructions" id="cal-instructions">
+      Spójrz na punkt i kliknij go.<br>Punkt <strong id="cal-dot-num">1</strong> z 9
+    </p>
+    <div id="cal-dots-wrap"></div>
+    <div class="cal-progress-bar-outer">
+      <div class="cal-progress-bar-fill" id="cal-progress-fill"></div>
+    </div>
+  </div>
+</section>
+
 <!-- ── Complete (debrief hidden) ─────────────────────────────────────────── -->
 <section class="screen" id="screen-complete">
   <div class="screen-inner centered">

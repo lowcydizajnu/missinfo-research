@@ -183,6 +183,7 @@ router.post('/session/start', (req, res) => {
       show_metrics: study.show_metrics !== 0,
       clarity_enabled: study.clarity_enabled ? true : false,
       clarity_project_id: study.clarity_project_id || null,
+      eyetracking_enabled: study.eyetracking_enabled ? true : false,
       show_comment_in_condition: metricCondObj.show_comment ? true : false,
       label_style_a: study.label_style_a || 'Styl A (manipulacyjny)',
       label_style_b: study.label_style_b || 'Styl B (neutralny)',
@@ -285,6 +286,55 @@ router.post('/session/complete', (req, res) => {
     debrief_text: study.debrief_text || db.DEFAULT_DEBRIEF_TEXT,
     contact_email: study.contact_email || '',
   });
+});
+
+// POST /api/session/eyetracking-consent — record camera consent + calibration quality
+router.post('/session/eyetracking-consent', (req, res) => {
+  const { session_token, eyetracking_consent, calibration_error, n_recalibrations } = req.body;
+  const session = getSession(session_token);
+  if (!session) return res.status(401).json({ error: 'Invalid session' });
+  db.prepare(`UPDATE sessions SET eyetracking_consent = ?, calibration_error = ?, n_recalibrations = ?
+    WHERE session_token = ?`)
+    .run(eyetracking_consent ? 1 : 0, calibration_error ?? null, n_recalibrations ?? 0, session_token);
+  res.json({ ok: true });
+});
+
+// POST /api/gaze — batch insert gaze points (fire-and-forget from client)
+router.post('/gaze', (req, res) => {
+  const { session_token, points } = req.body;
+  if (!session_token || !Array.isArray(points) || !points.length) return res.json({ ok: true });
+  const session = getSession(session_token);
+  if (!session) return res.status(401).json({ error: 'Invalid session' });
+
+  const insert = db.prepare(`
+    INSERT INTO gaze_points
+      (session_id, post_id, post_order, screen_name, t, x, y, vw, vh, scroll_y, aoi)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  const insertAll = db.transaction((pts) => {
+    for (const p of pts) {
+      insert.run(
+        session.id,
+        p.post_id   ?? null, p.post_order  ?? null,
+        p.screen_name ?? null,
+        p.t, p.x, p.y,
+        p.vw ?? null, p.vh ?? null, p.scroll_y ?? null,
+        p.aoi ?? null
+      );
+    }
+  });
+  try { insertAll(points); } catch (_) { /* non-critical */ }
+  res.json({ ok: true });
+});
+
+// POST /api/session/feed-snapshot — store post layout snapshot for heatmap viewer
+router.post('/session/feed-snapshot', (req, res) => {
+  const { session_token, snapshot } = req.body;
+  const session = getSession(session_token);
+  if (!session) return res.status(401).json({ error: 'Invalid session' });
+  db.prepare('UPDATE sessions SET feed_snapshot = ? WHERE session_token = ?')
+    .run(JSON.stringify(snapshot || []), session_token);
+  res.json({ ok: true });
 });
 
 module.exports = router;

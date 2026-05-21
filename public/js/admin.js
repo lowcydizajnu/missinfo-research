@@ -213,6 +213,10 @@ function renderStudiesList() {
           ? `<span class="badge badge-active" style="background:#dcfce7;color:#15803d;font-size:0.68rem">Clarity</span>`
           : `<span class="badge" style="background:var(--surface2);color:var(--muted);font-size:0.68rem">Clarity —</span>`
         }
+        ${s.eyetracking_enabled
+          ? `<span class="badge badge-active" style="background:#ede9fe;color:#6d28d9;font-size:0.68rem">👁 ET</span>`
+          : ''
+        }
         <button class="btn btn-ghost btn-sm" onclick="toggleStudyActive(${s.id}, ${s.is_active})">${s.is_active ? 'Dezaktywuj' : 'Aktywuj'}</button>
         <button class="btn btn-ghost btn-sm" onclick="openStudySettings(${s.id})">Ustawienia</button>
         <button class="btn btn-ghost btn-sm" onclick="goToPostEditor(${s.id})">Edytor postów</button>
@@ -554,6 +558,22 @@ async function openStudySettings(id) {
     </div>
     <div id="es-clarity-status" style="font-size:0.8rem;margin-bottom:0.5rem"></div>
 
+    <div class="modal-section-title" style="margin-top:1.5rem">Śledzenie wzroku (WebGazer.js)</div>
+    <div class="toggle-row" style="margin-bottom:0.75rem">
+      <div class="toggle-wrap">
+        <label class="toggle">
+          <input type="checkbox" id="es-et-enabled" ${s.eyetracking_enabled ? 'checked' : ''}>
+          <span class="toggle-slider"></span>
+        </label>
+        <span class="toggle-label">Włącz opcjonalne śledzenie wzroku</span>
+      </div>
+    </div>
+    <div style="font-size:0.78rem;color:var(--muted);margin-bottom:0.75rem;line-height:1.5">
+      Uczestnicy będą proszeni o zgodę na użycie kamery (można odmówić bez wpływu na badanie).
+      Obraz z kamery <strong>nigdy nie jest zapisywany ani przesyłany</strong> — tylko współrzędne wzroku.
+      Dane trafiają do arkusza <em>Eye_tracking</em> w eksporcie Excel oraz CSV gaze.
+    </div>
+
     <div class="modal-footer">
       <button class="btn btn-primary" onclick="saveStudySettings(${id})">Zapisz</button>
       <button class="btn btn-ghost" onclick="closeModal()">Anuluj</button>
@@ -669,6 +689,7 @@ async function saveStudySettings(id) {
     debrief_text: document.getElementById('es-debrief').value.trim() || null,
     clarity_enabled: document.getElementById('es-clarity-enabled').checked ? 1 : 0,
     clarity_project_id: document.getElementById('es-clarity-pid').value.trim() || null,
+    eyetracking_enabled: document.getElementById('es-et-enabled').checked ? 1 : 0,
   };
 
   // Custom builder — collect editable label fields
@@ -777,6 +798,23 @@ function renderDashboard(d, studyId) {
       <td class="text-muted">${s.completed_at ? s.completed_at.slice(0,16).replace('T',' ') : '–'}</td>
     </tr>`).join('');
 
+  const etStats = d.eyetracking_stats;
+  const etBlock = etStats ? `
+    <div class="stats-grid" style="margin-top:0.75rem">
+      <div class="stat-card" style="background:#f5f3ff">
+        <div class="stat-value" style="color:#6d28d9">${etStats.consented}</div>
+        <div class="stat-label">👁 ET — zgoda</div>
+      </div>
+      <div class="stat-card" style="background:#f5f3ff">
+        <div class="stat-value" style="color:#6d28d9">${etStats.declined}</div>
+        <div class="stat-label">👁 ET — odmowa</div>
+      </div>
+      <div class="stat-card" style="background:#f5f3ff">
+        <div class="stat-value" style="font-size:1.1rem;color:#6d28d9">${etStats.gaze_points.toLocaleString('pl-PL')}</div>
+        <div class="stat-label">Punkty wzroku</div>
+      </div>
+    </div>` : '';
+
   document.getElementById('dashboard-content').innerHTML = `
     <div class="stats-grid">
       <div class="stat-card"><div class="stat-value">${d.total_sessions}</div><div class="stat-label">Wszystkie sesje</div></div>
@@ -789,6 +827,7 @@ function renderDashboard(d, studyId) {
         <div class="stat-label">URL badania</div>
       </div>
     </div>
+    ${etBlock}
 
     <div class="grid-2col">
       <div>${pivot2x2('Ukończone sesje (N)', comp)}</div>
@@ -1321,9 +1360,15 @@ async function loadExportView(studyId) {
            onclick="handleExportClick(event, ${studyId})">
           📥 Pobierz Excel (.xlsx)
         </a>
+        ${study?.eyetracking_enabled ? `
+        <a class="btn btn-ghost btn-sm" href="/api/admin/gaze-csv/${studyId}"
+           id="gaze-csv-link" style="margin-top:0.5rem"
+           onclick="handleGazeCsvClick(event, ${studyId})">
+          👁 Pobierz CSV danych wzrokowych
+        </a>` : ''}
       </div>
       <p style="color:var(--muted);font-size:0.8rem;margin-top:1rem">
-        Plik zawiera 5 arkuszy: Dane_surowe, Oceny_wiarygodnosci, Podsumowanie_sesji, Design_2x2, Klucz_kodowania
+        Plik Excel zawiera 7 arkuszy: Dane_surowe, Oceny_wiarygodnosci, Dane_polaczone, Podsumowanie_sesji, Design_2x2, Eye_tracking, Klucz_kodowania
       </p>
       <p style="color:var(--muted);font-size:0.8rem;margin-top:0.5rem">
         Kolumna <strong>clarity_link</strong> prowadzi do nagrania w projekcie MS Clarity
@@ -1391,6 +1436,31 @@ async function loadExportView(studyId) {
       </div>
     </div>
   `;
+}
+
+async function handleGazeCsvClick(e, studyId) {
+  e.preventDefault();
+  const link = document.getElementById('gaze-csv-link');
+  if (link) link.textContent = '⏳ Generowanie…';
+  try {
+    const r = await fetch(`/api/admin/gaze-csv/${studyId}`, {
+      headers: { Authorization: `Bearer ${S.token}` },
+    });
+    if (!r.ok) { toast('Błąd eksportu gaze.', 'error'); return; }
+    const blob = await r.blob();
+    const disp = r.headers.get('content-disposition') || '';
+    const match = disp.match(/filename="([^"]+)"/);
+    const filename = match ? match[1] : `gaze_${studyId}.csv`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+    toast('Plik CSV pobrany!');
+  } catch {
+    toast('Błąd eksportu.', 'error');
+  } finally {
+    if (link) link.textContent = '👁 Pobierz CSV danych wzrokowych';
+  }
 }
 
 async function handleExportClick(e, studyId) {
