@@ -1165,9 +1165,50 @@ function goToPostEditor(studyId) {
 }
 
 // ── Post preview ───────────────────────────────────────────────────────────
+
+// Returns a post object merged with any unsaved values currently in the form.
+// If the post row is collapsed (form not rendered), falls back to saved data.
+function getPostLiveData(id) {
+  const saved = S.currentPosts.find(x => x.id === id) || {};
+  const v  = (elId, fallback) => { const el = document.getElementById(elId); return el ? el.value  : fallback; };
+  const c  = (elId, fallback) => { const el = document.getElementById(elId); return el ? el.checked : fallback; };
+
+  // Live comment map from the per-style-condition inputs
+  const row = document.getElementById(`post-body-${id}`);
+  let post_comments_json = saved.post_comments_json;
+  if (row) {
+    const commentMap = {};
+    row.querySelectorAll('input[data-cond-key][data-comment]').forEach(input => {
+      const key = input.dataset.condKey;
+      const field = input.dataset.comment;
+      const val = input.value.trim();
+      if (val) {
+        if (!commentMap[key]) commentMap[key] = {};
+        commentMap[key][field] = val;
+      }
+    });
+    post_comments_json = JSON.stringify(commentMap);
+  }
+
+  return {
+    ...saved,
+    headline_a:        v(`pf-ha-${id}`,     saved.headline_a),
+    headline_b:        v(`pf-hb-${id}`,     saved.headline_b),
+    content_a:         v(`pf-ca-${id}`,     saved.content_a),
+    content_b:         v(`pf-cb-${id}`,     saved.content_b),
+    source_name:       v(`pf-src-${id}`,    saved.source_name),
+    source_handle:     v(`pf-handle-${id}`, saved.source_handle),
+    time_ago:          v(`pf-time-${id}`,   saved.time_ago),
+    topic:             v(`pf-topic-${id}`,  saved.topic),
+    emoji:             v(`pf-emoji-${id}`,  saved.emoji),
+    is_true:           c(`pf-true-${id}`,   saved.is_true),
+    post_comments_json,
+  };
+}
+
 function previewPost(id) {
-  const p = S.currentPosts.find(x => x.id === id);
-  if (!p) return;
+  const p = getPostLiveData(id);
+  if (!p.id) return;
 
   const study = S.studies.find(s => s.id == S.selectedPostsStudy);
 
