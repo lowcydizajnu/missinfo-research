@@ -148,9 +148,96 @@ async function generateExcel(studyId) {
 
   ratingRows.forEach(row => s2.addRow({ ...row, ...addDemoCodes(row), is_true: row.is_true ? 1 : 0 }));
 
-  // ── Sheet 3: Session summary ─────────────────────────────────────────────────
-  const s3 = wb.addWorksheet('Podsumowanie_sesji');
+  // ── Sheet 3: Combined (reactions + ratings joined per session×post) ──────────
+  const s3 = wb.addWorksheet('Dane_polaczone');
   s3.columns = [
+    { header: 'session_id',              key: 'session_id',              width: 12 },
+    { header: 'full_condition',          key: 'full_condition',          width: 14 },
+    { header: 'style_condition',         key: 'style_condition',         width: 14 },
+    { header: 'metric_condition',        key: 'metric_condition',        width: 15 },
+    ...DEMO_COLS,
+    { header: 'post_id',                 key: 'post_id',                 width: 10 },
+    { header: 'post_order',              key: 'post_order',              width: 11 },
+    { header: 'topic',                   key: 'topic',                   width: 12 },
+    { header: 'is_true',                 key: 'is_true',                 width: 10 },
+    { header: 'is_misinfo',              key: 'is_misinfo',              width: 11 },
+    { header: 'headline_shown',          key: 'headline_shown',          width: 40 },
+    { header: 'content_shown',           key: 'content_shown',           width: 50 },
+    { header: 'manipulation_techniques', key: 'manipulation_techniques', width: 30 },
+    { header: 'likes_shown',             key: 'likes_shown',             width: 13 },
+    { header: 'shares_shown',            key: 'shares_shown',            width: 14 },
+    { header: 'dislikes_shown',          key: 'dislikes_shown',          width: 15 },
+    { header: 'flags_shown',             key: 'flags_shown',             width: 13 },
+    { header: 'reaction',                key: 'reaction',                width: 12 },
+    { header: 'dwell_ms',                key: 'dwell_ms',                width: 12 },
+    { header: 'liked',                   key: 'liked',                   width: 8  },
+    { header: 'shared',                  key: 'shared',                  width: 8  },
+    { header: 'disliked',                key: 'disliked',                width: 10 },
+    { header: 'flagged',                 key: 'flagged',                 width: 10 },
+    { header: 'belief_1_7',              key: 'belief_1_7',              width: 12 },
+    { header: 'participant_comment',     key: 'participant_comment',     width: 40 },
+  ];
+  styleHeader(s3.getRow(1));
+
+  // Base: all reactions; LEFT JOIN ratings so rows without a rating are kept
+  // (edge-case: paged layout without mandatory reaction gets a UNION row below)
+  const combinedRows = db.prepare(`
+    SELECT s.id as session_id, s.full_condition, s.style_condition, s.metric_condition,
+      s.age, s.residence, s.education, s.gender,
+      p.id as post_id, r.post_order, p.topic, p.is_true,
+      CASE WHEN s.style_condition='A' THEN p.headline_a ELSE p.headline_b END as headline_shown,
+      CASE WHEN s.style_condition='A' THEN p.content_a  ELSE p.content_b  END as content_shown,
+      p.manipulation_techniques,
+      r.likes_shown, r.shares_shown, r.dislikes_shown, r.flags_shown,
+      r.action as reaction, r.dwell_ms,
+      rt.belief_1_7, rt.comment as participant_comment
+    FROM reactions r
+    JOIN sessions s ON r.session_id = s.id
+    JOIN posts    p ON r.post_id    = p.id
+    LEFT JOIN ratings rt ON rt.session_id = r.session_id AND rt.post_id = r.post_id
+    WHERE s.study_id = ? AND s.completed = 1
+
+    UNION ALL
+
+    -- Ratings that have no matching reaction (optional-reaction layouts)
+    SELECT s.id as session_id, s.full_condition, s.style_condition, s.metric_condition,
+      s.age, s.residence, s.education, s.gender,
+      p.id as post_id, rt.post_order, p.topic, p.is_true,
+      CASE WHEN s.style_condition='A' THEN p.headline_a ELSE p.headline_b END as headline_shown,
+      CASE WHEN s.style_condition='A' THEN p.content_a  ELSE p.content_b  END as content_shown,
+      p.manipulation_techniques,
+      NULL, NULL, NULL, NULL,
+      NULL, NULL,
+      rt.belief_1_7, rt.comment as participant_comment
+    FROM ratings rt
+    JOIN sessions s ON rt.session_id = s.id
+    JOIN posts    p ON rt.post_id    = p.id
+    WHERE s.study_id = ? AND s.completed = 1
+      AND NOT EXISTS (
+        SELECT 1 FROM reactions r2
+        WHERE r2.session_id = rt.session_id AND r2.post_id = rt.post_id
+      )
+
+    ORDER BY session_id, post_order
+  `).all(studyId, studyId);
+
+  combinedRows.forEach(row => {
+    s3.addRow({
+      ...row,
+      ...addDemoCodes(row),
+      is_true:   row.is_true ? 1 : 0,
+      is_misinfo: row.is_true ? 0 : 1,
+      manipulation_techniques: (() => { try { return JSON.parse(row.manipulation_techniques || '[]').join('; '); } catch { return ''; } })(),
+      liked:    row.reaction === 'like'    ? 1 : 0,
+      shared:   row.reaction === 'share'   ? 1 : 0,
+      disliked: row.reaction === 'dislike' ? 1 : 0,
+      flagged:  row.reaction === 'flag'    ? 1 : 0,
+    });
+  });
+
+  // ── Sheet 4: Session summary ─────────────────────────────────────────────────
+  const s4 = wb.addWorksheet('Podsumowanie_sesji');
+  s4.columns = [
     { header: 'session_id', key: 'session_id', width: 12 },
     { header: 'layout_type', key: 'layout_type', width: 12 },
     { header: 'full_condition', key: 'full_condition', width: 14 },
@@ -171,7 +258,7 @@ async function generateExcel(studyId) {
     { header: 'n_negative_on_false', key: 'n_negative_on_false', width: 20 },
     { header: 'misinfo_susceptibility_pct', key: 'misinfo_susceptibility_pct', width: 26 },
   ];
-  styleHeader(s3.getRow(1));
+  styleHeader(s4.getRow(1));
 
   const sessions = db.prepare(`
     SELECT s.id, st.layout_type, s.full_condition, s.style_condition, s.metric_condition,
@@ -211,7 +298,7 @@ async function generateExcel(studyId) {
       ? Math.round((agg.n_pos_false / agg.n_false_total) * 10000) / 100
       : null;
 
-    s3.addRow({
+    s4.addRow({
       session_id: sess.id,
       layout_type: sess.layout_type || 'feed',
       full_condition: sess.full_condition,
@@ -235,8 +322,8 @@ async function generateExcel(studyId) {
     });
   });
 
-  // ── Sheet 4: 2×2 Design pivot ────────────────────────────────────────────────
-  const s4 = wb.addWorksheet('Design_2x2');
+  // ── Sheet 5: 2×2 Design pivot ────────────────────────────────────────────────
+  const s5 = wb.addWorksheet('Design_2x2');
 
   const pivotData = db.prepare(`
     SELECT s.full_condition,
@@ -263,12 +350,12 @@ async function generateExcel(studyId) {
     return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
   };
 
-  s4.addRow(['', 'Metrics HIGH', '', '', '', 'Metrics LOW', '', '', '', 'Total', '', '', '']);
-  s4.addRow(['Styl', 'N ukończono', 'Śr. wiara (fałsz.)', 'Śr. wiara (prawdz.)', 'Różnica',
+  s5.addRow(['', 'Metrics HIGH', '', '', '', 'Metrics LOW', '', '', '', 'Total', '', '', '']);
+  s5.addRow(['Styl', 'N ukończono', 'Śr. wiara (fałsz.)', 'Śr. wiara (prawdz.)', 'Różnica',
     'N ukończono', 'Śr. wiara (fałsz.)', 'Śr. wiara (prawdz.)', 'Różnica',
     'N ukończono', 'Śr. wiara (fałsz.)', 'Śr. wiara (prawdz.)', 'Różnica']);
-  styleHeader(s4.getRow(1));
-  styleHeader(s4.getRow(2));
+  styleHeader(s5.getRow(1));
+  styleHeader(s5.getRow(2));
 
   const addPivotRow = (label, highCond, lowCond, totalConds) => {
     const hN = getN(highCond), hF = getMBF(highCond), hT = getMBT(highCond);
@@ -276,7 +363,7 @@ async function generateExcel(studyId) {
     const tN = totalN(totalConds);
     const tF = avgMean(totalConds, getMBF);
     const tT = avgMean(totalConds, getMBT);
-    s4.addRow([
+    s5.addRow([
       label,
       hN, fmt(hF), fmt(hT), fmt(hT !== null && hF !== null ? hT - hF : null),
       lN, fmt(lF), fmt(lT), fmt(lT !== null && lF !== null ? lT - lF : null),
@@ -288,11 +375,11 @@ async function generateExcel(studyId) {
   addPivotRow('Styl B', 'B-HIGH', 'B-LOW', ['B-HIGH', 'B-LOW']);
   addPivotRow('Łącznie', 'A-HIGH', 'A-LOW', ['A-HIGH', 'A-LOW', 'B-HIGH', 'B-LOW']);
 
-  s4.addRow([]);
-  const demoHdr = s4.addRow(['Rozkład demograficzny ukończonych sesji']);
+  s5.addRow([]);
+  const demoHdr = s5.addRow(['Rozkład demograficzny ukończonych sesji']);
   demoHdr.getCell(1).font = { bold: true };
-  s4.addRow(['Cecha', 'Wartość', 'A-HIGH', 'A-LOW', 'B-HIGH', 'B-LOW', 'Łącznie']);
-  styleHeader(s4.lastRow);
+  s5.addRow(['Cecha', 'Wartość', 'A-HIGH', 'A-LOW', 'B-HIGH', 'B-LOW', 'Łącznie']);
+  styleHeader(s5.lastRow);
 
   [{ key: 'age', label: 'Wiek' }, { key: 'residence', label: 'Miejsce zamieszkania' },
    { key: 'education', label: 'Wykształcenie' }, { key: 'gender', label: 'Płeć' }].forEach(({ key, label }) => {
@@ -301,20 +388,20 @@ async function generateExcel(studyId) {
       const counts = ['A-HIGH', 'A-LOW', 'B-HIGH', 'B-LOW'].map(cond =>
         db.prepare(`SELECT COUNT(*) as c FROM sessions WHERE study_id=? AND completed=1 AND full_condition=? AND ${key}=?`).get(studyId, cond, val)?.c || 0
       );
-      s4.addRow([label, val, ...counts, counts.reduce((a, b) => a + b, 0)]);
+      s5.addRow([label, val, ...counts, counts.reduce((a, b) => a + b, 0)]);
     });
   });
 
-  s4.columns = s4.columns.map(c => ({ ...c, width: Math.max(c.width || 12, 14) }));
+  s5.columns = s5.columns.map(c => ({ ...c, width: Math.max(c.width || 12, 14) }));
 
-  // ── Sheet 5: Codebook ─────────────────────────────────────────────────────────
-  const s5 = wb.addWorksheet('Klucz_kodowania');
-  s5.columns = [
+  // ── Sheet 6: Codebook ─────────────────────────────────────────────────────────
+  const s6 = wb.addWorksheet('Klucz_kodowania');
+  s6.columns = [
     { header: 'Zmienna', key: 'variable', width: 28 },
     { header: 'Wartość tekstowa', key: 'label', width: 30 },
     { header: 'Kod numeryczny', key: 'code_val', width: 16 },
   ];
-  styleCodebookHeader(s5.getRow(1));
+  styleCodebookHeader(s6.getRow(1));
 
   const codebookEntries = [
     { variable: 'PŁEĆ (gender / gender_kod)', label: '', code_val: '' },
@@ -350,7 +437,7 @@ async function generateExcel(studyId) {
   ];
 
   codebookEntries.forEach((entry, i) => {
-    const row = s5.addRow(entry);
+    const row = s6.addRow(entry);
     if (entry.variable && entry.label === '') {
       row.getCell(1).font = { bold: true, color: { argb: 'FF3B4A8A' } };
       row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFf0f2fa' } };
