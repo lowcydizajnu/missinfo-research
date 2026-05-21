@@ -556,7 +556,7 @@ router.get('/gaze-data/:sessionId', auth, (req, res) => {
   if (postIds.length) {
     const ph = postIds.map(() => '?').join(',');
     posts = db.prepare(
-      `SELECT id, post_order, topic, is_true, headline, author_name FROM posts WHERE id IN (${ph})`
+      `SELECT id, order_index as post_order, topic, is_true, headline, author_name FROM posts WHERE id IN (${ph})`
     ).all(...postIds);
   }
 
