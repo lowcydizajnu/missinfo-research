@@ -215,3 +215,17 @@ Visit:
 3. W panelu admina otwórz ustawienia badania, włącz przełącznik
    MS Clarity i wklej Project ID
 4. Nagrania tego badania trafią do dedykowanego projektu Clarity
+
+### Maskowanie danych
+
+- Formularz demograficzny (wiek, płeć, wykształcenie, miejsce zamieszkania)
+  jest maskowany atrybutem `data-clarity-mask="true"` — dane osobowe nie
+  trafiają do nagrań Clarity.
+- Treść postów (nagłówek, treść, źródło) oraz przyciski skali Likert (1–7)
+  mają atrybut `data-clarity-unmask="true"` — badacze widzą w nagraniach
+  który post uczestnik oglądał i jaką ocenę wybrał.
+
+> **Jeśli liczby na skali nadal są zamaskowane:** sprawdź w panelu Clarity
+> Settings → Masking i ustaw tryb **"Balanced"** lub
+> **"Mask only form fields"** zamiast **"Mask all text"** — ustawienie
+> na poziomie projektu może nadpisywać atrybuty elementów.

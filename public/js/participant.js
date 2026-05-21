@@ -281,17 +281,17 @@ function createPostCard(post) {
   const showMetrics = S.session.study.show_metrics !== false && S.session.study.show_metrics !== 0;
 
   div.innerHTML = `
-    <div class="post-header">
+    <div class="post-header" data-clarity-unmask="true">
       ${avatarHTML(post.source_name, post.avatar_url)}
       <div class="post-meta">
-        <div class="post-source">${esc(post.source_name)}</div>
-        <div class="post-handle">${esc(post.source_handle)} · ${esc(post.time_ago)}</div>
+        <div class="post-source" data-clarity-unmask="true">${esc(post.source_name)}</div>
+        <div class="post-handle" data-clarity-unmask="true">${esc(post.source_handle)} · ${esc(post.time_ago)}</div>
       </div>
       ${topicPill}
     </div>
-    <div class="post-body">
-      <h3 class="post-headline">${esc(post.headline)}</h3>
-      <p class="post-content">${esc(post.content)}</p>
+    <div class="post-body" data-clarity-unmask="true">
+      <h3 class="post-headline" data-clarity-unmask="true">${esc(post.headline)}</h3>
+      <p class="post-content" data-clarity-unmask="true">${esc(post.content)}</p>
     </div>
     ${post.image_url ? `<div class="post-image"><img src="${post.image_url}" alt="" loading="lazy"></div>` : ''}
     ${showMetrics ? `
