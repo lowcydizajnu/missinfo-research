@@ -292,8 +292,14 @@ function showCameraConsent() {
   trackScreen('camera-consent');
 
   $('btn-camera-consent-yes').onclick = async () => {
+    const btn    = $('btn-camera-consent-yes');
+    const noBtn  = $('btn-camera-consent-no');
+    btn.disabled  = true;
+    noBtn.disabled = true;
+    btn.textContent = '⏳ Ładowanie biblioteki…';
     try {
       const wg = await loadWebGazer();
+      btn.textContent = '📷 Zezwól na dostęp do kamery…';
       wg.setRegression('ridge')
         .showVideo(false)
         .showFaceOverlay(false)
@@ -320,8 +326,19 @@ function showCameraConsent() {
       });
     } catch (e) {
       console.warn('WebGazer init failed:', e);
+      // Re-enable buttons so participant can make a choice
+      btn.disabled   = false;
+      noBtn.disabled = false;
+      if (e && e.name === 'NotAllowedError') {
+        btn.textContent = '📷 Wyrażam zgodę na śledzenie wzroku';
+        const note = document.querySelector('.camera-consent-note');
+        if (note) {
+          note.innerHTML = '<p style="color:#e74c3c;font-weight:600">⚠️ Dostęp do kamery został zablokowany przez przeglądarkę. Sprawdź uprawnienia i spróbuj ponownie, lub kontynuuj bez śledzenia wzroku.</p>' + note.innerHTML;
+        }
+      } else {
+        btn.textContent = '📷 Wyrażam zgodę na śledzenie wzroku';
+      }
       storeEyetrackingConsent(false, null);
-      goToDemographics();
     }
   };
 
