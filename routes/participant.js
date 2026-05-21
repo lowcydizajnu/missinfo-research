@@ -148,6 +148,7 @@ router.post('/session/start', (req, res) => {
         const img = variantPath || post.image_path;
         return img ? `/uploads/${study_id}/${img}` : null;
       })(),
+      avatar_url: post.avatar_path ? `/uploads/${study_id}/${post.avatar_path}` : null,
       manipulation_techniques: JSON.parse(post.manipulation_techniques || '[]'),
       post_comment,
       post_comment_author,

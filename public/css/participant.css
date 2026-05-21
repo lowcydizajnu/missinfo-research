@@ -269,6 +269,7 @@ p:last-child { margin-bottom: 0; }
   color: var(--accent);
   flex-shrink: 0;
 }
+.post-avatar-img { object-fit: cover; padding: 0; }
 .post-meta { flex: 1; min-width: 0; }
 .post-source { font-weight: 700; font-size: 0.9rem; }
 .post-handle { font-size: 0.8rem; color: var(--muted); }

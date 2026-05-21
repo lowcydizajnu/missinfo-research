@@ -934,6 +934,21 @@ function postFormHTML(p, techs) {
 
     ${condOverrideHTML}
 
+    <div class="form-section-title">Avatar (opcjonalny — zastępuje inicjały)</div>
+    <div style="display:flex;align-items:flex-start;gap:1rem">
+      <div class="avatar-upload-wrap" onclick="document.getElementById('pf-av-input-${p.id}').click()">
+        <input type="file" id="pf-av-input-${p.id}" accept="image/jpeg,image/png,image/webp"
+               onchange="handleAvatarUpload(${p.id}, this)">
+        ${p.avatar_path
+          ? `<img class="avatar-preview" src="/uploads/${p.study_id}/${esc(p.avatar_path)}" id="av-preview-${p.id}" alt="">`
+          : `<div class="avatar-preview avatar-preview-placeholder" id="av-preview-${p.id}">${esc((p.source_name||'?').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2))}</div>`}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:0.4rem;padding-top:0.3rem">
+        <span style="font-size:0.82rem;color:var(--muted)">Kliknij okrąg aby wybrać plik (jpg/png/webp, max 5 MB)</span>
+        ${p.avatar_path ? `<button type="button" class="btn btn-danger btn-sm" onclick="deleteAvatar(${p.id})">Usuń avatar</button>` : ''}
+      </div>
+    </div>
+
     <div class="form-section-title">Zdjęcia (opcjonalne, max 5 MB — jpg/png/webp)</div>
     <div class="grid-2col" style="gap:1rem">
       <div>
@@ -1036,6 +1051,33 @@ async function deletePost(id, title) {
   if (!confirm(`Usunąć post "${title}"?\nTa operacja usunie też powiązane reakcje i oceny. Nie można jej cofnąć.`)) return;
   await api('DELETE', `/posts/${id}`);
   toast('Post usunięty.');
+  await loadPosts(S.selectedPostsStudy);
+}
+
+async function handleAvatarUpload(postId, input) {
+  if (!input.files[0]) return;
+  const fd = new FormData();
+  fd.append('image', input.files[0]);
+  const data = await api('POST', `/posts/${postId}/avatar`, fd, true);
+  if (!data || data.error) { toast(data?.error || 'Błąd uploadu', 'error'); return; }
+  const prev = document.getElementById(`av-preview-${postId}`);
+  // Replace placeholder div with img or update src
+  if (prev.tagName === 'IMG') {
+    prev.src = data.avatar_url + '?t=' + Date.now();
+  } else {
+    const img = document.createElement('img');
+    img.className = 'avatar-preview';
+    img.id = `av-preview-${postId}`;
+    img.src = data.avatar_url + '?t=' + Date.now();
+    prev.replaceWith(img);
+  }
+  toast('Avatar zapisany.');
+}
+
+async function deleteAvatar(postId) {
+  if (!confirm('Usunąć avatar? Wróci do inicjałów.')) return;
+  await api('DELETE', `/posts/${postId}/avatar`);
+  toast('Avatar usunięty.');
   await loadPosts(S.selectedPostsStudy);
 }
 

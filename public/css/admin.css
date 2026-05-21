@@ -394,6 +394,32 @@ tr:hover td { background: var(--surface2); }
 .type-false { background: #fee2e2; color: #b91c1c; }
 .post-row-actions { display: flex; gap: 0.35rem; }
 .post-updated-at { font-size: 0.74rem; color: var(--muted); white-space: nowrap; }
+
+/* Avatar upload */
+.avatar-upload-wrap {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  overflow: hidden;
+  cursor: pointer;
+  flex-shrink: 0;
+  border: 2px dashed var(--border);
+  transition: border-color 0.15s;
+}
+.avatar-upload-wrap:hover { border-color: var(--accent); }
+.avatar-upload-wrap input[type="file"] { display: none; }
+.avatar-preview {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+.avatar-preview-placeholder {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  background: var(--surface2);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 1.1rem; color: var(--accent);
+}
 .expand-icon { color: var(--muted); font-size: 0.75rem; margin-left: auto; transition: transform 0.2s; }
 .post-row.expanded .expand-icon { transform: rotate(180deg); }
 .post-row-body { display: none; padding: 1.25rem; border-top: 1px solid var(--border); background: var(--bg); }

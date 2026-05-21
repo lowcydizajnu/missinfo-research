@@ -50,7 +50,11 @@ function topicClass(topic) {
 }
 
 function avatarInitials(name) {
-  return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  return (name || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+}
+function avatarHTML(name, url, extraClass = '') {
+  if (url) return `<img class="post-avatar post-avatar-img${extraClass ? ' ' + extraClass : ''}" src="${esc(url)}" alt="${esc(name)}">`;
+  return `<div class="post-avatar${extraClass ? ' ' + extraClass : ''}">${avatarInitials(name)}</div>`;
 }
 
 function showError(msg) {
@@ -247,7 +251,7 @@ function createPostCard(post) {
 
   div.innerHTML = `
     <div class="post-header">
-      <div class="post-avatar">${avatarInitials(post.source_name)}</div>
+      ${avatarHTML(post.source_name, post.avatar_url)}
       <div class="post-meta">
         <div class="post-source">${esc(post.source_name)}</div>
         <div class="post-handle">${esc(post.source_handle)} · ${esc(post.time_ago)}</div>
@@ -439,7 +443,12 @@ function renderPagedPost() {
   $('paged-fill').style.width = `${(S.pagedIndex / total) * 100}%`;
 
   // Header
-  $('paged-avatar').textContent = avatarInitials(post.source_name);
+  const pagedAv = $('paged-avatar');
+  if (post.avatar_url) {
+    pagedAv.innerHTML = `<img src="${esc(post.avatar_url)}" alt="${esc(post.source_name)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+  } else {
+    pagedAv.innerHTML = avatarInitials(post.source_name);
+  }
   $('paged-source').textContent = post.source_name;
   $('paged-handle').textContent = `${post.source_handle} · ${post.time_ago}`;
 

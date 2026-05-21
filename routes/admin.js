@@ -42,8 +42,12 @@ const storage = multer.diskStorage({
   },
   filename(req, file, cb) {
     const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
-    const suffix = req.params.variant ? `_${req.params.variant}` : '';
-    cb(null, `${req.params.id}${suffix}${ext}`);
+    if (req.path.endsWith('/avatar')) {
+      cb(null, `av_${req.params.id}${ext}`);
+    } else {
+      const suffix = req.params.variant ? `_${req.params.variant}` : '';
+      cb(null, `${req.params.id}${suffix}${ext}`);
+    }
   },
 });
 const upload = multer({
@@ -297,7 +301,7 @@ router.delete('/posts/:id', auth, (req, res) => {
   const post = db.prepare('SELECT * FROM posts WHERE id = ?').get(req.params.id);
   if (!post) return res.status(404).json({ error: 'Not found' });
   // Remove all image files if present
-  for (const col of ['image_path', 'image_path_a', 'image_path_b']) {
+  for (const col of ['image_path', 'image_path_a', 'image_path_b', 'avatar_path']) {
     if (post[col]) {
       const fp = path.join(uploadsDir, String(post.study_id), post[col]);
       if (fs.existsSync(fp)) fs.unlinkSync(fp);
@@ -311,6 +315,32 @@ router.delete('/posts/:id', auth, (req, res) => {
     db.prepare(`DELETE FROM ratings  WHERE post_id = ? AND session_id IN (${placeholders})`).run(post.id, ...sessions);
   }
   db.prepare('DELETE FROM posts WHERE id = ?').run(req.params.id);
+  res.json({ ok: true });
+});
+
+router.post('/posts/:id/avatar', auth, (req, res) => {
+  upload.single('image')(req, res, (err) => {
+    if (err) return res.status(400).json({ error: err.message });
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    const post = db.prepare('SELECT * FROM posts WHERE id = ?').get(req.params.id);
+    if (!post) return res.status(404).json({ error: 'Post not found' });
+    if (post.avatar_path && post.avatar_path !== req.file.filename) {
+      const fp = path.join(uploadsDir, String(post.study_id), post.avatar_path);
+      if (fs.existsSync(fp)) fs.unlinkSync(fp);
+    }
+    db.prepare('UPDATE posts SET avatar_path = ? WHERE id = ?').run(req.file.filename, req.params.id);
+    res.json({ avatar_url: `/uploads/${post.study_id}/${req.file.filename}` });
+  });
+});
+
+router.delete('/posts/:id/avatar', auth, (req, res) => {
+  const post = db.prepare('SELECT * FROM posts WHERE id = ?').get(req.params.id);
+  if (!post) return res.status(404).json({ error: 'Not found' });
+  if (post.avatar_path) {
+    const fp = path.join(uploadsDir, String(post.study_id), post.avatar_path);
+    if (fs.existsSync(fp)) fs.unlinkSync(fp);
+    db.prepare('UPDATE posts SET avatar_path = NULL WHERE id = ?').run(req.params.id);
+  }
   res.json({ ok: true });
 });
 
