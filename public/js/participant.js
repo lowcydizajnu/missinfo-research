@@ -305,7 +305,12 @@ function showCameraConsent() {
         .showFaceOverlay(false)
         .showFaceFeedbackBox(false)
         .showPredictionPoints(false);
-      await wg.begin();
+      // NOTE: do NOT await begin() — it never resolves on some WebGazer CDN builds.
+      // begin() fires off async init in the background; WebGazer will be ready
+      // long before the user finishes clicking all 9 calibration dots.
+      wg.begin().catch(e => console.warn('webgazer.begin error (ignored):', e));
+      // Give WebGazer ~800ms to start the camera stream before showing calibration
+      await new Promise(r => setTimeout(r, 800));
       ET.consented = true;
       ET.startTs   = Date.now();
 
