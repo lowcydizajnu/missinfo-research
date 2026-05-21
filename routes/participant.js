@@ -142,7 +142,12 @@ router.post('/session/start', (req, res) => {
       headline: style_condition === 'A' ? post.headline_a : post.headline_b,
       content: style_condition === 'A' ? post.content_a : post.content_b,
       is_true: post.is_true ? true : false,
-      image_url: post.image_path ? `/uploads/${study_id}/${post.image_path}` : null,
+      image_url: (() => {
+        // Per-variant image takes priority; fall back to legacy image_path
+        const variantPath = style_condition === 'A' ? post.image_path_a : post.image_path_b;
+        const img = variantPath || post.image_path;
+        return img ? `/uploads/${study_id}/${img}` : null;
+      })(),
       manipulation_techniques: JSON.parse(post.manipulation_techniques || '[]'),
       post_comment,
       post_comment_author,

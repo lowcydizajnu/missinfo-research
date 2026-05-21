@@ -42,7 +42,8 @@ const storage = multer.diskStorage({
   },
   filename(req, file, cb) {
     const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
-    cb(null, `${req.params.id}${ext}`);
+    const suffix = req.params.variant ? `_${req.params.variant}` : '';
+    cb(null, `${req.params.id}${suffix}${ext}`);
   },
 });
 const upload = multer({
@@ -266,7 +267,7 @@ router.patch('/posts/:id/reorder', auth, (req, res) => {
   res.json({ ok: true });
 });
 
-router.post('/posts/:id/image', auth, (req, res, next) => {
+function handleImageUpload(req, res) {
   upload.single('image')(req, res, (err) => {
     if (err) return res.status(400).json({ error: err.message });
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
@@ -274,24 +275,33 @@ router.post('/posts/:id/image', auth, (req, res, next) => {
     const post = db.prepare('SELECT * FROM posts WHERE id = ?').get(req.params.id);
     if (!post) return res.status(404).json({ error: 'Post not found' });
 
-    // Remove old image if different extension
-    if (post.image_path && post.image_path !== req.file.filename) {
-      const oldPath = path.join(uploadsDir, String(post.study_id), post.image_path);
-      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+    const variant = req.params.variant; // 'a', 'b', or undefined (legacy)
+    const col = variant === 'a' ? 'image_path_a' : variant === 'b' ? 'image_path_b' : 'image_path';
+
+    // Remove old file if extension changed
+    const oldPath = post[col];
+    if (oldPath && oldPath !== req.file.filename) {
+      const fp = path.join(uploadsDir, String(post.study_id), oldPath);
+      if (fs.existsSync(fp)) fs.unlinkSync(fp);
     }
 
-    db.prepare('UPDATE posts SET image_path = ? WHERE id = ?').run(req.file.filename, req.params.id);
-    res.json({ image_path: req.file.filename, image_url: `/uploads/${post.study_id}/${req.file.filename}` });
+    db.prepare(`UPDATE posts SET ${col} = ? WHERE id = ?`).run(req.file.filename, req.params.id);
+    res.json({ col, filename: req.file.filename, image_url: `/uploads/${post.study_id}/${req.file.filename}` });
   });
-});
+}
+
+router.post('/posts/:id/image/:variant', auth, handleImageUpload);
+router.post('/posts/:id/image',          auth, handleImageUpload); // legacy (no variant)
 
 router.delete('/posts/:id', auth, (req, res) => {
   const post = db.prepare('SELECT * FROM posts WHERE id = ?').get(req.params.id);
   if (!post) return res.status(404).json({ error: 'Not found' });
-  // Remove image file if present
-  if (post.image_path) {
-    const filePath = path.join(uploadsDir, String(post.study_id), post.image_path);
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  // Remove all image files if present
+  for (const col of ['image_path', 'image_path_a', 'image_path_b']) {
+    if (post[col]) {
+      const fp = path.join(uploadsDir, String(post.study_id), post[col]);
+      if (fs.existsSync(fp)) fs.unlinkSync(fp);
+    }
   }
   // Cascade-delete reactions and ratings
   const sessions = db.prepare('SELECT id FROM sessions WHERE study_id = ?').all(post.study_id).map(s => s.id);
@@ -304,12 +314,24 @@ router.delete('/posts/:id', auth, (req, res) => {
   res.json({ ok: true });
 });
 
+router.delete('/posts/:id/image/:variant', auth, (req, res) => {
+  const post = db.prepare('SELECT * FROM posts WHERE id = ?').get(req.params.id);
+  if (!post) return res.status(404).json({ error: 'Not found' });
+  const col = req.params.variant === 'a' ? 'image_path_a' : req.params.variant === 'b' ? 'image_path_b' : 'image_path';
+  if (post[col]) {
+    const fp = path.join(uploadsDir, String(post.study_id), post[col]);
+    if (fs.existsSync(fp)) fs.unlinkSync(fp);
+    db.prepare(`UPDATE posts SET ${col} = NULL WHERE id = ?`).run(req.params.id);
+  }
+  res.json({ ok: true });
+});
+
 router.delete('/posts/:id/image', auth, (req, res) => {
   const post = db.prepare('SELECT * FROM posts WHERE id = ?').get(req.params.id);
   if (!post) return res.status(404).json({ error: 'Not found' });
   if (post.image_path) {
-    const filePath = path.join(uploadsDir, String(post.study_id), post.image_path);
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    const fp = path.join(uploadsDir, String(post.study_id), post.image_path);
+    if (fs.existsSync(fp)) fs.unlinkSync(fp);
     db.prepare('UPDATE posts SET image_path = NULL WHERE id = ?').run(req.params.id);
   }
   res.json({ ok: true });

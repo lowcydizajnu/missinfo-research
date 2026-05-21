@@ -300,6 +300,8 @@ migrate('ALTER TABLE posts ADD COLUMN metrics_override_json TEXT DEFAULT NULL');
 migrate('ALTER TABLE posts ADD COLUMN post_comments_json TEXT DEFAULT NULL');
 migrate('ALTER TABLE studies ADD COLUMN condition_queue_json TEXT DEFAULT NULL');
 migrate('ALTER TABLE posts ADD COLUMN updated_at DATETIME DEFAULT NULL');
+migrate('ALTER TABLE posts ADD COLUMN image_path_a TEXT DEFAULT NULL');
+migrate('ALTER TABLE posts ADD COLUMN image_path_b TEXT DEFAULT NULL');
 
 // Initialise metric_conditions_json from legacy columns for any study that doesn't have it yet
 {

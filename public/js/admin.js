@@ -847,10 +847,17 @@ function postFormHTML(p, techs) {
     <label class="cb-option">
       <input type="checkbox" name="tech" value="${esc(t)}" ${techs.includes(t)?'checked':''}> ${esc(t)}
     </label>`).join('');
-  const imgSection = p.image_path
-    ? `<img class="image-preview" src="/uploads/${p.study_id}/${esc(p.image_path)}" alt="Post image" id="img-preview-${p.id}">
-       <button type="button" class="btn btn-danger btn-sm" onclick="deletePostImage(${p.id})" style="margin-bottom:0.5rem">Usuń zdjęcie</button><br>`
-    : `<img class="image-preview" id="img-preview-${p.id}" style="display:none" alt="">`;
+  const imgVariant = (variant, existingPath) => `
+    <div class="image-upload-area" onclick="document.getElementById('pf-img-input-${p.id}-${variant}').click()">
+      <input type="file" id="pf-img-input-${p.id}-${variant}" accept="image/jpeg,image/png,image/webp"
+             onchange="handleImageUpload(${p.id}, '${variant}', this)">
+      ${existingPath
+        ? `<img class="image-preview" src="/uploads/${p.study_id}/${esc(existingPath)}" alt="" id="img-preview-${p.id}-${variant}">
+           <button type="button" class="btn btn-danger btn-sm" style="margin-bottom:0.5rem"
+                   onclick="event.stopPropagation();deletePostImage(${p.id},'${variant}')">Usuń zdjęcie</button><br>`
+        : `<img class="image-preview" id="img-preview-${p.id}-${variant}" style="display:none" alt="">`}
+      <div class="image-upload-label">Kliknij aby wybrać zdjęcie</div>
+    </div>`;
 
   // Per-condition data (metrics override + per-condition comments)
   const study = S.studies.find(s => s.id == S.selectedPostsStudy);
@@ -927,11 +934,16 @@ function postFormHTML(p, techs) {
 
     ${condOverrideHTML}
 
-    <div class="form-section-title">Zdjęcie (opcjonalne, max 5 MB — jpg/png/webp)</div>
-    <div class="image-upload-area" onclick="document.getElementById('pf-img-input-${p.id}').click()">
-      <input type="file" id="pf-img-input-${p.id}" accept="image/jpeg,image/png,image/webp" onchange="handleImageUpload(${p.id}, this)">
-      ${imgSection}
-      <div class="image-upload-label">Kliknij aby wybrać zdjęcie</div>
+    <div class="form-section-title">Zdjęcia (opcjonalne, max 5 MB — jpg/png/webp)</div>
+    <div class="grid-2col" style="gap:1rem">
+      <div>
+        <div class="form-label" style="margin-bottom:0.4rem">Wersja A</div>
+        ${imgVariant('a', p.image_path_a)}
+      </div>
+      <div>
+        <div class="form-label" style="margin-bottom:0.4rem">Wersja B</div>
+        ${imgVariant('b', p.image_path_b)}
+      </div>
     </div>
 
     <div class="post-save-bar">
@@ -1008,14 +1020,13 @@ async function reorderPost(id, direction) {
   await loadPosts(S.selectedPostsStudy);
 }
 
-async function handleImageUpload(postId, input) {
+async function handleImageUpload(postId, variant, input) {
   if (!input.files[0]) return;
   const fd = new FormData();
   fd.append('image', input.files[0]);
-  const data = await api('POST', `/posts/${postId}/image`, fd, true);
+  const data = await api('POST', `/posts/${postId}/image/${variant}`, fd, true);
   if (!data || data.error) { toast(data?.error || 'Błąd uploadu', 'error'); return; }
-  // Show preview
-  const prev = document.getElementById(`img-preview-${postId}`);
+  const prev = document.getElementById(`img-preview-${postId}-${variant}`);
   prev.src = data.image_url + '?t=' + Date.now();
   prev.style.display = 'block';
   toast('Zdjęcie zapisane.');
@@ -1028,10 +1039,10 @@ async function deletePost(id, title) {
   await loadPosts(S.selectedPostsStudy);
 }
 
-async function deletePostImage(postId) {
+async function deletePostImage(postId, variant) {
   if (!confirm('Usunąć zdjęcie?')) return;
-  await api('DELETE', `/posts/${postId}/image`);
-  const prev = document.getElementById(`img-preview-${postId}`);
+  await api('DELETE', `/posts/${postId}/image/${variant}`);
+  const prev = document.getElementById(`img-preview-${postId}-${variant}`);
   prev.src = '';
   prev.style.display = 'none';
   toast('Zdjęcie usunięte.');
