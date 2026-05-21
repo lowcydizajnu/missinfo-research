@@ -17,6 +17,20 @@ function styleHeader(row) {
   });
 }
 
+// Convert a UTC timestamp string from SQLite ("YYYY-MM-DD HH:MM:SS") to
+// Europe/Warsaw local time, returned as "YYYY-MM-DD HH:MM:SS".
+// Handles both CET (UTC+1) and CEST (UTC+2) automatically.
+function toWarsaw(utcStr) {
+  if (!utcStr) return null;
+  const date = new Date(utcStr.replace(' ', 'T') + 'Z'); // parse as UTC
+  return new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Europe/Warsaw',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false,
+  }).format(date);
+}
+
 function styleCodebookHeader(row) {
   row.eachCell(cell => {
     cell.font = { bold: true, color: { argb: 'FF1a1f3d' } };
@@ -114,6 +128,7 @@ async function generateExcel(studyId) {
       is_true: row.is_true ? 1 : 0,
       is_misinfo: row.is_true ? 0 : 1,
       manipulation_techniques: (() => { try { return JSON.parse(row.manipulation_techniques || '[]').join('; '); } catch { return ''; } })(),
+      reaction_timestamp: toWarsaw(row.reaction_timestamp),
       liked: row.reaction === 'like' ? 1 : 0,
       shared: row.reaction === 'share' ? 1 : 0,
       disliked: row.reaction === 'dislike' ? 1 : 0,
@@ -157,7 +172,12 @@ async function generateExcel(studyId) {
     ORDER BY s.id, rt.post_order
   `).all(studyId);
 
-  ratingRows.forEach(row => s2.addRow({ ...row, ...addDemoCodes(row), is_true: row.is_true ? 1 : 0 }));
+  ratingRows.forEach(row => s2.addRow({
+    ...row,
+    ...addDemoCodes(row),
+    is_true: row.is_true ? 1 : 0,
+    rating_timestamp: toWarsaw(row.rating_timestamp),
+  }));
 
   // ── Sheet 3: Combined (reactions + ratings joined per session×post) ──────────
   const s3 = wb.addWorksheet('Dane_polaczone');
@@ -323,8 +343,8 @@ async function generateExcel(studyId) {
       residence: sess.residence,
       education: sess.education,
       gender: sess.gender,
-      started_at: sess.started_at,
-      completed_at: sess.completed_at,
+      started_at: toWarsaw(sess.started_at),
+      completed_at: toWarsaw(sess.completed_at),
       duration_minutes: sess.duration_minutes,
       n_likes: agg.n_likes, n_shares: agg.n_shares,
       n_dislikes: agg.n_dislikes, n_flags: agg.n_flags,
