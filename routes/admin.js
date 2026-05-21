@@ -246,7 +246,7 @@ router.patch('/posts/:id', auth, (req, res) => {
 
   if (!Object.keys(updates).length) return res.json(post);
   const setClauses = Object.keys(updates).map(k => `${k} = ?`).join(', ');
-  db.prepare(`UPDATE posts SET ${setClauses} WHERE id = ?`).run(...Object.values(updates), req.params.id);
+  db.prepare(`UPDATE posts SET ${setClauses}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(...Object.values(updates), req.params.id);
   res.json(db.prepare('SELECT * FROM posts WHERE id = ?').get(req.params.id));
 });
 

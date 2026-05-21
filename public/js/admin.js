@@ -827,6 +827,7 @@ function postRowHTML(p) {
         <span class="post-topic-badge ${topicCls}">${esc(p.emoji || '')} ${esc(p.topic || '')}</span>
         <span class="post-type-badge ${p.is_true ? 'type-true' : 'type-false'}">${p.is_true ? 'PRAWDA' : 'FAŁSZ'}</span>
         <span class="badge ${p.is_active ? 'badge-active' : 'badge-inactive'}">${p.is_active ? 'Aktywny' : 'Ukryty'}</span>
+        ${p.updated_at ? `<span class="post-updated-at" title="Ostatnia edycja">✏️ ${p.updated_at.slice(0,16).replace('T',' ')}</span>` : ''}
         <div class="post-row-actions" onclick="event.stopPropagation()">
           <button class="btn btn-ghost btn-icon" title="Przesuń w górę" onclick="reorderPost(${p.id},'up')">↑</button>
           <button class="btn btn-ghost btn-icon" title="Przesuń w dół" onclick="reorderPost(${p.id},'down')">↓</button>

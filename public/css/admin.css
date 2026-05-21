@@ -393,6 +393,7 @@ tr:hover td { background: var(--surface2); }
 .type-true  { background: #dcfce7; color: #15803d; }
 .type-false { background: #fee2e2; color: #b91c1c; }
 .post-row-actions { display: flex; gap: 0.35rem; }
+.post-updated-at { font-size: 0.74rem; color: var(--muted); white-space: nowrap; }
 .expand-icon { color: var(--muted); font-size: 0.75rem; margin-left: auto; transition: transform 0.2s; }
 .post-row.expanded .expand-icon { transform: rotate(180deg); }
 .post-row-body { display: none; padding: 1.25rem; border-top: 1px solid var(--border); background: var(--bg); }
