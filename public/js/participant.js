@@ -74,6 +74,26 @@ function showError(msg) {
   startSession();
 })();
 
+// ── MS Clarity ─────────────────────────────────────────────────────────────
+function injectClarity(projectId) {
+  if (!projectId) return;
+  (function(c,l,a,r,i,t,y){
+    c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+    t=l.createElement(r);t.async=1;
+    t.src="https://www.clarity.ms/tag/"+i;
+    y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+  })(window,document,"clarity","script",projectId);
+}
+
+function clarityLink(sessionId, fullCondition, styleCondition, metricCondition) {
+  if (typeof clarity === 'undefined') return;
+  clarity("identify", sessionId);
+  clarity("set", "session_id", String(sessionId));
+  clarity("set", "condition", fullCondition || '');
+  clarity("set", "style", styleCondition || '');
+  clarity("set", "metrics", metricCondition || '');
+}
+
 // ── Apply study custom labels to all relevant DOM elements ─────────────────
 function applyStudyLabels(study) {
   // Action button labels (paged / custom layout)
@@ -108,6 +128,17 @@ async function startSession() {
     const data = await apiPost('/api/session/start', { study_id: S.config.id });
     S.session = data;
     S.posts = data.posts;
+    // Inject Clarity only for this study's project
+    if (data.study.clarity_enabled && data.study.clarity_project_id) {
+      injectClarity(data.study.clarity_project_id);
+      // Give the script a moment to load, then link the session
+      setTimeout(() => clarityLink(
+        data.session_token,
+        data.full_condition,
+        data.style_condition,
+        data.metric_condition
+      ), 2000);
+    }
     sessionStorage.setItem('token', data.session_token);
     applyStudyLabels(data.study);
     renderConsentScreen(data.study);

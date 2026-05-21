@@ -118,9 +118,19 @@ router.patch('/studies/:id', auth, (req, res) => {
     'label_action_like', 'label_action_dislike', 'label_action_share', 'label_action_flag',
     'label_likert_question', 'label_likert_min', 'label_likert_max', 'comment_placeholder',
     'consent_text', 'instruction_text', 'transition_feed_text', 'transition_rating_text', 'debrief_text',
+    'clarity_enabled', 'clarity_project_id',
   ];
   const updates = {};
   fields.forEach(f => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
+
+  // Validate clarity_project_id
+  if (updates.clarity_project_id != null) {
+    const trimmed = String(updates.clarity_project_id).trim();
+    if (trimmed !== '' && !/^[a-zA-Z0-9]+$/.test(trimmed)) {
+      return res.status(400).json({ error: 'clarity_project_id must contain only alphanumeric characters' });
+    }
+    updates.clarity_project_id = trimmed || null;
+  }
 
   if (Object.keys(updates).length === 0) return res.json(study);
 

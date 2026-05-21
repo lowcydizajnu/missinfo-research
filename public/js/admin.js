@@ -209,6 +209,10 @@ function renderStudiesList() {
       </div>
       <div class="study-actions">
         <span class="badge ${s.is_active ? 'badge-active' : 'badge-inactive'}">${s.is_active ? 'Aktywne' : 'Nieaktywne'}</span>
+        ${s.clarity_enabled && s.clarity_project_id
+          ? `<span class="badge badge-active" style="background:#dcfce7;color:#15803d;font-size:0.68rem">Clarity</span>`
+          : `<span class="badge" style="background:var(--surface2);color:var(--muted);font-size:0.68rem">Clarity —</span>`
+        }
         <button class="btn btn-ghost btn-sm" onclick="toggleStudyActive(${s.id}, ${s.is_active})">${s.is_active ? 'Dezaktywuj' : 'Aktywuj'}</button>
         <button class="btn btn-ghost btn-sm" onclick="openStudySettings(${s.id})">Ustawienia</button>
         <button class="btn btn-ghost btn-sm" onclick="goToPostEditor(${s.id})">Edytor postów</button>
@@ -529,6 +533,27 @@ async function openStudySettings(id) {
     </div>
     <div class="form-group screen-section" id="es-debrief-wrap"><label>Tekst debriefingu (puste = domyślny)</label><textarea id="es-debrief" rows="5">${esc(s.debrief_text || '')}</textarea></div>
 
+    <div class="modal-section-title">Analityka (MS Clarity)</div>
+    <div class="toggle-row" style="margin-bottom:0.75rem">
+      <div class="toggle-wrap">
+        <label class="toggle">
+          <input type="checkbox" id="es-clarity-enabled" ${s.clarity_enabled ? 'checked' : ''}>
+          <span class="toggle-slider"></span>
+        </label>
+        <span class="toggle-label">Włącz MS Clarity dla tego badania</span>
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:0.5rem">
+      <label>Clarity Project ID</label>
+      <input type="text" id="es-clarity-pid" value="${esc(s.clarity_project_id || '')}"
+             placeholder="np. abcd1234ef" maxlength="40">
+      <div style="font-size:0.78rem;color:var(--muted);margin-top:0.3rem">
+        Utwórz osobny projekt w panelu MS Clarity dla tego badania i wklej jego Project ID
+        (znajdziesz go w URL dashboardu Clarity).
+      </div>
+    </div>
+    <div id="es-clarity-status" style="font-size:0.8rem;margin-bottom:0.5rem"></div>
+
     <div class="modal-footer">
       <button class="btn btn-primary" onclick="saveStudySettings(${id})">Zapisz</button>
       <button class="btn btn-ghost" onclick="closeModal()">Anuluj</button>
@@ -538,6 +563,22 @@ async function openStudySettings(id) {
     document.getElementById('es-paged-options').style.display = e.target.value === 'paged' ? '' : 'none';
     document.getElementById('es-custom-options').style.display = e.target.value === 'custom' ? '' : 'none';
   });
+
+  function updateClarityStatus() {
+    const enabled = document.getElementById('es-clarity-enabled').checked;
+    const pid = document.getElementById('es-clarity-pid').value.trim();
+    const el = document.getElementById('es-clarity-status');
+    if (!enabled) {
+      el.innerHTML = '<span style="color:var(--muted)">● MS Clarity wyłączony</span>';
+    } else if (pid) {
+      el.innerHTML = `<span style="color:var(--success)">● MS Clarity aktywny (projekt: ${esc(pid)})</span>`;
+    } else {
+      el.innerHTML = '<span style="color:#ca8a04">● Włączony, ale brak Project ID — wpisz go powyżej</span>';
+    }
+  }
+  updateClarityStatus();
+  document.getElementById('es-clarity-enabled').addEventListener('change', updateClarityStatus);
+  document.getElementById('es-clarity-pid').addEventListener('input', updateClarityStatus);
 
   updateMetricRemoveButtons();
 
@@ -626,6 +667,8 @@ async function saveStudySettings(id) {
     transition_rating_text: document.getElementById('es-tr').value.trim() || null,
     show_debrief: document.getElementById('es-show-debrief').checked ? 1 : 0,
     debrief_text: document.getElementById('es-debrief').value.trim() || null,
+    clarity_enabled: document.getElementById('es-clarity-enabled').checked ? 1 : 0,
+    clarity_project_id: document.getElementById('es-clarity-pid').value.trim() || null,
   };
 
   // Custom builder — collect editable label fields
@@ -1281,6 +1324,11 @@ async function loadExportView(studyId) {
       </div>
       <p style="color:var(--muted);font-size:0.8rem;margin-top:1rem">
         Plik zawiera 5 arkuszy: Dane_surowe, Oceny_wiarygodnosci, Podsumowanie_sesji, Design_2x2, Klucz_kodowania
+      </p>
+      <p style="color:var(--muted);font-size:0.8rem;margin-top:0.5rem">
+        Kolumna <strong>clarity_link</strong> prowadzi do nagrania w projekcie MS Clarity
+        przypisanym do tego badania. Każde badanie może mieć osobny projekt Clarity.
+        Wymaga zalogowania do panelu Clarity.
       </p>
     </div>
 

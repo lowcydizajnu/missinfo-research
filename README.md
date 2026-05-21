@@ -207,3 +207,11 @@ Visit:
 | `DELETE` | `/api/admin/posts/:id/image` | Remove post image |
 | `GET` | `/api/admin/dashboard/:studyId` | Dashboard stats |
 | `GET` | `/api/admin/export/:studyId` | Download Excel file |
+
+## Konfiguracja MS Clarity (osobny projekt per badanie)
+
+1. Dla każdego badania utwórz osobny projekt na clarity.microsoft.com
+2. Skopiuj Project ID z URL dashboardu danego projektu
+3. W panelu admina otwórz ustawienia badania, włącz przełącznik
+   MS Clarity i wklej Project ID
+4. Nagrania tego badania trafią do dedykowanego projektu Clarity

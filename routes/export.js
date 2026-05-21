@@ -50,6 +50,10 @@ async function generateExcel(studyId) {
   const study = db.prepare('SELECT * FROM studies WHERE id = ?').get(studyId);
   if (!study) throw new Error('Study not found');
 
+  const clarityBase = (study.clarity_enabled && study.clarity_project_id)
+    ? `https://clarity.microsoft.com/projects/view/${study.clarity_project_id}/impressions?CustomTag=session_id%3A%3A`
+    : null;
+
   const wb = new ExcelJS.Workbook();
   wb.creator = 'MissInfo Research Platform';
   wb.created = new Date();
@@ -81,6 +85,7 @@ async function generateExcel(studyId) {
     { header: 'shared', key: 'shared', width: 8 },
     { header: 'disliked', key: 'disliked', width: 10 },
     { header: 'flagged', key: 'flagged', width: 10 },
+    { header: 'clarity_link', key: 'clarity_link', width: 20 },
   ];
   styleHeader(s1.getRow(1));
 
@@ -101,6 +106,7 @@ async function generateExcel(studyId) {
   `).all(studyId);
 
   rawRows.forEach(row => {
+    const sessionId = row.session_id;
     s1.addRow({
       ...row,
       ...addDemoCodes(row),
@@ -111,6 +117,9 @@ async function generateExcel(studyId) {
       shared: row.reaction === 'share' ? 1 : 0,
       disliked: row.reaction === 'dislike' ? 1 : 0,
       flagged: row.reaction === 'flag' ? 1 : 0,
+      clarity_link: clarityBase
+        ? { text: 'Otwórz nagranie', hyperlink: clarityBase + sessionId }
+        : '',
     });
   });
 
@@ -257,6 +266,7 @@ async function generateExcel(studyId) {
     { header: 'n_positive_on_false', key: 'n_positive_on_false', width: 20 },
     { header: 'n_negative_on_false', key: 'n_negative_on_false', width: 20 },
     { header: 'misinfo_susceptibility_pct', key: 'misinfo_susceptibility_pct', width: 26 },
+    { header: 'clarity_link', key: 'clarity_link', width: 20 },
   ];
   styleHeader(s4.getRow(1));
 
@@ -319,6 +329,9 @@ async function generateExcel(studyId) {
       n_positive_on_false: agg.n_pos_false,
       n_negative_on_false: agg.n_neg_false,
       misinfo_susceptibility_pct: susceptPct,
+      clarity_link: clarityBase
+        ? { text: 'Otwórz nagranie', hyperlink: clarityBase + sess.id }
+        : '',
     });
   });
 
