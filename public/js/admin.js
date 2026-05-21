@@ -7,6 +7,7 @@ const S = {
   selectedDashboardStudy: null,
   selectedPostsStudy: null,
   selectedExportStudy: null,
+  currentPosts: [],   // cached for preview
 };
 
 // ── API ────────────────────────────────────────────────────────────────────
@@ -805,6 +806,7 @@ async function loadPosts(studyId) {
 }
 
 function renderPosts(posts) {
+  S.currentPosts = posts;
   const container = document.getElementById('posts-list');
   if (!posts.length) {
     container.innerHTML = '<div class="empty-state">Brak postów. Kliknij "+ Dodaj post" aby dodać pierwszy.</div>';
@@ -829,6 +831,7 @@ function postRowHTML(p) {
         <span class="post-type-badge ${p.is_true ? 'type-true' : 'type-false'}">${p.is_true ? 'PRAWDA' : 'FAŁSZ'}</span>
         <span class="badge ${p.is_active ? 'badge-active' : 'badge-inactive'}">${p.is_active ? 'Aktywny' : 'Ukryty'}</span>
         <div class="post-row-actions" onclick="event.stopPropagation()">
+          <button class="btn btn-ghost btn-sm" title="Podgląd posta" onclick="previewPost(${p.id})" style="font-size:0.78rem;padding:0.3rem 0.6rem">👁 Podgląd</button>
           <button class="btn btn-ghost btn-icon" title="Przesuń w górę" onclick="reorderPost(${p.id},'up')">↑</button>
           <button class="btn btn-ghost btn-icon" title="Przesuń w dół" onclick="reorderPost(${p.id},'down')">↓</button>
           <button class="btn btn-danger btn-icon" title="Usuń post" onclick="deletePost(${p.id}, ${JSON.stringify(p.source_name || '—')})">🗑</button>
@@ -851,13 +854,13 @@ function postFormHTML(p, techs) {
     <div class="image-upload-area" onclick="document.getElementById('pf-img-input-${p.id}-${variant}').click()">
       <input type="file" id="pf-img-input-${p.id}-${variant}" accept="image/jpeg,image/png,image/webp"
              onchange="handleImageUpload(${p.id}, '${variant}', this)">
-      ${existingPath
-        ? `<img class="image-preview" src="/uploads/${p.study_id}/${esc(existingPath)}" alt="" id="img-preview-${p.id}-${variant}">
-           <button type="button" class="btn btn-danger btn-sm" style="margin-bottom:0.5rem"
-                   onclick="event.stopPropagation();deletePostImage(${p.id},'${variant}')">Usuń zdjęcie</button><br>`
-        : `<img class="image-preview" id="img-preview-${p.id}-${variant}" style="display:none" alt="">`}
+      <img class="image-preview" id="img-preview-${p.id}-${variant}"
+           ${existingPath ? `src="/uploads/${p.study_id}/${esc(existingPath)}"` : 'style="display:none"'} alt="">
       <div class="image-upload-label">Kliknij aby wybrać zdjęcie</div>
-    </div>`;
+    </div>
+    <button type="button" class="btn btn-danger btn-sm" id="img-del-btn-${p.id}-${variant}"
+            style="margin-top:0.3rem;${existingPath ? '' : 'display:none'}"
+            onclick="deletePostImage(${p.id},'${variant}')">Usuń zdjęcie</button>`;
 
   // Per-condition data (metrics override + per-condition comments)
   const study = S.studies.find(s => s.id == S.selectedPostsStudy);
@@ -945,7 +948,9 @@ function postFormHTML(p, techs) {
       </div>
       <div style="display:flex;flex-direction:column;gap:0.4rem;padding-top:0.3rem">
         <span style="font-size:0.82rem;color:var(--muted)">Kliknij okrąg aby wybrać plik (jpg/png/webp, max 5 MB)</span>
-        ${p.avatar_path ? `<button type="button" class="btn btn-danger btn-sm" onclick="deleteAvatar(${p.id})">Usuń avatar</button>` : ''}
+        <button type="button" class="btn btn-danger btn-sm" id="av-del-btn-${p.id}"
+                style="${p.avatar_path ? '' : 'display:none'}"
+                onclick="deleteAvatar(${p.id})">Usuń avatar</button>
       </div>
     </div>
 
@@ -1044,6 +1049,8 @@ async function handleImageUpload(postId, variant, input) {
   const prev = document.getElementById(`img-preview-${postId}-${variant}`);
   prev.src = data.image_url + '?t=' + Date.now();
   prev.style.display = 'block';
+  const delBtn = document.getElementById(`img-del-btn-${postId}-${variant}`);
+  if (delBtn) delBtn.style.display = '';
   toast('Zdjęcie zapisane.');
 }
 
@@ -1071,14 +1078,31 @@ async function handleAvatarUpload(postId, input) {
     img.src = data.avatar_url + '?t=' + Date.now();
     prev.replaceWith(img);
   }
+  const delBtn = document.getElementById(`av-del-btn-${postId}`);
+  if (delBtn) delBtn.style.display = '';
   toast('Avatar zapisany.');
 }
 
 async function deleteAvatar(postId) {
   if (!confirm('Usunąć avatar? Wróci do inicjałów.')) return;
-  await api('DELETE', `/posts/${postId}/avatar`);
+  const r = await api('DELETE', `/posts/${postId}/avatar`);
+  if (!r) return;
+  // Swap img back to initials placeholder
+  const prev = document.getElementById(`av-preview-${postId}`);
+  if (prev) {
+    // Fetch source_name from the visible header to rebuild initials
+    const headerLabel = document.querySelector(`#post-row-${postId} .post-source-label`);
+    const name = headerLabel ? headerLabel.textContent.trim() : '?';
+    const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?';
+    const placeholder = document.createElement('div');
+    placeholder.className = 'avatar-preview avatar-preview-placeholder';
+    placeholder.id = `av-preview-${postId}`;
+    placeholder.textContent = initials;
+    prev.replaceWith(placeholder);
+  }
+  const delBtn = document.getElementById(`av-del-btn-${postId}`);
+  if (delBtn) delBtn.style.display = 'none';
   toast('Avatar usunięty.');
-  await loadPosts(S.selectedPostsStudy);
 }
 
 async function deletePostImage(postId, variant) {
@@ -1087,12 +1111,151 @@ async function deletePostImage(postId, variant) {
   const prev = document.getElementById(`img-preview-${postId}-${variant}`);
   prev.src = '';
   prev.style.display = 'none';
+  const delBtn = document.getElementById(`img-del-btn-${postId}-${variant}`);
+  if (delBtn) delBtn.style.display = 'none';
   toast('Zdjęcie usunięte.');
 }
 
 function goToPostEditor(studyId) {
   setActiveStudy(studyId);
   switchTab('posts');
+}
+
+// ── Post preview ───────────────────────────────────────────────────────────
+function previewPost(id) {
+  const p = S.currentPosts.find(x => x.id === id);
+  if (!p) return;
+
+  const study = S.studies.find(s => s.id == S.selectedPostsStudy);
+
+  // Metric conditions
+  let metricConds = [];
+  try { metricConds = JSON.parse(study?.metric_conditions_json || '[]'); } catch {}
+  metricConds = metricConds.filter(c => c.enabled);
+  if (!metricConds.length) {
+    // Legacy or fallback
+    if (study?.enable_metrics_high) metricConds.push({ key: 'HIGH', label: 'Duże liczby', min: study.high_metrics_min || 1000, max: study.high_metrics_max || 5000, show_comment: false });
+    if (study?.enable_metrics_low)  metricConds.push({ key: 'LOW',  label: 'Małe liczby',  min: study.low_metrics_min  || 10,   max: study.low_metrics_max  || 100,  show_comment: false });
+  }
+  if (!metricConds.length) metricConds = [{ key: 'PREVIEW', label: 'Podgląd', min: 0, max: 0, show_comment: false }];
+
+  let overrides = {};
+  try { overrides = JSON.parse(p.metrics_override_json || '{}'); } catch {}
+  let postComments = {};
+  try { postComments = JSON.parse(p.post_comments_json || '{}'); } catch {}
+
+  const topicMap = { zdrowie:'topic-zdrowie', klimat:'topic-klimat', polityka:'topic-polityka', ekonomia:'topic-ekonomia', nauka:'topic-nauka' };
+  const fmt = n => Number(n).toLocaleString('pl-PL');
+
+  function getMetrics(cond) {
+    const ov = overrides[cond.key] || {};
+    const mid = (f, base) => ov[f] != null ? ov[f] : (cond.max > 0 ? Math.round((cond.min + cond.max) / 2) : (p[base] || 0));
+    return {
+      likes:    mid('likes',    'base_likes'),
+      shares:   mid('shares',   'base_shares'),
+      dislikes: mid('dislikes', 'base_dislikes'),
+      flags:    mid('flags',    'base_flags'),
+    };
+  }
+
+  function buildCard(variant, cond) {
+    const v = variant.toUpperCase(); // 'A' or 'B'
+    const headline = v === 'A' ? (p.headline_a || '') : (p.headline_b || '');
+    const content  = v === 'A' ? (p.content_a  || '') : (p.content_b  || '');
+    const imgPath  = v === 'A' ? p.image_path_a : p.image_path_b;
+    const imageUrl = imgPath ? `/uploads/${p.study_id}/${imgPath}` : (p.image_path ? `/uploads/${p.study_id}/${p.image_path}` : null);
+    const avatarUrl = p.avatar_path ? `/uploads/${p.study_id}/${p.avatar_path}` : null;
+    const metrics = getMetrics(cond);
+    const showMetrics = study?.show_metrics !== 0;
+    const topicCls = topicMap[p.topic] || 'topic-nauka';
+
+    const pc = postComments[v] || {};
+    const showComment = cond.show_comment && (pc.text || p.post_comment);
+    const commentText   = (pc.text   || '').trim() || p.post_comment        || '';
+    const commentAuthor = (pc.author || '').trim() || p.post_comment_author || p.source_name || '';
+
+    const avatarEl = avatarUrl
+      ? `<img class="pv-avatar pv-avatar-img" src="${esc(avatarUrl)}" alt="${esc(p.source_name)}">`
+      : `<div class="pv-avatar">${esc((p.source_name || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2))}</div>`;
+
+    const commentAvInit = (commentAuthor || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+
+    return `
+      <div class="pv-post">
+        <div class="pv-post-header">
+          ${avatarEl}
+          <div class="pv-post-meta">
+            <div class="pv-source">${esc(p.source_name)}</div>
+            <div class="pv-handle">${esc(p.source_handle)} · ${esc(p.time_ago)}</div>
+          </div>
+          <span class="pv-topic-pill ${topicCls}">${esc(p.emoji || '')} ${esc(p.topic || '')}</span>
+        </div>
+        <div class="pv-post-body">
+          <h3 class="pv-headline">${esc(headline || '—')}</h3>
+          <p class="pv-content">${esc(content || '—')}</p>
+        </div>
+        ${imageUrl ? `<div class="pv-image"><img src="${esc(imageUrl)}" alt="" loading="lazy"></div>` : ''}
+        ${showMetrics ? `
+        <div class="pv-metrics">
+          <span class="pv-metric">👍 ${fmt(metrics.likes)}</span>
+          <span class="pv-metric">👎 ${fmt(metrics.dislikes)}</span>
+          <span class="pv-metric">🔄 ${fmt(metrics.shares)}</span>
+          <span class="pv-metric">🚩 ${fmt(metrics.flags)}</span>
+        </div>` : ''}
+        ${showComment ? `
+        <div class="pv-comment-divider"></div>
+        <div class="pv-comment-entry">
+          <div class="pv-comment-avatar">${esc(commentAvInit)}</div>
+          <div class="pv-comment-body">
+            <span class="pv-comment-author">${esc(commentAuthor)}</span>
+            <p class="pv-comment-text">${esc(commentText)}</p>
+          </div>
+        </div>` : ''}
+        <div class="pv-actions">
+          <button class="pv-action-btn"><span class="pv-action-icon">👍</span>${esc(study?.label_action_like    || 'Lubię to')}</button>
+          <button class="pv-action-btn"><span class="pv-action-icon">👎</span>${esc(study?.label_action_dislike || 'Nie lubię')}</button>
+          <button class="pv-action-btn"><span class="pv-action-icon">🔄</span>${esc(study?.label_action_share   || 'Udostępnij')}</button>
+          <button class="pv-action-btn"><span class="pv-action-icon">🚩</span>${esc(study?.label_action_flag    || 'Zgłoś')}</button>
+        </div>
+      </div>`;
+  }
+
+  // Lightweight state stored on a global so inline onclick handlers can reach it
+  window._pv = { variant: 'a', condIdx: 0 };
+
+  window._pvRender = () => {
+    const { variant, condIdx } = window._pv;
+    const cond = metricConds[condIdx];
+
+    const variantTabs = [
+      { key: 'a', label: study?.label_style_a || 'Wersja A' },
+      { key: 'b', label: study?.label_style_b || 'Wersja B' },
+    ].map(t => `
+      <button class="btn btn-sm ${variant === t.key ? 'btn-primary' : 'btn-ghost'}"
+              onclick="_pv.variant='${t.key}';_pvRender()">${esc(t.label)}</button>`).join('');
+
+    const condTabs = metricConds.length > 1 ? metricConds.map((c, i) => `
+      <button class="btn btn-sm ${condIdx === i ? 'btn-primary' : 'btn-ghost'}"
+              onclick="_pv.condIdx=${i};_pvRender()">${esc(c.label)}</button>`).join('') : '';
+
+    document.getElementById('modal-body').innerHTML = `
+      <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1.25rem;flex-wrap:wrap">
+        <h2 style="margin:0;font-size:1.1rem;flex:1">Podgląd posta</h2>
+        <span class="badge ${p.is_true ? 'badge-active' : 'badge-inactive'} post-type-badge ${p.is_true ? 'type-true' : 'type-false'}"
+              style="font-size:0.7rem">${p.is_true ? 'PRAWDA' : 'FAŁSZ'}</span>
+      </div>
+
+      <div style="display:flex;gap:0.5rem;margin-bottom:${condTabs ? '0.6rem' : '1.25rem'};flex-wrap:wrap">
+        ${variantTabs}
+      </div>
+      ${condTabs ? `<div style="display:flex;gap:0.5rem;margin-bottom:1.25rem;flex-wrap:wrap">${condTabs}</div>` : ''}
+
+      ${buildCard(variant, cond)}
+    `;
+  };
+
+  showModal('');   // open overlay first (modal-body will be populated below)
+  window._pvRender();
 }
 
 // ── Export ─────────────────────────────────────────────────────────────────

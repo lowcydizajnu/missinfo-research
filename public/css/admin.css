@@ -582,3 +582,92 @@ tr:hover td { background: var(--surface2); }
 .topic-polityka { background: #dbeafe; color: #1d4ed8; }
 .topic-ekonomia { background: #fef9c3; color: #a16207; }
 .topic-nauka    { background: #f3e8ff; color: #7e22ce; }
+
+/* ── Post preview card (admin modal, scoped to .pv-* ) ───────────────────── */
+.pv-post {
+  background: #fff;
+  border: 1px solid #dde1f0;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 16px rgba(79,124,255,0.08), 0 1px 4px rgba(0,0,0,0.06);
+  max-width: 500px;
+  margin: 0 auto;
+  font-size: 14px;
+}
+.pv-post-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem 1rem 0.5rem;
+}
+.pv-avatar {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: #eef0f8;
+  border: 1px solid #dde1f0;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 0.8rem;
+  color: #4f7cff;
+  flex-shrink: 0;
+}
+.pv-avatar-img { object-fit: cover; padding: 0; }
+.pv-post-meta { flex: 1; min-width: 0; }
+.pv-source { font-weight: 700; font-size: 0.9rem; color: #1a1f3d; }
+.pv-handle { font-size: 0.8rem; color: #6b75a0; }
+.pv-topic-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.pv-post-body { padding: 0 1rem 0.75rem; }
+.pv-headline {
+  font-size: 1rem; font-weight: 700;
+  line-height: 1.35; margin-bottom: 0.5rem; color: #1a1f3d;
+}
+.pv-content { font-size: 0.9rem; color: #6b75a0; line-height: 1.6; margin: 0; }
+.pv-image { width: 100%; max-height: 280px; overflow: hidden; background: #eef0f8; }
+.pv-image img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pv-metrics {
+  display: flex; gap: 1rem;
+  padding: 0.6rem 1rem;
+  border-top: 1px solid #dde1f0;
+  border-bottom: 1px solid #dde1f0;
+  font-size: 0.82rem;
+  background: #eef0f8;
+}
+.pv-metric { display: flex; align-items: center; gap: 0.3rem; color: #6b75a0; }
+.pv-comment-divider { border-top: 1px solid #dde1f0; }
+.pv-comment-entry {
+  display: flex; gap: 0.65rem;
+  padding: 0.85rem 1rem;
+}
+.pv-comment-avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: #eef0f8; border: 1px solid #dde1f0;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 0.65rem; color: #6b75a0;
+  flex-shrink: 0;
+}
+.pv-comment-body { flex: 1; min-width: 0; }
+.pv-comment-author { font-weight: 700; font-size: 0.8rem; color: #1a1f3d; display: block; margin-bottom: 0.15rem; }
+.pv-comment-text  { font-size: 0.85rem; color: #6b75a0; line-height: 1.55; margin: 0; }
+.pv-actions {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+}
+.pv-action-btn {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 0.2rem; padding: 0.75rem 0.5rem;
+  background: transparent; border: none;
+  color: #6b75a0; cursor: default;
+  font-size: 0.78rem; font-family: 'IBM Plex Sans', sans-serif;
+  border-top: 1px solid #dde1f0;
+}
+.pv-action-btn:not(:last-child) { border-right: 1px solid #dde1f0; }
+.pv-action-icon { font-size: 1.2rem; }
