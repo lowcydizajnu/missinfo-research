@@ -181,6 +181,8 @@ router.post('/session/start', (req, res) => {
       show_transition_rating: study.show_transition_rating !== 0,
       show_debrief: study.show_debrief !== 0,
       show_metrics: study.show_metrics !== 0,
+      clarity_enabled: study.clarity_enabled ? true : false,
+      clarity_project_id: study.clarity_project_id || null,
       show_comment_in_condition: metricCondObj.show_comment ? true : false,
       label_style_a: study.label_style_a || 'Styl A (manipulacyjny)',
       label_style_b: study.label_style_b || 'Styl B (neutralny)',
