@@ -29,6 +29,13 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/api', require('./routes/participant'));
 app.use('/api/admin', require('./routes/admin'));
 
+// WebGazer loads MediaPipe model files relative to the current page URL,
+// so /study/:slug → it requests /study/mediapipe/face_mesh/*.
+// Redirect those to jsDelivr so no binary assets need to be bundled in the repo.
+app.get('/study/mediapipe/face_mesh/:file', (req, res) => {
+  res.redirect(302, `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/${req.params.file}`);
+});
+
 // Study SPA — inject study config into HTML
 app.get('/study/:slug', (req, res) => {
   const db = require('./db/database');
