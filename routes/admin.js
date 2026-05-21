@@ -506,23 +506,35 @@ router.get('/gaze-csv/:studyId', auth, (req, res) => {
 // Sessions with gaze data for a study
 router.get('/gaze-sessions/:studyId', auth, (req, res) => {
   const studyId = parseInt(req.params.studyId);
-  const sessions = db.prepare(`
-    SELECT s.id, s.session_token, s.full_condition, s.style_condition, s.metric_condition,
-           s.eyetracking_consent, s.calibration_error, s.n_recalibrations,
-           s.created_at, s.completed_at,
-           COUNT(g.id) as n_gaze_pts
-    FROM sessions s
-    LEFT JOIN gaze_points g ON g.session_id = s.id
-    WHERE s.study_id = ? AND s.eyetracking_consent = 1
-    GROUP BY s.id
-    ORDER BY s.created_at DESC
-  `).all(studyId);
-  res.json(sessions);
+  try {
+    // Check if gaze_points table exists first
+    const tableExists = db.prepare(
+      `SELECT name FROM sqlite_master WHERE type='table' AND name='gaze_points'`
+    ).get();
+    if (!tableExists) return res.json([]);
+
+    const sessions = db.prepare(`
+      SELECT s.id, s.session_token, s.full_condition, s.style_condition, s.metric_condition,
+             s.eyetracking_consent, s.calibration_error, s.n_recalibrations,
+             s.created_at, s.completed_at,
+             COUNT(g.id) as n_gaze_pts
+      FROM sessions s
+      LEFT JOIN gaze_points g ON g.session_id = s.id
+      WHERE s.study_id = ? AND s.eyetracking_consent = 1
+      GROUP BY s.id
+      ORDER BY s.created_at DESC
+    `).all(studyId);
+    res.json(sessions);
+  } catch (err) {
+    console.error('gaze-sessions error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Full gaze data for one session
 router.get('/gaze-data/:sessionId', auth, (req, res) => {
   const sessionId = parseInt(req.params.sessionId);
+  try {
   const session = db.prepare(`
     SELECT s.*, st.name as study_name, st.slug as study_slug
     FROM sessions s
@@ -531,10 +543,13 @@ router.get('/gaze-data/:sessionId', auth, (req, res) => {
   `).get(sessionId);
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
-  const gaze = db.prepare(`
+  const tableExists = db.prepare(
+    `SELECT name FROM sqlite_master WHERE type='table' AND name='gaze_points'`
+  ).get();
+  const gaze = tableExists ? db.prepare(`
     SELECT post_id, post_order, screen_name, t, x, y, vw, vh, scroll_y, aoi
     FROM gaze_points WHERE session_id = ? ORDER BY t
-  `).all(sessionId);
+  `).all(sessionId) : [];
 
   const postIds = [...new Set(gaze.filter(g => g.post_id != null).map(g => g.post_id))];
   let posts = [];
@@ -549,6 +564,10 @@ router.get('/gaze-data/:sessionId', auth, (req, res) => {
   try { if (session.feed_snapshot) feedSnapshot = JSON.parse(session.feed_snapshot); } catch (_) {}
 
   res.json({ session, gaze, posts, feedSnapshot });
+  } catch (err) {
+    console.error('gaze-data error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;
