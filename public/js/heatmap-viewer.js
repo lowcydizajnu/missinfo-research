@@ -371,26 +371,30 @@ function renderHeatmap(pts) {
 
   const hm = h337.create({
     container:  heatDiv,
-    radius:     38,
-    maxOpacity: 0.78,
-    minOpacity: 0.0,
-    blur:       0.82,
-    gradient: { 0.0: '#000080', 0.2: '#0000ff', 0.45: '#00ffff',
-                0.65: '#00ff00', 0.82: '#ffff00', 1.0: '#ff0000' },
+    radius:     44,
+    maxOpacity: 0.82,
+    minOpacity: 0.05,
+    blur:       0.85,
+    gradient: { 0.1: '#0000ff', 0.35: '#00ccff', 0.6: '#00ff88',
+                0.78: '#ffee00', 1.0: '#ff2200' },
   });
   HV.heatmapInst = hm;
 
+  // dynamic max: 85th-percentile density so sparse sessions still show colour
+  const max = Math.max(3, Math.round(pts.length / 40));
   hm.setData({
-    max: 8,
+    max,
     data: pts.map(p => ({ x: p.cx, y: p.cy, value: 1 })),
   });
 
   const hint = document.getElementById('hm-hint');
-  hint.textContent = `${pts.length} próbek gaze`;
-  if (HV.postFilter !== 'all') {
-    const postLabel = document.getElementById('hv-post-filter').selectedOptions[0]?.text || '';
-    hint.textContent += ` · ${postLabel}`;
-  }
+  hint.innerHTML = `
+    ${pts.length} próbek gaze${HV.postFilter !== 'all' ? ' · ' + (document.getElementById('hv-post-filter').selectedOptions[0]?.text || '') : ''}
+    &nbsp;|&nbsp;
+    <span style="display:inline-flex;align-items:center;gap:4px;font-size:.75rem">
+      <span style="background:linear-gradient(to right,#0000ff,#00ccff,#00ff88,#ffee00,#ff2200);width:80px;height:8px;border-radius:4px;display:inline-block"></span>
+      <span style="color:#64748b">rzadko → często</span>
+    </span>`;
 }
 
 // ── Scanpath ───────────────────────────────────────────────────────────────

@@ -81,11 +81,24 @@
             <div class="hv-canvas-host">
               <canvas id="sp-canvas"></canvas>
             </div>
-            <p class="hv-hint">
-              Koła = fiksacje (rozmiar ∝ czas).
-              Kolor: <span style="color:#4fc3f7">●</span> początek →
-              <span style="color:#ef5350">●</span> koniec.
-            </p>
+            <div class="hv-legend-row">
+              <span class="hv-legend-item">
+                <svg width="28" height="28"><circle cx="14" cy="14" r="12" fill="rgba(79,195,247,.2)" stroke="#4fc3f7" stroke-width="1.5"/><text x="14" y="18" text-anchor="middle" fill="#fff" font-size="9" font-weight="bold">1</text></svg>
+                Pierwsza fiksacja
+              </span>
+              <span class="hv-legend-item">
+                <svg width="28" height="28"><circle cx="14" cy="14" r="12" fill="rgba(239,83,80,.2)" stroke="#ef5350" stroke-width="1.5"/><text x="14" y="18" text-anchor="middle" fill="#fff" font-size="9" font-weight="bold">N</text></svg>
+                Ostatnia fiksacja
+              </span>
+              <span class="hv-legend-item">
+                <svg width="36" height="28"><circle cx="8" cy="14" r="4" fill="rgba(79,195,247,.3)" stroke="#4fc3f7" stroke-width="1.5"/><circle cx="28" cy="14" r="9" fill="rgba(200,120,60,.3)" stroke="#e07040" stroke-width="1.5"/></svg>
+                Rozmiar koła = czas fiksacji
+              </span>
+              <span class="hv-legend-item">
+                <svg width="36" height="16"><line x1="2" y1="8" x2="34" y2="8" stroke="#818cf8" stroke-width="1.5" stroke-dasharray="4,2"/></svg>
+                Sakada (ruch oka między fiksacjami)
+              </span>
+            </div>
           </div>
 
           <!-- Playback ─────────────────────────── -->

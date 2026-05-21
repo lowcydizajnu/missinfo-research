@@ -208,10 +208,11 @@
   position: absolute;
   top: 0; left: 0;
   pointer-events: none;
+  z-index: 2;
 }
 #hm-heat canvas {
-  position: absolute;
-  top: 0; left: 0;
+  position: absolute !important;
+  top: 0 !important; left: 0 !important;
 }
 
 .hv-hint {
@@ -220,6 +221,21 @@
   color: #64748b;
   line-height: 1.5;
 }
+.hv-legend-row {
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 0.25rem;
+}
+.hv-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+.hv-legend-item svg { flex-shrink: 0; }
 
 /* ── Playback bar ────────────────────────────────────────────────────────── */
 .hv-playback-bar {
