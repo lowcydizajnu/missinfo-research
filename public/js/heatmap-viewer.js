@@ -113,8 +113,9 @@ async function loadSessions(studyId) {
         const el = document.createElement('div');
         el.className = 'hv-session-item';
         el.dataset.id = s.id;
+        const dateStr = s.started_at ? new Date(s.started_at).toLocaleString('pl-PL', { dateStyle:'short', timeStyle:'short' }) : '—';
         el.innerHTML = `
-          <div class="hv-session-item-id">#${s.id}</div>
+          <div class="hv-session-item-id">#${s.id} <span style="font-weight:400;color:#475569">${dateStr}</span></div>
           <div class="hv-session-item-cond">${s.full_condition || '—'}</div>
           <div class="hv-session-item-pts">${s.n_gaze_pts} pkt gaze${s.calibration_error != null ? ` · ±${Math.round(s.calibration_error)}px` : ''}</div>`;
         el.addEventListener('click', () => selectSession(s.id, el));

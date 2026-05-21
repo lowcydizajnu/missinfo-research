@@ -516,13 +516,13 @@ router.get('/gaze-sessions/:studyId', auth, (req, res) => {
     const sessions = db.prepare(`
       SELECT s.id, s.session_token, s.full_condition, s.style_condition, s.metric_condition,
              s.eyetracking_consent, s.calibration_error, s.n_recalibrations,
-             s.created_at, s.completed_at,
+             s.started_at, s.completed_at,
              COUNT(g.id) as n_gaze_pts
       FROM sessions s
       LEFT JOIN gaze_points g ON g.session_id = s.id
       WHERE s.study_id = ? AND s.eyetracking_consent = 1
       GROUP BY s.id
-      ORDER BY s.created_at DESC
+      ORDER BY s.started_at DESC
     `).all(studyId);
     res.json(sessions);
   } catch (err) {
