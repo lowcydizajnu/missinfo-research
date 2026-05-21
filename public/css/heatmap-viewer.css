@@ -91,6 +91,22 @@
 }
 .hv-select:focus { outline: none; border-color: #818cf8; }
 
+/* Mode buttons */
+.hv-mode-btns { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+.hv-mode-btn {
+  background: #1e2235;
+  border: 1px solid #374151;
+  color: #94a3b8;
+  border-radius: 5px;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.hv-mode-btn:hover { border-color: #818cf8; color: #e2e8f0; }
+.hv-mode-btn.active { background: #312e81; border-color: #818cf8; color: #e0e7ff; }
+
 /* Session list */
 .hv-session-list {
   display: flex;

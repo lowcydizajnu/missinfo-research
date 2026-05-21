@@ -30,6 +30,7 @@ const HV = {
   allSessions:    [],   // sessions with gaze data for selected study
   currentSession: null, // { session, gaze, posts, feedSnapshot }
   postFilter:     'all',
+  modeFilter:     'all', // 'all' | 'feed' | 'paged'
   activeTab:      'heatmap',
   heatmapInst:    null,
   playback: {
@@ -59,6 +60,15 @@ const HV = {
   });
   document.getElementById('hv-post-filter').addEventListener('change', e => {
     HV.postFilter = e.target.value;
+    if (HV.currentSession) updateVisualization();
+  });
+
+  document.getElementById('hv-mode-btns').addEventListener('click', e => {
+    const btn = e.target.closest('.hv-mode-btn');
+    if (!btn) return;
+    document.querySelectorAll('.hv-mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    HV.modeFilter = btn.dataset.mode;
     if (HV.currentSession) updateVisualization();
   });
 })();
@@ -140,6 +150,7 @@ async function selectSession(sessionId, itemEl) {
   try {
     HV.currentSession = await apiFetch(`/api/admin/gaze-data/${sessionId}`);
     buildPostFilter();
+    buildModeFilter();
     showSessionMeta();
     document.getElementById('hv-viewer').hidden = false;
     document.getElementById('hv-empty').style.display = 'none';
@@ -166,9 +177,13 @@ function buildPostFilter() {
   });
   postIds.forEach(pid => {
     const p = postMap[pid];
+    // detect which modes have gaze for this post
+    const hasFeed  = gaze.some(g => g.post_id === pid && g.screen_name?.startsWith('feed_'));
+    const hasPaged = gaze.some(g => g.post_id === pid && g.screen_name?.startsWith('paged_'));
+    const modeTag  = hasFeed && hasPaged ? ' [feed+ocena]' : hasFeed ? ' [feed]' : hasPaged ? ' [ocena]' : '';
     const opt = document.createElement('option');
     opt.value = pid;
-    opt.textContent = p ? `Post ${p.post_order || '?'}: ${(p.headline || '').slice(0, 40)}` : `Post #${pid}`;
+    opt.textContent = (p ? `Post ${p.post_order || '?'}: ${(p.headline || '').slice(0, 35)}` : `Post #${pid}`) + modeTag;
     sel.appendChild(opt);
   });
 
@@ -177,10 +192,42 @@ function buildPostFilter() {
   document.getElementById('hv-post-ctrl').hidden = false;
 }
 
+function buildModeFilter() {
+  const { gaze } = HV.currentSession;
+  const hasFeed  = gaze.some(g => g.screen_name?.startsWith('feed_'));
+  const hasPaged = gaze.some(g => g.screen_name?.startsWith('paged_'));
+  const ctrl = document.getElementById('hv-mode-ctrl');
+  ctrl.hidden = false;
+  // grey out buttons if mode has no data
+  document.querySelector('[data-mode="feed"]').style.opacity  = hasFeed  ? '1' : '0.35';
+  document.querySelector('[data-mode="paged"]').style.opacity = hasPaged ? '1' : '0.35';
+  // reset to all
+  HV.modeFilter = 'all';
+  document.querySelectorAll('.hv-mode-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.mode === 'all'));
+}
+
 function filterGaze(gaze) {
-  if (HV.postFilter === 'all') return gaze;
-  const pid = parseInt(HV.postFilter);
-  return gaze.filter(g => g.post_id === pid);
+  let pts = gaze;
+  // mode filter
+  if (HV.modeFilter === 'feed')  pts = pts.filter(g => g.screen_name?.startsWith('feed_'));
+  if (HV.modeFilter === 'paged') pts = pts.filter(g => g.screen_name?.startsWith('paged_'));
+  // post filter
+  if (HV.postFilter !== 'all') {
+    const pid = parseInt(HV.postFilter);
+    pts = pts.filter(g => g.post_id === pid);
+  }
+  return pts;
+}
+
+// Determine current mode for background drawing
+function currentMode(pts) {
+  if (HV.modeFilter !== 'all') return HV.modeFilter;
+  const feedN  = pts.filter(g => g.screen_name?.startsWith('feed_')).length;
+  const pagedN = pts.filter(g => g.screen_name?.startsWith('paged_')).length;
+  if (feedN === 0 && pagedN > 0) return 'paged';
+  if (pagedN === 0 && feedN > 0) return 'feed';
+  return 'mixed';
 }
 
 // ── Normalise gaze to canvas coords ───────────────────────────────────────
@@ -210,6 +257,7 @@ function clearViewer() {
   document.getElementById('hv-viewer').hidden = true;
   document.getElementById('hv-empty').style.display = '';
   document.getElementById('hv-session-ctrl').hidden = true;
+  document.getElementById('hv-mode-ctrl').hidden = true;
   document.getElementById('hv-post-ctrl').hidden = true;
   document.getElementById('hv-session-meta').hidden = true;
   document.querySelectorAll('.hv-session-item').forEach(el => el.classList.remove('active'));
@@ -235,18 +283,122 @@ function setupTabs() {
 // ── Main update ────────────────────────────────────────────────────────────
 function updateVisualization() {
   const filtered  = filterGaze(HV.currentSession.gaze);
+  const mode      = currentMode(filtered);
   const normed    = normaliseGaze(filtered);
   switch (HV.activeTab) {
-    case 'heatmap':  renderHeatmap(normed);  break;
-    case 'scanpath': renderScanpath(normed); break;
-    case 'playback': preparePlayback(normed); break;
-    case 'aoi':      renderAOI(filtered);    break;
-    case 'compare':  /* handled by compare UI */ break;
+    case 'heatmap':  renderHeatmap(normed, mode);  break;
+    case 'scanpath': renderScanpath(normed, mode); break;
+    case 'playback': preparePlayback(normed, mode); break;
+    case 'aoi':      renderAOI(filtered);          break;
+    case 'compare':  /* handled by compare UI */   break;
   }
 }
 
 // ── Background schematic ───────────────────────────────────────────────────
-function drawBackground(canvas) {
+function drawBackground(canvas, mode) {
+  if (mode === 'paged') { drawBackgroundPaged(canvas); return; }
+  drawBackgroundFeed(canvas);
+}
+
+// Paged / rating layout: large image top, headline, content, Likert scale
+function drawBackgroundPaged(canvas) {
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width  / SCALE;
+  const H = canvas.height / SCALE;
+  ctx.save();
+  ctx.scale(SCALE, SCALE);
+
+  ctx.fillStyle = '#0f1117';
+  ctx.fillRect(0, 0, W, H);
+
+  const pad = 14;
+  const cW  = W - pad * 2;
+
+  // ── AOI regions for paged layout
+  const pagedRegions = {
+    image:    { y0: 0.02, y1: 0.38 },
+    headline: { y0: 0.39, y1: 0.52 },
+    content:  { y0: 0.53, y1: 0.63 },
+    avatar:   { y0: 0.64, y1: 0.71 },
+    metrics:  { y0: 0.72, y1: 0.78 },
+    actions:  { y0: 0.80, y1: 0.96 }, // Likert / buttons
+  };
+
+  Object.entries(pagedRegions).forEach(([name, { y0, y1 }]) => {
+    const color = AOI_COLORS[name] || '#475569';
+    ctx.globalAlpha = 0.07;
+    ctx.fillStyle = color;
+    ctx.fillRect(pad, H * y0, cW, H * (y1 - y0));
+    ctx.globalAlpha = 0.35;
+    ctx.fillStyle = color;
+    ctx.font = `bold ${Math.max(9, W * 0.023)}px system-ui`;
+    ctx.textAlign = 'right';
+    ctx.fillText(AOI_LABELS[name] || name, W - pad - 4, H * y0 + H * (y1 - y0) / 2 + 4);
+    ctx.globalAlpha = 1;
+  });
+
+  // Large image block
+  ctx.fillStyle = '#1e2a3a';
+  ctx.fillRect(pad, H * 0.02, cW, H * 0.36);
+  ctx.globalAlpha = 0.12;
+  ctx.fillStyle = '#3b82f6';
+  ctx.font = `${W * 0.12}px system-ui`;
+  ctx.textAlign = 'center';
+  ctx.fillText('🖼', W / 2, H * 0.02 + H * 0.36 * 0.6);
+  ctx.globalAlpha = 1;
+
+  // Headline (2 lines, bigger)
+  ctx.fillStyle = '#374151';
+  ctx.fillRect(pad, H * 0.40, cW * 0.92, 13);
+  ctx.fillRect(pad, H * 0.40 + 18, cW * 0.72, 13);
+
+  // Content
+  ctx.fillStyle = '#2d3748';
+  ctx.fillRect(pad, H * 0.54, cW * 0.88, 9);
+  ctx.fillRect(pad, H * 0.54 + 14, cW * 0.68, 9);
+
+  // Source / avatar row
+  ctx.fillStyle = '#2d3748';
+  ctx.beginPath();
+  ctx.arc(pad + 14, H * 0.675, 11, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillRect(pad + 32, H * 0.668, cW * 0.3, 8);
+
+  // Metrics row
+  [0, 1, 2].forEach(i => {
+    roundRect(ctx, pad + i * (cW * 0.22 + 4), H * 0.725, cW * 0.22, 12, 6, '#1e2235');
+  });
+
+  // Likert scale (7 circles)
+  const lkY  = H * 0.84;
+  const lkStep = cW / 8;
+  for (let i = 0; i < 7; i++) {
+    const x = pad + lkStep * (i + 0.5);
+    ctx.beginPath();
+    ctx.arc(x, lkY, 14, 0, Math.PI * 2);
+    ctx.fillStyle = '#1e2235';
+    ctx.fill();
+    ctx.strokeStyle = '#374151';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = '#4b5563';
+    ctx.font = `bold 9px system-ui`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(i + 1, x, lkY);
+  }
+  ctx.textBaseline = 'alphabetic';
+
+  // Mode label
+  ctx.fillStyle = '#312e81';
+  ctx.font = '10px system-ui';
+  ctx.textAlign = 'left';
+  ctx.fillText('📋 Tryb oceny wiarygodności', pad, H * 0.985);
+
+  ctx.restore();
+}
+
+function drawBackgroundFeed(canvas) {
   const ctx = canvas.getContext('2d');
   const W = canvas.width  / SCALE;
   const H = canvas.height / SCALE;
@@ -320,6 +472,12 @@ function drawBackground(canvas) {
     roundRect(ctx, pad + 8 + i * (W * 0.26 + 4), H * 0.84, W * 0.26, 20, 6, '#1e2235');
   });
 
+  // Mode label
+  ctx.fillStyle = '#312e81';
+  ctx.font = '10px system-ui';
+  ctx.textAlign = 'left';
+  ctx.fillText('📜 Tryb feed', pad, H * 0.985);
+
   ctx.restore();
 }
 
@@ -355,9 +513,9 @@ function setupCanvas(canvasId, hostId) {
 }
 
 // ── Heatmap ────────────────────────────────────────────────────────────────
-function renderHeatmap(pts) {
+function renderHeatmap(pts, mode = 'feed') {
   const bgCanvas = setupCanvas('hm-bg', 'hm-host');
-  drawBackground(bgCanvas);
+  drawBackground(bgCanvas, mode);
 
   const heatDiv = document.getElementById('hm-heat');
   heatDiv.style.width  = CANVAS_W + 'px';
@@ -398,9 +556,9 @@ function renderHeatmap(pts) {
 }
 
 // ── Scanpath ───────────────────────────────────────────────────────────────
-function renderScanpath(pts) {
+function renderScanpath(pts, mode = 'feed') {
   const canvas = setupCanvas('sp-canvas');
-  drawBackground(canvas);
+  drawBackground(canvas, mode);
   if (!pts.length) return;
 
   const ctx = canvas.getContext('2d');
@@ -522,10 +680,11 @@ function setupPlaybackControls() {
   });
 }
 
-function preparePlayback(pts) {
+function preparePlayback(pts, mode = 'feed') {
   stopPlayback();
   const canvas = setupCanvas('pb-canvas');
-  drawBackground(canvas);
+  drawBackground(canvas, mode);
+  HV.playback.mode   = mode;
   HV.playback.points = pts;
   HV.playback.speed  = parseFloat(document.getElementById('pb-speed').value);
   if (!pts.length) return;
@@ -570,7 +729,7 @@ function tickPlayback() {
 
 function drawPlaybackFrame(currentT, points) {
   const canvas = document.getElementById('pb-canvas');
-  drawBackground(canvas);
+  drawBackground(canvas, HV.playback.mode || 'feed');
   const ctx = canvas.getContext('2d');
   ctx.save();
   ctx.scale(SCALE, SCALE);
