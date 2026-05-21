@@ -761,6 +761,14 @@ function renderRatingPost() {
   // Virtual page for Clarity heatmap segmentation
   trackScreen('post_' + post.post_order + '_id' + post.id);
 
+  // ET context: rating screen is a separate viewing mode from feed
+  if (ET.enabled && ET.consented) {
+    ET.currentPostId    = post.id;
+    ET.currentPostOrder = post.post_order;
+    ET.currentScreen    = 'rating_post_' + post.post_order;
+    ET.paused = false;
+  }
+
   const nextBtn = $('btn-rating-next');
   nextBtn.disabled = true;
   document.querySelectorAll('#likert-buttons .likert-btn').forEach(b => b.classList.remove('selected'));

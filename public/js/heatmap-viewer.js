@@ -178,8 +178,8 @@ function buildPostFilter() {
   postIds.forEach(pid => {
     const p = postMap[pid];
     // detect which modes have gaze for this post
-    const hasFeed  = gaze.some(g => g.post_id === pid && g.screen_name?.startsWith('feed_'));
-    const hasPaged = gaze.some(g => g.post_id === pid && g.screen_name?.startsWith('paged_'));
+    const hasFeed  = gaze.some(g => g.post_id === pid && isFeed(g.screen_name));
+    const hasPaged = gaze.some(g => g.post_id === pid && isOcena(g.screen_name));
     const modeTag  = hasFeed && hasPaged ? ' [feed+ocena]' : hasFeed ? ' [feed]' : hasPaged ? ' [ocena]' : '';
     const opt = document.createElement('option');
     opt.value = pid;
@@ -192,16 +192,22 @@ function buildPostFilter() {
   document.getElementById('hv-post-ctrl').hidden = false;
 }
 
+// screen_name prefixes: feed_post_N (feed), paged_post_N (paged layout), rating_post_N (Likert rating)
+function isOcena(screenName) {
+  return screenName?.startsWith('paged_') || screenName?.startsWith('rating_');
+}
+function isFeed(screenName) {
+  return screenName?.startsWith('feed_');
+}
+
 function buildModeFilter() {
   const { gaze } = HV.currentSession;
-  const hasFeed  = gaze.some(g => g.screen_name?.startsWith('feed_'));
-  const hasPaged = gaze.some(g => g.screen_name?.startsWith('paged_'));
+  const hasFeed  = gaze.some(g => isFeed(g.screen_name));
+  const hasOcena = gaze.some(g => isOcena(g.screen_name));
   const ctrl = document.getElementById('hv-mode-ctrl');
   ctrl.hidden = false;
-  // grey out buttons if mode has no data
   document.querySelector('[data-mode="feed"]').style.opacity  = hasFeed  ? '1' : '0.35';
-  document.querySelector('[data-mode="paged"]').style.opacity = hasPaged ? '1' : '0.35';
-  // reset to all
+  document.querySelector('[data-mode="paged"]').style.opacity = hasOcena ? '1' : '0.35';
   HV.modeFilter = 'all';
   document.querySelectorAll('.hv-mode-btn').forEach(b =>
     b.classList.toggle('active', b.dataset.mode === 'all'));
@@ -209,10 +215,8 @@ function buildModeFilter() {
 
 function filterGaze(gaze) {
   let pts = gaze;
-  // mode filter
-  if (HV.modeFilter === 'feed')  pts = pts.filter(g => g.screen_name?.startsWith('feed_'));
-  if (HV.modeFilter === 'paged') pts = pts.filter(g => g.screen_name?.startsWith('paged_'));
-  // post filter
+  if (HV.modeFilter === 'feed')  pts = pts.filter(g => isFeed(g.screen_name));
+  if (HV.modeFilter === 'paged') pts = pts.filter(g => isOcena(g.screen_name));
   if (HV.postFilter !== 'all') {
     const pid = parseInt(HV.postFilter);
     pts = pts.filter(g => g.post_id === pid);
@@ -220,13 +224,12 @@ function filterGaze(gaze) {
   return pts;
 }
 
-// Determine current mode for background drawing
 function currentMode(pts) {
-  if (HV.modeFilter !== 'all') return HV.modeFilter;
-  const feedN  = pts.filter(g => g.screen_name?.startsWith('feed_')).length;
-  const pagedN = pts.filter(g => g.screen_name?.startsWith('paged_')).length;
-  if (feedN === 0 && pagedN > 0) return 'paged';
-  if (pagedN === 0 && feedN > 0) return 'feed';
+  if (HV.modeFilter !== 'all') return HV.modeFilter === 'paged' ? 'paged' : 'feed';
+  const feedN  = pts.filter(g => isFeed(g.screen_name)).length;
+  const ocenaN = pts.filter(g => isOcena(g.screen_name)).length;
+  if (feedN === 0 && ocenaN > 0) return 'paged';
+  if (ocenaN === 0 && feedN > 0) return 'feed';
   return 'mixed';
 }
 
@@ -512,40 +515,19 @@ function setupCanvas(canvasId, hostId) {
   return canvas;
 }
 
-// ── Heatmap ────────────────────────────────────────────────────────────────
+// ── Heatmap (canvas-based Gaussian KDE — no external library) ──────────────
 function renderHeatmap(pts, mode = 'feed') {
-  const bgCanvas = setupCanvas('hm-bg', 'hm-host');
-  drawBackground(bgCanvas, mode);
+  const canvas = setupCanvas('hm-canvas');
+  drawBackground(canvas, mode);
 
-  const heatDiv = document.getElementById('hm-heat');
-  heatDiv.style.width  = CANVAS_W + 'px';
-  heatDiv.style.height = CANVAS_H + 'px';
-  heatDiv.innerHTML = '';  // destroy old heatmap.js instance
-
+  const hint = document.getElementById('hm-hint');
   if (!pts.length) {
-    document.getElementById('hm-hint').textContent = 'Brak danych gaze dla wybranego filtra.';
+    hint.textContent = 'Brak danych gaze dla wybranego filtra.';
     return;
   }
 
-  const hm = h337.create({
-    container:  heatDiv,
-    radius:     44,
-    maxOpacity: 0.82,
-    minOpacity: 0.05,
-    blur:       0.85,
-    gradient: { 0.1: '#0000ff', 0.35: '#00ccff', 0.6: '#00ff88',
-                0.78: '#ffee00', 1.0: '#ff2200' },
-  });
-  HV.heatmapInst = hm;
+  drawGaussianHeatmap(canvas, pts);
 
-  // dynamic max: 85th-percentile density so sparse sessions still show colour
-  const max = Math.max(3, Math.round(pts.length / 40));
-  hm.setData({
-    max,
-    data: pts.map(p => ({ x: p.cx, y: p.cy, value: 1 })),
-  });
-
-  const hint = document.getElementById('hm-hint');
   hint.innerHTML = `
     ${pts.length} próbek gaze${HV.postFilter !== 'all' ? ' · ' + (document.getElementById('hv-post-filter').selectedOptions[0]?.text || '') : ''}
     &nbsp;|&nbsp;
@@ -553,6 +535,75 @@ function renderHeatmap(pts, mode = 'feed') {
       <span style="background:linear-gradient(to right,#0000ff,#00ccff,#00ff88,#ffee00,#ff2200);width:80px;height:8px;border-radius:4px;display:inline-block"></span>
       <span style="color:#64748b">rzadko → często</span>
     </span>`;
+}
+
+function drawGaussianHeatmap(canvas, pts) {
+  const W   = CANVAS_W * SCALE;
+  const H   = CANVAS_H * SCALE;
+  const R   = 36 * SCALE;  // gaussian radius in physical pixels
+
+  // Accumulation buffer
+  const buf = new Float32Array(W * H);
+  let maxVal = 0;
+
+  pts.forEach(p => {
+    const cx = Math.round(p.cx * SCALE);
+    const cy = Math.round(p.cy * SCALE);
+    const x0 = Math.max(0, cx - R), x1 = Math.min(W - 1, cx + R);
+    const y0 = Math.max(0, cy - R), y1 = Math.min(H - 1, cy + R);
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        const d2 = (x - cx) ** 2 + (y - cy) ** 2;
+        if (d2 > R * R) continue;
+        const v = Math.exp(-d2 / (2 * (R / 2.5) ** 2));
+        const idx = y * W + x;
+        buf[idx] += v;
+        if (buf[idx] > maxVal) maxVal = buf[idx];
+      }
+    }
+  });
+
+  if (maxVal === 0) return;
+
+  // Colorise
+  const ctx    = canvas.getContext('2d');
+  const imgData = ctx.getImageData(0, 0, W, H);
+  const pix    = imgData.data;
+
+  for (let i = 0; i < buf.length; i++) {
+    if (buf[i] < 0.001) continue;
+    const t   = Math.min(1, buf[i] / maxVal);
+    const [r, g, b] = heatRGB(t);
+    const alpha = Math.round(Math.min(230, t * 255 * 1.4 + 30));
+    const px  = i * 4;
+    // Blend over existing background pixel
+    const a   = alpha / 255;
+    pix[px]     = Math.round(pix[px]     * (1 - a) + r * a);
+    pix[px + 1] = Math.round(pix[px + 1] * (1 - a) + g * a);
+    pix[px + 2] = Math.round(pix[px + 2] * (1 - a) + b * a);
+    // alpha stays 255 (background is opaque)
+  }
+
+  ctx.putImageData(imgData, 0, 0);
+}
+
+// Blue→Cyan→Green→Yellow→Red gradient
+function heatRGB(t) {
+  const stops = [
+    [0,    [  0,   0, 255]],
+    [0.25, [  0, 200, 255]],
+    [0.50, [  0, 255, 100]],
+    [0.75, [255, 230,   0]],
+    [1.0,  [255,  30,   0]],
+  ];
+  for (let i = 1; i < stops.length; i++) {
+    if (t <= stops[i][0]) {
+      const lo = stops[i - 1], hi = stops[i];
+      const f  = (t - lo[0]) / (hi[0] - lo[0]);
+      return lo[1].map((v, j) => Math.round(v + (hi[1][j] - v) * f));
+    }
+  }
+  return stops[stops.length - 1][1];
 }
 
 // ── Scanpath ───────────────────────────────────────────────────────────────
