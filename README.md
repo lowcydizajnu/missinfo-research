@@ -12,39 +12,62 @@ Full-stack web application for social media misinformation research. Implements 
 
 ---
 
-## Local Development
+## Run your own instance
 
-### 1. Install dependencies
+The platform is self-hosted: you run your own copy and become its administrator.
+Nothing is shared with anyone else — each instance has its own database and its
+own accounts.
+
+### 1. Get the code
 
 ```bash
+git clone https://github.com/lowcydizajnu/missinfo-research.git
+cd missinfo-research
 npm install
 ```
 
-### 2. Configure environment
-
-Edit `.env`:
-
-```
-JWT_SECRET=your-long-random-secret     # required — the server won't start without it
-ADMIN_PASSWORD=your-secure-password     # initial password for the seeded "admin" account
-ANTHROPIC_API_KEY=sk-ant-...            # optional — enables AI-assisted translation
-PORT=3000
-DATABASE_PATH=./data/research.db
-UPLOADS_PATH=./uploads
-```
-
-`ADMIN_PASSWORD` seeds the first admin on initial boot only; afterwards, accounts and
-passwords are managed inside the panel (see **Accounts** below). Never commit `.env`.
-
-### 3. Start the server
+### 2. Configure
 
 ```bash
-npm start
+cp .env.example .env
 ```
 
-Visit:
-- Admin panel: http://localhost:3000/admin
-- Participant URL (after creating a study): http://localhost:3000/study/[slug]
+Open `.env` and set at least these two:
+
+- **`JWT_SECRET`** — a long random string (required; the server refuses to start
+  without it). Generate one with:
+  ```bash
+  node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+  ```
+- **`ADMIN_PASSWORD`** — the password for your first admin account.
+
+`ANTHROPIC_API_KEY` is optional (enables AI-assisted translation). Never commit `.env`.
+
+### 3. Start
+
+```bash
+npm start          # or:  npm run dev   (auto-reload during development)
+```
+
+On first run the server creates the database and seeds an **`admin`** account from
+your `ADMIN_PASSWORD`. Open **http://localhost:3000/admin.html** and log in:
+
+- **Login:** `admin`
+- **Password:** your `ADMIN_PASSWORD`
+
+You are now the administrator of your own instance. From the **👥 Konta** tab you
+can create more accounts:
+
+- **admin** — full access; manages every study and all accounts
+- **researcher** — sees and manages only their own studies
+
+Create a study with **+ Nowe**, add posts, and share its participant link
+(`/study/<slug>`). Participants take part anonymously — no login required.
+
+> **Deploying to a server?** It's a single Node process and runs anywhere Node 18+
+> and a writable disk are available (Railway, Render, a VPS, Docker…). Set the same
+> environment variables in your host's config; the Railway walkthrough below is one
+> example. Full technical docs are served at `/docs.html`.
 
 ---
 

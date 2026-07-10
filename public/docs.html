@@ -138,12 +138,13 @@
 <div class="note">Secrets live only in environment variables — never commit a <code>.env</code> file. The database (<code>data/</code>) and uploads are gitignored; back them up separately.</div>
 
 <h2 id="dev">Local development</h2>
-<pre><code>npm install
-# create a .env with at least:
-#   JWT_SECRET=&lt;a long random string&gt;
-#   ADMIN_PASSWORD=&lt;initial admin password&gt;
-npm run dev        # nodemon
-# open http://localhost:3000/admin.html and log in as "admin"</code></pre>
+<pre><code>git clone https://github.com/lowcydizajnu/missinfo-research.git
+cd missinfo-research
+npm install
+cp .env.example .env      # then set JWT_SECRET (required) and ADMIN_PASSWORD
+npm run dev               # nodemon (or: npm start)
+# open http://localhost:3000/admin.html and log in as "admin"
+# with the ADMIN_PASSWORD you chose — you are now the instance admin.</code></pre>
 
 <footer>
   Misinfo Research Platform · MIT License · See <a href="https://github.com/lowcydizajnu/missinfo-research">the repository</a> for source and issues.
