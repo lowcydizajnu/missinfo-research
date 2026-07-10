@@ -1126,6 +1126,8 @@ async function renderBuilderView(studyId) {
   let manipulations = [];
   try { manipulations = JSON.parse(s.manipulation_json || '[]'); } catch {}
   if (!manipulations.length) manipulations = [];
+  let metricConds = [];
+  try { metricConds = JSON.parse(s.metric_conditions_json || '[]'); } catch {}
   const allQuestionsForParts = await api('GET', `/studies/${studyId}/post-questions`) || [];
   const questionsByPart = {};
   allQuestionsForParts.forEach(q => {
@@ -1302,6 +1304,15 @@ async function renderBuilderView(studyId) {
         ${manipulations.slice(0, 1).map(m => builderManipHTML(m)).join('')}
       </div>
       <button class="btn btn-ghost btn-sm" id="bld-manip-add-btn" style="margin-top:0.5rem;${manipulations.length ? 'display:none' : ''}" onclick="builderAddManip(${studyId})">+ Dodaj podział A/B</button>
+    </div>
+
+    <div class="builder-section" data-konfig="1">
+      <div class="builder-section-title">📊 Warunki metryk (dowód społeczny)</div>
+      <p style="font-size:0.8rem;color:var(--muted);margin-bottom:0.75rem">Drugi czynnik między-osobowy: zakresy metryk (lajki / udostępnienia / reakcje) losowane per warunek — np. <b>wysoki vs niski dowód społeczny</b>. Uczestnik losowo trafia do jednego warunku metryk; łącząc to z podziałem A/B powyżej uzyskujesz plan 2×2. <b>min/max</b> = zakres losowania liczb (0 = użyj wartości bazowych posta).</p>
+      <div id="es-metric-conditions" style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:0.5rem">
+        ${metricConds.map(c => metricConditionRowHTML(c)).join('')}
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="addMetricCondition()">+ Dodaj warunek metryk</button>
     </div>
 
     <div class="builder-section">
@@ -1490,6 +1501,7 @@ function builderPartHTML(part, idx, study, questions) {
   return `<div class="builder-part-card" data-part-idx="${idx}" data-part-id="${esc(part.id || 'part-' + idx)}">
     <div class="builder-part-header">
       <input class="part-label-input" type="text" value="${esc(part.label || 'Część ' + (idx+1))}" placeholder="Nazwa części">
+      <span class="cond-badge-slot" data-pid="${esc(part.id || 'part-' + idx)}" style="display:inline-flex;flex-wrap:wrap;gap:0.35rem"></span>
       ${idx > 0 ? `<button class="btn btn-ghost btn-sm" onclick="builderRemovePart(this)" style="margin-left:auto;color:var(--danger)">✕ Usuń</button>` : ''}
     </div>
     <div style="margin:0.75rem 0">
@@ -1619,6 +1631,7 @@ function builderQuestionHTML(q) {
   return `<div class="builder-question-card" data-qid="${q.id}">
     <div style="display:flex;gap:0.75rem;align-items:flex-start">
       <div style="flex:1">
+        <div class="cond-badge-slot" data-qid="${q.id}" style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-bottom:0.4rem"></div>
         <div style="display:flex;gap:0.5rem;margin-bottom:0.5rem;flex-wrap:wrap;align-items:center">
           <select class="pq-type" style="width:auto" onchange="builderUpdateQuestionType(this)">
             <option value="open"   ${q.question_type==='open'  ?'selected':''}>Otwarte</option>
@@ -1831,6 +1844,16 @@ async function builderSave(studyId, silent = false) {
     parts_json:                   JSON.stringify(parts),
     manipulation_json:            JSON.stringify(builderCollectManipulations()),
     logic_json:                   JSON.stringify(builderCollectLogic()),
+    // Metric (social-proof) conditions — collected from the builder's section
+    // (document-scoped id, so it works after the Konfigurator relocates it).
+    metric_conditions_json:       JSON.stringify(Array.from(document.querySelectorAll('#es-metric-conditions .metric-condition-row')).map(row => ({
+      key: row.dataset.key || ('K' + Date.now()),
+      label: row.querySelector('.mc-label').value.trim() || 'Warunek',
+      min: Number(row.querySelector('.mc-min').value) || 0,
+      max: Number(row.querySelector('.mc-max').value) || 0,
+      enabled: row.querySelector('.mc-enabled').checked,
+      show_comment: row.querySelector('.mc-show-comment').checked,
+    }))),
     clarity_enabled:              document.getElementById('bld-clarity-enabled')?.checked ? 1 : 0,
     clarity_project_id:           document.getElementById('bld-clarity-pid')?.value.trim() || null,
     eyetracking_enabled:          document.getElementById('bld-et-enabled')?.checked ? 1 : 0,
@@ -2022,7 +2045,7 @@ function builderManipHTML(m) {
       ℹ️ Uczestnik jest <b>losowo</b> przydzielany do warunku A albo B (podział między-osobowy).
       Warunek <b>A</b> pokazuje <b>wariant A</b> każdego posta, warunek <b>B</b> — <b>wariant B</b>.
       Treść obu wariantów ustawiasz przy każdym poście w zakładce <b>Posty</b>.
-      Dla planu 2×2 połącz to z warunkami metryk (dowód społeczny) w Ustawieniach.
+      Dla planu 2×2 połącz to z sekcją „Warunki metryk (dowód społeczny)" poniżej.
     </div>
   </div>`;
 }
@@ -2095,8 +2118,46 @@ function builderLogicRuleSummary(r) {
     : a.type === 'end_study' ? 'zakończ badanie' : '?';
   return `[${timing}] JEŚLI ${cond} → ${act}`;
 }
+// Compact description of a rule's TRIGGER (the "gdy …" part), for element badges.
+const LOGIC_OP_SYM = { eq: '=', ne: '≠', lt: '<', le: '≤', gt: '>', ge: '≥', contains: 'zawiera', empty: 'puste', not_empty: 'niepuste' };
+function builderLogicTriggerLabel(r) {
+  const w = r.when || {};
+  const sym = LOGIC_OP_SYM[w.op] || w.op || '';
+  const val = ['empty', 'not_empty'].includes(w.op) ? '' : ` „${w.value ?? ''}"`;
+  if (w.source === 'condition')     return `warunek ${sym}${val}`;
+  if (w.source === 'demographic')   return `${w.key || 'demografia'} ${sym}${val}`;
+  if (w.source === 'post_question') return `odpowiedź #${w.key || '?'} ${sym}${val}`;
+  if (w.source === 'reaction')      return `reakcja ${sym}${val}`;
+  return 'warunek';
+}
+
+// Badge HTML for an element (question/part) targeted by any enabled logic rule.
+function builderConditionBadgesFor(targetType, targetId) {
+  const rules = (S.builderLogic && S.builderLogic.rules) || [];
+  const matched = rules.filter(r => {
+    if (r.enabled === false) return false;
+    const a = r.action || {};
+    if (targetType === 'question') return a.type === 'hide_question' && String(a.target_question_id) === String(targetId);
+    if (targetType === 'part') return (a.type === 'skip_part' || a.type === 'goto_part') && String(a.target_part_id) === String(targetId);
+    return false;
+  });
+  return matched.map(r => {
+    const a = r.action || {};
+    const verb = a.type === 'hide_question' ? 'ukrywane' : a.type === 'skip_part' ? 'pomijana' : 'cel skoku';
+    return `<span class="cond-badge" title="${esc(builderLogicRuleSummary(r))}" style="display:inline-flex;align-items:center;gap:0.25rem;font-size:0.72rem;background:#ede9fe;color:#6d28d9;border-radius:20px;padding:0.1rem 0.55rem;font-weight:600;white-space:nowrap">🔀 ${verb}, gdy ${esc(builderLogicTriggerLabel(r))}</span>`;
+  }).join(' ');
+}
+
+// Fill every badge slot in the builder from the current rule set. Called on load
+// and after any rule change so indicators stay live.
+function builderRefreshConditionBadges() {
+  document.querySelectorAll('.cond-badge-slot[data-qid]').forEach(s => { s.innerHTML = builderConditionBadgesFor('question', s.dataset.qid); });
+  document.querySelectorAll('.cond-badge-slot[data-pid]').forEach(s => { s.innerHTML = builderConditionBadgesFor('part', s.dataset.pid); });
+}
+
 function builderRenderLogicList() {
   const host = document.getElementById('bld-logic-list');
+  builderRefreshConditionBadges(); // keep element indicators in sync with the rules
   if (!host) return;
   const rules = (S.builderLogic && S.builderLogic.rules) || [];
   if (!rules.length) {
@@ -2136,7 +2197,25 @@ function builderMoveLogicRule(i, dir) {
 }
 function builderAddLogicRule() { builderOpenLogicEditor(-1); }
 function builderEditLogicRule(i) { builderOpenLogicEditor(i); }
+
+// Re-read the post questions and parts from the live builder DOM so the rule
+// editor's dropdowns include items added/renamed since the builder first
+// rendered (S.builderLogic was a stale snapshot — a post question added
+// afterwards would never appear as a hide/trigger target).
+function builderRefreshLogicRefs() {
+  if (!S.builderLogic) return;
+  const qs = [...document.querySelectorAll('.builder-question-card')]
+    .map(c => ({ id: Number(c.dataset.qid), label: (c.querySelector('.pq-label')?.value || '').trim() }))
+    .filter(q => q.id);
+  S.builderLogic.questions = qs;
+  const ps = [...document.querySelectorAll('.builder-part-card')]
+    .map(c => ({ id: c.dataset.partId, label: (c.querySelector('.part-label-input')?.value || c.dataset.partId) }))
+    .filter(p => p.id);
+  if (ps.length) S.builderLogic.parts = ps;
+}
+
 function builderOpenLogicEditor(idx) {
+  builderRefreshLogicRefs();
   const ctx = S.builderLogic || { rules: [] };
   const r = idx >= 0 ? JSON.parse(JSON.stringify(ctx.rules[idx]))
     : { id: 'rule-' + Date.now(), label: '', enabled: true, priority: (ctx.rules.length || 0) + 1, timing: 'after_demographics', when: { source: 'demographic', key: '', op: 'eq', value: '' }, action: { type: 'end_study', message: '' } };
