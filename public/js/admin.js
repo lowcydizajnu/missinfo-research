@@ -116,6 +116,14 @@ function setActiveStudy(id) {
     li.classList.toggle('selected', li.dataset.id === S.activeStudy);
   });
 
+  // "Udostępnij" is owner-only (or admin) — collaborators can edit but not re-share.
+  const shareBtn = document.getElementById('btn-share-study');
+  if (shareBtn) {
+    const canShare = study && (currentRole() === 'admin' || study.owner_id === currentUserId());
+    shareBtn.style.display = canShare ? '' : 'none';
+    if (canShare) shareBtn.onclick = () => openCollaboratorsModal(study.id);
+  }
+
   // Load content for currently active tab
   const activeTab = document.querySelector('.tab-btn.active')?.dataset.tab;
   if (!S.activeStudy) return;
@@ -337,6 +345,50 @@ async function deleteUser(id) {
   if (!res) return;
   toast(`Konto usunięte${res.reassignedStudies ? ` (przejęto ${res.reassignedStudies} badań)` : ''}.`);
   renderUsersTab();
+}
+
+// ── Study collaborators (share one study with a researcher) ──────────────────
+async function openCollaboratorsModal(studyId) {
+  S.collabStudyId = studyId;
+  const study = (S.studies || []).find(s => String(s.id) === String(studyId));
+  const list = await api('GET', `/studies/${studyId}/collaborators`);
+  if (!list) return;
+  const rows = list.length ? list.map(c => `
+    <tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:0.5rem;font-weight:600">${esc(c.username)}</td>
+      <td style="color:var(--muted)">${esc(c.email || '—')}</td>
+      <td style="text-align:right;white-space:nowrap"><button class="btn btn-danger btn-sm" onclick="removeCollaborator(${c.id})">Usuń dostęp</button></td>
+    </tr>`).join('') : '<tr><td colspan="3" class="empty-state" style="padding:1rem">Brak współpracowników — dodaj kogoś poniżej.</td></tr>';
+  showModal(`
+    <div class="modal-section-title">👥 Udostępnij badanie: ${esc(study ? study.name : '')}</div>
+    <p style="color:var(--muted);font-size:0.85rem;margin:0.25rem 0 1rem">Dodany badacz ma <b>pełny dostęp do edycji tego jednego badania</b> (posty, konfiguracja, dashboard, eksport). Nie widzi Twoich innych badań, nie może usunąć badania ani zarządzać dostępem. Dodajesz po loginie konta (konta zakłada administrator w zakładce Konta).</p>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:1rem">
+      <thead><tr style="text-align:left;border-bottom:2px solid var(--border)"><th style="padding:0.5rem">Login</th><th>E-mail</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="display:flex;gap:0.5rem;align-items:flex-end">
+      <div class="form-group" style="flex:1;margin:0"><label>Dodaj współpracownika po loginie</label>
+        <input type="text" id="collab-username" placeholder="login badacza" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();addCollaborator();}"></div>
+      <button class="btn btn-primary" onclick="addCollaborator()">Dodaj</button>
+    </div>
+    <div class="modal-footer" style="display:flex;justify-content:flex-end;margin-top:1rem"><button class="btn btn-ghost" onclick="closeModal()">Zamknij</button></div>`);
+}
+
+async function addCollaborator() {
+  const username = document.getElementById('collab-username').value.trim();
+  if (!username) return toast('Podaj login.', 'error');
+  const res = await api('POST', `/studies/${S.collabStudyId}/collaborators`, { username });
+  if (!res) return;
+  toast('Dodano współpracownika.');
+  openCollaboratorsModal(S.collabStudyId);
+}
+
+async function removeCollaborator(userId) {
+  if (!confirm('Odebrać tej osobie dostęp do badania?')) return;
+  const res = await api('DELETE', `/studies/${S.collabStudyId}/collaborators/${userId}`);
+  if (!res) return;
+  toast('Usunięto dostęp.');
+  openCollaboratorsModal(S.collabStudyId);
 }
 
 document.getElementById('logout-btn').onclick = doLogout;

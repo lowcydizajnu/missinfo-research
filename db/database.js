@@ -751,6 +751,20 @@ migrate(`
 migrate(`ALTER TABLE studies ADD COLUMN owner_id INTEGER DEFAULT NULL REFERENCES users(id)`);
 migrate(`CREATE INDEX IF NOT EXISTS idx_studies_owner ON studies(owner_id)`);
 
+// Per-study collaborators: a researcher added here gets full edit access to that
+// ONE study (not delete, not collaborator management — owner-only). Lets an owner
+// share a single project without exposing the rest of their studies. CASCADE so
+// removing a study or a user cleans up memberships automatically.
+migrate(`
+  CREATE TABLE IF NOT EXISTS study_collaborators (
+    study_id INTEGER NOT NULL REFERENCES studies(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    added_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (study_id, user_id)
+  )
+`);
+migrate(`CREATE INDEX IF NOT EXISTS idx_collab_user ON study_collaborators(user_id)`);
+
 // Seed the first admin from ADMIN_PASSWORD and hand every pre-existing (unowned)
 // study to it — so nothing breaks on the first deploy of the multi-user build.
 // ADMIN_PASSWORD is used ONLY to seed this one row; after that, login checks the

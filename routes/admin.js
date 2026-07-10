@@ -52,14 +52,26 @@ function requireAdmin(req, res, next) {
 // Each returns the study row, or sends a 404 and returns null (so the caller does
 // `if (!ownedStudy(...)) return;`). Cross-tenant access returns 404 rather than
 // 403 so study/child ids can't be enumerated. Admins see and manage everything;
-// researchers are limited to studies whose owner_id matches their user id.
+// researchers reach a study when they own it OR are listed as a collaborator.
+function isCollaborator(studyId, userId) {
+  return !!db.prepare('SELECT 1 FROM study_collaborators WHERE study_id = ? AND user_id = ?').get(studyId, userId);
+}
+// Edit-level access: admin, owner, or collaborator (full edit on that one study).
 function ownedStudy(req, res, studyId) {
   const study = db.prepare('SELECT * FROM studies WHERE id = ?').get(studyId);
   if (!study) { res.status(404).json({ error: 'Not found' }); return null; }
-  if (req.user.role !== 'admin' && study.owner_id !== req.user.userId) {
-    res.status(404).json({ error: 'Not found' }); return null;
-  }
-  return study;
+  if (req.user.role === 'admin' || study.owner_id === req.user.userId || isCollaborator(study.id, req.user.userId)) return study;
+  res.status(404).json({ error: 'Not found' }); return null;
+}
+// Owner-level access: admin or owner only — for destructive/administrative ops a
+// collaborator must NOT do (delete study, manage collaborators). Returns 403 (the
+// caller already knows the study exists via a prior ownedStudy pass, or it's a
+// dedicated owner op) so the distinction is clear.
+function ownerOfStudy(req, res, studyId) {
+  const study = db.prepare('SELECT * FROM studies WHERE id = ?').get(studyId);
+  if (!study) { res.status(404).json({ error: 'Not found' }); return null; }
+  if (req.user.role === 'admin' || study.owner_id === req.user.userId) return study;
+  res.status(403).json({ error: 'Tylko właściciel badania może wykonać tę operację.' }); return null;
 }
 function ownedByChild(req, res, table, childId) {
   const row = db.prepare(`SELECT study_id FROM ${table} WHERE id = ?`).get(childId);
@@ -422,15 +434,49 @@ function resolveStudyDefaults(s) {
 }
 
 router.get('/studies', auth, (req, res) => {
-  // Researchers see only their own studies; admins see all.
+  // Researchers see studies they own OR collaborate on; admins see all. The
+  // `shared_with_me` flag lets the UI tell owned vs shared studies apart.
   const isAdmin = req.user.role === 'admin';
+  const where = isAdmin ? '' : `WHERE s.owner_id = ? OR s.id IN (SELECT study_id FROM study_collaborators WHERE user_id = ?)`;
+  const params = isAdmin ? [] : [req.user.userId, req.user.userId];
   const studies = db.prepare(`
-    SELECT s.*, (SELECT COUNT(*) FROM sessions WHERE study_id=s.id AND completed=1) as completed_count
-    FROM studies s ${isAdmin ? '' : 'WHERE s.owner_id = ?'} ORDER BY s.created_at DESC
-  `).all(...(isAdmin ? [] : [req.user.userId]));
+    SELECT s.*, (SELECT COUNT(*) FROM sessions WHERE study_id=s.id AND completed=1) as completed_count,
+           CASE WHEN s.owner_id = ? THEN 0 ELSE 1 END as shared_with_me
+    FROM studies s ${where} ORDER BY s.created_at DESC
+  `).all(req.user.userId, ...params);
   // Resolve null text fields to defaults so admin form shows actual content
   const resolved = studies.map(resolveStudyDefaults);
   res.json(resolved);
+});
+
+// ── Study collaborators (owner or admin only) ────────────────────────────────
+// Share ONE study with another researcher (full edit on that study, nothing else).
+router.get('/studies/:studyId/collaborators', auth, (req, res) => {
+  if (!ownerOfStudy(req, res, req.params.studyId)) return;
+  res.json(db.prepare(`
+    SELECT u.id, u.username, u.email, sc.added_at
+    FROM study_collaborators sc JOIN users u ON u.id = sc.user_id
+    WHERE sc.study_id = ? ORDER BY sc.added_at`).all(req.params.studyId));
+});
+
+router.post('/studies/:studyId/collaborators', auth, (req, res) => {
+  const study = ownerOfStudy(req, res, req.params.studyId);
+  if (!study) return;
+  const username = String(req.body.username || '').trim();
+  if (!username) return res.status(400).json({ error: 'Podaj login użytkownika.' });
+  const user = db.prepare('SELECT id, role, is_active FROM users WHERE username = ?').get(username);
+  if (!user) return res.status(404).json({ error: 'Nie ma użytkownika o takim loginie.' });
+  if (!user.is_active) return res.status(400).json({ error: 'To konto jest wyłączone.' });
+  if (user.id === study.owner_id) return res.status(400).json({ error: 'Ta osoba jest już właścicielem badania.' });
+  if (user.role === 'admin') return res.status(400).json({ error: 'Administrator ma już dostęp do wszystkich badań.' });
+  db.prepare('INSERT OR IGNORE INTO study_collaborators (study_id, user_id) VALUES (?, ?)').run(req.params.studyId, user.id);
+  res.json({ ok: true, id: user.id, username });
+});
+
+router.delete('/studies/:studyId/collaborators/:userId', auth, (req, res) => {
+  if (!ownerOfStudy(req, res, req.params.studyId)) return;
+  db.prepare('DELETE FROM study_collaborators WHERE study_id = ? AND user_id = ?').run(req.params.studyId, req.params.userId);
+  res.json({ ok: true });
 });
 
 router.post('/studies', auth, (req, res) => {
@@ -536,7 +582,7 @@ router.patch('/studies/:id', auth, (req, res) => {
 });
 
 router.delete('/studies/:id', auth, (req, res) => {
-  if (!ownedStudy(req, res, req.params.id)) return;
+  if (!ownerOfStudy(req, res, req.params.id)) return; // collaborators can't delete
   const { id } = req.params;
   if (req.body.confirm !== 'DELETE') {
     return res.status(400).json({ error: 'Confirmation required: send {confirm: "DELETE"}' });
@@ -1234,9 +1280,11 @@ router.get('/dashboard/aggregate', auth, (req, res) => {
   // a verified JWT, so inlining it is injection-safe (same pattern as the dates).
   const isAdmin = req.user.role === 'admin';
   const uid = Number(req.user.userId) || 0;
-  const sessOwn    = isAdmin ? '' : ` AND study_id IN (SELECT id FROM studies WHERE owner_id = ${uid})`;
-  const studyOwn   = isAdmin ? '' : ` WHERE owner_id = ${uid}`;
-  const studySOwn  = isAdmin ? '' : ` WHERE s.owner_id = ${uid}`;
+  // A researcher's aggregate spans studies they own OR collaborate on.
+  const collabSub  = `SELECT study_id FROM study_collaborators WHERE user_id = ${uid}`;
+  const sessOwn    = isAdmin ? '' : ` AND study_id IN (SELECT id FROM studies WHERE owner_id = ${uid} UNION ${collabSub})`;
+  const studyOwn   = isAdmin ? '' : ` WHERE (owner_id = ${uid} OR id IN (${collabSub}))`;
+  const studySOwn  = isAdmin ? '' : ` WHERE (s.owner_id = ${uid} OR s.id IN (${collabSub}))`;
 
   const totalStudies = db.prepare(`SELECT COUNT(*) as n FROM studies${studyOwn}`).get()?.n || 0;
   const total     = db.prepare(`SELECT COUNT(*) as n FROM sessions WHERE is_preview = 0${dRangeStart}${sessOwn}`).get()?.n || 0;
