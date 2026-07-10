@@ -2373,6 +2373,31 @@ router.patch('/studies/:id/builder', auth, (req, res) => {
   const updates = {};
   allowed.forEach(f => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
 
+  // Normalize the manipulation to what post content actually supports: at most ONE
+  // between-subjects manipulation with exactly TWO arms (A/B), on a field that has
+  // per-arm content. Extra manipulations, C/D conditions, and fields without
+  // _a/_b storage have no post content and would silently render as variant A —
+  // so we drop them here rather than let a methodologically broken study run.
+  if (updates.manipulation_json !== undefined) {
+    let manip = updates.manipulation_json;
+    if (typeof manip === 'string') { try { manip = JSON.parse(manip || '[]'); } catch { manip = []; } }
+    if (!Array.isArray(manip)) manip = [];
+    const first = manip[0];
+    let normalized = [];
+    if (first && Array.isArray(first.conditions) && first.conditions.length >= 2) {
+      const field = ['headline', 'content', 'image', 'mixed'].includes(first.field) ? first.field : 'headline';
+      normalized = [{
+        id: first.id || 'm1',
+        field,
+        conditions: first.conditions.slice(0, 2).map((c, i) => ({
+          key: i === 0 ? 'A' : 'B',
+          label: (c && typeof c.label === 'string') ? c.label : '',
+        })),
+      }];
+    }
+    updates.manipulation_json = JSON.stringify(normalized);
+  }
+
   // Validate conditional-logic rules before persisting — block dangling part/
   // question references, duplicate ids and malformed rules (shared pure engine
   // in lib/logic.js). Rejected saves return 400 with human-readable errors.

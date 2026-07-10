@@ -110,12 +110,15 @@ router.post('/session/start', (req, res) => {
     try { manipulations = JSON.parse(study.manipulation_json || '[]'); } catch {}
 
     const primaryManip = manipulations.find(m => m.conditions?.length > 0);
-    const conditionOptions = primaryManip?.conditions?.map(c => c.key) || ['A'];
+    // Posts only carry _a/_b content, so only the first two arms are assignable.
+    // Cap here as a safety net for any legacy study saved with 3+ conditions —
+    // otherwise arm C/D would be recorded but silently show variant A content.
+    const conditionOptions = (primaryManip?.conditions?.map(c => c.key) || ['A']).slice(0, 2);
     const conditionKey = isPreview
       ? conditionOptions[0]
       : conditionOptions[Math.floor(Math.random() * conditionOptions.length)];
     const condIdx = conditionOptions.indexOf(conditionKey);
-    const condSuffix = ['_a', '_b', '_c', '_d'][condIdx] || '_a';
+    const condSuffix = ['_a', '_b'][condIdx] || '_a';
 
     // ORDER BY order_index so the researcher's reorder (admin ↑↓ arrows,
     // which swap order_index) is reflected in the participant feed. id is the

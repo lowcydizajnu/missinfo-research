@@ -1244,12 +1244,12 @@ async function renderBuilderView(studyId) {
     </div>
 
     <div class="builder-section" data-konfig="1">
-      <div class="builder-section-title">🔀 Manipulacja</div>
-      <p style="font-size:0.8rem;color:var(--muted);margin-bottom:0.75rem">Zdefiniuj warunki eksperymentalne. Każda manipulacja to pole, które różni się między warunkami.</p>
+      <div class="builder-section-title">🔀 Manipulacja (warunek A/B)</div>
+      <p style="font-size:0.8rem;color:var(--muted);margin-bottom:0.75rem">Opcjonalny podział między-osobowy na dwa warunki (A i B). Każdy post ma wariant A i B (ustawiasz je w zakładce Posty); uczestnik losowo widzi jeden z nich. To jest jeden binarny podział — dla większej liczby czynników użyj warunków metryk (plan 2×2).</p>
       <div id="bld-manip-list">
-        ${manipulations.map(m => builderManipHTML(m)).join('')}
+        ${manipulations.slice(0, 1).map(m => builderManipHTML(m)).join('')}
       </div>
-      <button class="btn btn-ghost btn-sm" style="margin-top:0.5rem" onclick="builderAddManip(${studyId})">+ Dodaj manipulację</button>
+      <button class="btn btn-ghost btn-sm" id="bld-manip-add-btn" style="margin-top:0.5rem;${manipulations.length ? 'display:none' : ''}" onclick="builderAddManip(${studyId})">+ Dodaj podział A/B</button>
     </div>
 
     <div class="builder-section">
@@ -1938,47 +1938,65 @@ function builderSetPartLayout(btn, layout) {
   if (studyId) builderTriggerAutosave(studyId);
 }
 
+// A post stores exactly two content variants (_a / _b) for headline, content and
+// image — so a between-subjects manipulation is a SINGLE binary split (A vs B).
+// The field below is a descriptive label only (the runtime swaps all _a/_b
+// content by the assigned arm); it's limited to dimensions that actually have
+// per-arm content. 'mixed' = A and B differ in more than one element.
 const MANIP_FIELDS = [
   { value: 'headline', label: 'Nagłówek' },
   { value: 'content', label: 'Treść' },
-  { value: 'source', label: 'Źródło' },
   { value: 'image', label: 'Zdjęcie' },
-  { value: 'social_influence', label: 'Wpływ społeczny' },
-  { value: 'comment', label: 'Komentarz' },
+  { value: 'mixed', label: 'Wiele elementów naraz' },
 ];
 
+// Exactly one manipulation, exactly two arms (A/B). No C/D, no second
+// manipulation — those have no post content and would silently collapse to A.
 function builderManipHTML(m) {
-  const conditions = m.conditions || [{ key: 'A', label: '' }, { key: 'B', label: '' }];
-  const fieldOpts = MANIP_FIELDS.map(f => `<option value="${f.value}" ${m.field===f.value?'selected':''}>${f.label}</option>`).join('');
+  const conds = (m.conditions || []).slice(0, 2);
+  while (conds.length < 2) conds.push({ key: conds.length === 0 ? 'A' : 'B', label: '' });
+  const field = ['headline', 'content', 'image', 'mixed'].includes(m.field) ? m.field : 'headline';
+  const fieldOpts = MANIP_FIELDS.map(f => `<option value="${f.value}" ${field===f.value?'selected':''}>${f.label}</option>`).join('');
   return `<div class="builder-manip-card" data-manip-id="${esc(m.id||'m'+Date.now())}">
-    <div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.5rem">
+    <div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.6rem">
+      <label style="font-size:0.8rem;color:var(--muted);flex-shrink:0">Co różni się (opis):</label>
       <select class="manip-field" style="width:auto;flex:1">${fieldOpts}</select>
-      <button class="btn btn-ghost btn-sm" style="color:var(--danger);flex-shrink:0" onclick="builderRemoveManip(this)">✕</button>
+      <button class="btn btn-ghost btn-sm" style="color:var(--danger);flex-shrink:0" title="Usuń podział — wszyscy uczestnicy zobaczą wariant A" onclick="builderRemoveManip(this)">✕ Usuń podział</button>
     </div>
     <div class="manip-conditions-list">
-      ${conditions.map((c, ci) => builderManipCondHTML(c, ci)).join('')}
+      ${conds.map((c, ci) => builderManipCondHTML(c, ci)).join('')}
     </div>
-    <button class="btn btn-ghost btn-xs" style="margin-top:0.25rem" onclick="builderAddManipCondition(this)">+ Dodaj warunek</button>
+    <div style="font-size:0.76rem;color:var(--muted);margin-top:0.6rem;line-height:1.45;background:var(--bg,#f7f8fa);border-radius:6px;padding:0.55rem 0.7rem">
+      ℹ️ Uczestnik jest <b>losowo</b> przydzielany do warunku A albo B (podział między-osobowy).
+      Warunek <b>A</b> pokazuje <b>wariant A</b> każdego posta, warunek <b>B</b> — <b>wariant B</b>.
+      Treść obu wariantów ustawiasz przy każdym poście w zakładce <b>Posty</b>.
+      Dla planu 2×2 połącz to z warunkami metryk (dowód społeczny) w Ustawieniach.
+    </div>
   </div>`;
 }
 
+// Fixed A/B rows — key is positional, no add/remove. The "→ wariant A/B" hint
+// tells the researcher exactly which post content each arm shows.
 function builderManipCondHTML(c, idx) {
-  const KEYS = 'ABCDEFGHIJ';
-  const key = c.key || KEYS[idx] || String(idx + 1);
-  return `<div class="manip-cond-row" data-key="${esc(key)}">
-    <span class="manip-cond-key">${esc(key)}</span>
-    <input type="text" class="manip-cond-label" value="${esc(c.label||'')}" placeholder="Nazwa warunku ${esc(key)}">
-    ${idx > 0 ? `<button class="btn btn-ghost btn-xs" onclick="this.closest('.manip-cond-row').remove()" style="flex-shrink:0">✕</button>` : ''}
+  const key = idx === 0 ? 'A' : 'B';
+  const variant = idx === 0 ? 'wariant A postów' : 'wariant B postów';
+  const hint = idx === 0 ? 'np. Manipulacyjny' : 'np. Neutralny';
+  return `<div class="manip-cond-row" data-key="${key}">
+    <span class="manip-cond-key">${key}</span>
+    <input type="text" class="manip-cond-label" value="${esc(c.label||'')}" placeholder="Nazwa warunku ${key} (${hint})">
+    <span style="font-size:0.72rem;color:var(--muted);flex-shrink:0;white-space:nowrap">→ ${variant}</span>
   </div>`;
 }
 
 function builderAddManip(studyId) {
   const list = document.getElementById('bld-manip-list');
   if (!list) return;
+  if (list.querySelector('.builder-manip-card')) return; // at most one manipulation
   const newM = { id: 'm' + Date.now(), field: 'headline', conditions: [{ key: 'A', label: '' }, { key: 'B', label: '' }] };
   const tmp = document.createElement('div');
   tmp.innerHTML = builderManipHTML(newM);
   list.appendChild(tmp.firstElementChild);
+  builderUpdateManipAddBtn();
   builderTriggerAutosave(studyId);
 }
 
@@ -1986,20 +2004,14 @@ function builderRemoveManip(btn) {
   const card = btn.closest('.builder-manip-card');
   const studyId = card?.closest('[data-study-id]')?.dataset.studyId;
   card?.remove();
+  builderUpdateManipAddBtn();
   if (studyId) builderTriggerAutosave(studyId);
 }
 
-function builderAddManipCondition(btn) {
-  const list = btn.previousElementSibling;
-  if (!list) return;
-  const existing = list.querySelectorAll('.manip-cond-row').length;
-  const KEYS = 'ABCDEFGHIJ';
-  const key = KEYS[existing] || String(existing + 1);
-  const tmp = document.createElement('div');
-  tmp.innerHTML = builderManipCondHTML({ key, label: '' }, existing);
-  list.appendChild(tmp.firstElementChild);
-  const studyId = btn.closest('[data-study-id]')?.dataset.studyId;
-  if (studyId) builderTriggerAutosave(studyId);
+// The "+ Dodaj podział A/B" button only makes sense when no manipulation exists.
+function builderUpdateManipAddBtn() {
+  const btn = document.getElementById('bld-manip-add-btn');
+  if (btn) btn.style.display = document.querySelector('#bld-manip-list .builder-manip-card') ? 'none' : '';
 }
 
 // ── Conditional-logic rule builder ──────────────────────────────────────────
@@ -2190,16 +2202,23 @@ function builderLogicTemplate(kind) {
 }
 
 function builderCollectManipulations() {
-  const view = document.getElementById('builder-view');
-  if (!view) return [];
-  return Array.from(view.querySelectorAll('.builder-manip-card')).map(card => ({
-    id: card.dataset.manipId || ('m' + Date.now()),
-    field: card.querySelector('.manip-field')?.value || 'headline',
-    conditions: Array.from(card.querySelectorAll('.manip-cond-row')).map(row => ({
-      key: row.dataset.key || 'A',
+  // Scope to the manip list by id, NOT #builder-view: the Konfigurator tab
+  // relocates this section into #konfig-form-wrap, so a builder-view-scoped query
+  // would find nothing and silently wipe the manipulation on save.
+  const list = document.getElementById('bld-manip-list');
+  if (!list) return [];
+  // Only ONE manipulation with exactly TWO arms (A/B) is meaningful — posts only
+  // store _a/_b content. Cap here so nothing broken can be persisted.
+  return Array.from(list.querySelectorAll('.builder-manip-card')).slice(0, 1).map(card => {
+    let field = card.querySelector('.manip-field')?.value || 'headline';
+    if (!['headline', 'content', 'image', 'mixed'].includes(field)) field = 'headline';
+    const conditions = Array.from(card.querySelectorAll('.manip-cond-row')).slice(0, 2).map((row, i) => ({
+      key: i === 0 ? 'A' : 'B',
       label: row.querySelector('.manip-cond-label')?.value || '',
-    })),
-  }));
+    }));
+    if (conditions.length < 2) return null; // a half-defined split isn't a manipulation
+    return { id: card.dataset.manipId || ('m' + Date.now()), field, conditions };
+  }).filter(Boolean);
 }
 
 async function builderPreview(studyId) {
