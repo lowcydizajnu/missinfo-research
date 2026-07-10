@@ -1,4 +1,9 @@
 # Misinfo Research Platform — container image
+# Kept out of the repo root on purpose: Railway auto-detects a root ./Dockerfile
+# and would build with it instead of Nixpacks. This lives under docker/ so the
+# Railway deploy keeps using Nixpacks (railway.json), while docker-compose points
+# here explicitly for self-hosting.
+#
 # Multi-stage: the build stage compiles the native better-sqlite3 module, the
 # runtime stage ships only the app + installed modules (no toolchain).
 
