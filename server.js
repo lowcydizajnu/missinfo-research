@@ -63,7 +63,7 @@ app.get('/uploads/:studyId/:filename', (req, res) => {
 // When a researcher binds a study to a specific hostname (studies.custom_domain),
 // requests landing on that host should ONLY serve that one study — never the
 // admin panel, never other studies, never the dashboard. The participant
-// recruitment link `https://badanie-misinfo.swps.pl/?res_id=ABC123` lands on
+// recruitment link `https://study.example.org/?res_id=ABC123` lands on
 // the bound study directly, with the URL query (res_id etc.) preserved so
 // the panel-recruitment ID-capture flow continues to work end-to-end.
 //

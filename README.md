@@ -71,7 +71,28 @@ Create a study with **+ Nowe**, add posts, and share its participant link
 
 ---
 
+## Run with Docker
+
+If you'd rather not install Node locally:
+
+```bash
+cp .env.example .env      # set JWT_SECRET + ADMIN_PASSWORD
+docker compose up -d
+```
+
+Then open **http://localhost:3000/admin.html** and log in as `admin`. The database
+and uploaded images persist in named volumes (`misinfo-data`, `misinfo-uploads`)
+across container rebuilds.
+
+---
+
 ## Railway Deployment
+
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new/template?template=https://github.com/lowcydizajnu/missinfo-research)
+
+> After clicking, set **`JWT_SECRET`** and **`ADMIN_PASSWORD`** in the Railway
+> project's **Variables**, then add a persistent volume mounted at `/app/data`
+> (and optionally `/app/uploads`). The step-by-step guide below covers this in detail.
 
 ### Step-by-step
 

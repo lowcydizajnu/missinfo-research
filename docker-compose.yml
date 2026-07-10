@@ -1,0 +1,25 @@
+# Run your own instance with Docker:
+#   cp .env.example .env    # then set JWT_SECRET + ADMIN_PASSWORD
+#   docker compose up -d
+# Then open http://localhost:3000/admin.html and log in as "admin".
+# Compose reads the .env file in this directory automatically.
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      # Required — Compose fails with the message below if these are unset.
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in your .env (see .env.example)}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in your .env}
+      # Optional — enables AI-assisted translation.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    volumes:
+      - misinfo-data:/app/data
+      - misinfo-uploads:/app/uploads
+    restart: unless-stopped
+
+volumes:
+  misinfo-data:
+  misinfo-uploads:

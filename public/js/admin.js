@@ -274,7 +274,7 @@ document.getElementById('btn-add-user')?.addEventListener('click', () => {
   showModal(`
     <div class="modal-section-title">Nowe konto</div>
     <div class="form-group"><label>Login *</label><input type="text" id="nu-username" placeholder="np. kowalski" autocomplete="off"></div>
-    <div class="form-group"><label>E-mail (opcjonalnie)</label><input type="text" id="nu-email" placeholder="badacz@uczelnia.pl" autocomplete="off"></div>
+    <div class="form-group"><label>E-mail (opcjonalnie)</label><input type="text" id="nu-email" placeholder="researcher@example.org" autocomplete="off"></div>
     <div class="form-group"><label>Hasło początkowe * <span style="font-weight:400;color:var(--muted);font-size:0.78rem">(min. 8 znaków — przekaż je użytkownikowi)</span></label><input type="text" id="nu-password" placeholder="hasło tymczasowe" autocomplete="off"></div>
     <div class="form-group"><label>Rola</label>
       <select id="nu-role"><option value="researcher">Badacz (widzi tylko swoje badania)</option><option value="admin">Administrator (widzi wszystko + konta)</option></select>
@@ -882,7 +882,7 @@ function buildStudySettingsBody(s, mcHTML) {
     <div class="form-group" style="margin-bottom:0.5rem">
       <label>Link końcowy (przekierowanie po debriefingu)</label>
       <input type="url" id="es-completion-url" value="${esc(s.completion_redirect_url || '')}"
-             placeholder="https://panel.agencja.pl/complete?token={ext_id}">
+             placeholder="https://panel.example.org/complete?token={ext_id}">
       <div style="font-size:0.78rem;color:var(--muted);margin-top:0.3rem">
         Po ukończeniu badania uczestnik zostanie przekierowany pod ten URL (po ~4 s, żeby zdążył
         zobaczyć podziękowanie). Wesprzeć placeholdery: <code>{ext_id}</code> (ID z parametru URL)
@@ -1270,7 +1270,7 @@ async function renderBuilderView(studyId) {
       <div class="form-group" style="margin-bottom:0.5rem">
         <label>Link końcowy (przekierowanie po debriefingu)</label>
         <input type="url" id="bld-completion-url" value="${esc(s.completion_redirect_url || '')}"
-               placeholder="https://panel.agencja.pl/complete?token={ext_id}">
+               placeholder="https://panel.example.org/complete?token={ext_id}">
         <div style="font-size:0.78rem;color:var(--muted);margin-top:0.3rem">
           Po ukończeniu badania uczestnik zostanie przekierowany pod ten URL. Placeholdery:
           <code>{ext_id}</code> (ID z parametru URL) i <code>{session_id}</code> (nasz token sesji).
@@ -1303,7 +1303,7 @@ async function renderBuilderView(studyId) {
       <div class="form-group" style="margin-bottom:0.5rem;padding-top:0.75rem;border-top:1px dashed var(--border,#e5e5ea)">
         <label>Link odmowy zgody (kiedy uczestnik nie zgodzi się na badanie)</label>
         <input type="url" id="bld-decline-url" value="${esc(s.decline_redirect_url || '')}"
-               placeholder="https://panel.agencja.pl/screenout?token={ext_id}">
+               placeholder="https://panel.example.org/screenout?token={ext_id}">
         <div style="font-size:0.78rem;color:var(--muted);margin-top:0.3rem">
           URL podawany agencji jako „screen-out" / „dropout" — używany gdy uczestnik kliknie
           „Nie wyrażam zgody" na ekranie zgody. Standardowo panel oczekuje innego URL niż dla
@@ -1350,13 +1350,13 @@ async function renderBuilderView(studyId) {
       <div class="form-group" style="margin-bottom:0.5rem;padding-top:0.75rem;border-top:1px dashed var(--border,#e5e5ea)">
         <label>Własna domena badania (custom domain)</label>
         <input type="text" id="bld-custom-domain" value="${esc(s.custom_domain || '')}"
-               placeholder="badanie-misinfo.swps.pl" maxlength="253"
+               placeholder="study.example.org" maxlength="253"
                style="font-family:var(--font-mono,monospace);font-size:0.9rem">
         <div style="font-size:0.78rem;color:var(--muted);margin-top:0.3rem;line-height:1.5">
-          Jeśli skonfigurowałeś rekord CNAME dla subdomeny (np. <code>badanie-misinfo.swps.pl</code>
+          Jeśli skonfigurowałeś rekord CNAME dla subdomeny (np. <code>study.example.org</code>
           → Railway), wpisz tu DOKŁADNIE tę nazwę hosta — <strong>bez</strong> <code>https://</code>,
           <strong>bez</strong> końcowego <code>/</code>. Wtedy uczestnik wejdzie na
-          <code>https://badanie-misinfo.swps.pl/?res_id=...</code> i od razu zobaczy
+          <code>https://study.example.org/?res_id=...</code> i od razu zobaczy
           to konkretne badanie. Panel admin oraz inne badania będą niedostępne pod tym hostem.
           Puste = badanie dostępne tylko przez <code>/study/${esc(s.slug || '<slug>')}</code>
           na głównym adresie aplikacji (jak teraz).

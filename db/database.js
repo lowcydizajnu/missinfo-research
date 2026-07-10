@@ -674,7 +674,7 @@ migrate('ALTER TABLE posts ADD COLUMN library_post_id INTEGER DEFAULT NULL');
 db.POST_LIBRARY_CONTENT_COLS = POST_LIBRARY_CONTENT_COLS;
 
 // Custom hostname binding — when a study is hosted under a dedicated
-// subdomain (e.g. badanie-misinfo.swps.pl), the server routes requests to
+// subdomain (e.g. study.example.org), the server routes requests to
 // that hostname directly to this study and blocks everything else on the
 // same host (no admin, no other studies, no dashboard). Researchers
 // pointing the URL on social media / panel recruitment ads to the bare
