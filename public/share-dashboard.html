@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Dashboard — Misinfo Research</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/admin.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    body { background: var(--bg); }
+    .share-header { background: var(--surface); padding: 1rem 1.25rem; margin-bottom: 1rem; border-radius: 10px; border: 1px solid var(--border); }
+    .share-banner { background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.25); color: #166534; padding: 0.5rem 0.85rem; border-radius: 8px; font-size: 0.82rem; margin-bottom: 1rem; }
+    .share-content { max-width: 1400px; margin: 1.5rem auto; padding: 0 1rem; }
+  </style>
+</head>
+<body>
+<div class="share-content">
+  <div class="share-banner">🔒 Widok publiczny tylko do odczytu. Generowany przez właściciela badania. Nie wymaga konta.</div>
+  <div class="share-header">
+    <h1 style="margin:0 0 0.25rem;font-size:1.2rem" id="share-name">Ładowanie…</h1>
+    <div style="font-size:0.85rem;color:var(--muted)">
+      <span id="share-stats"></span>
+      <span id="share-expires" style="margin-left:1rem"></span>
+    </div>
+  </div>
+  <div id="share-dashboard"></div>
+</div>
+<script>
+// Standalone dashboard renderer for the public share view. Reuses Chart.js but
+// not the full admin.js (no auth, no edit). Renders the same widget shapes the
+// authenticated dashboard produces.
+const token = window.location.pathname.split('/').pop();
+
+function esc(s) { return String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+function fmtDate(iso) { try { return new Date(iso).toLocaleDateString('pl-PL'); } catch { return iso; } }
+
+async function load() {
+  const r = await fetch('/api/admin/public/dashboard/' + encodeURIComponent(token));
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    document.getElementById('share-dashboard').innerHTML =
+      `<div style="padding:2rem;text-align:center;color:var(--danger)">⚠ ${esc(err.error || 'Link nieprawidłowy lub wygasły.')}</div>`;
+    return;
+  }
+  const d = await r.json();
+  document.getElementById('share-name').textContent = d.study_name;
+  document.getElementById('share-stats').textContent =
+    `Ukończone: ${d.completed_sessions} · Wszystkie: ${d.total_sessions} · Drop-out: ${d.dropout_rate?.toFixed(1) ?? 0}%`;
+  if (d.expires_at) {
+    document.getElementById('share-expires').textContent = '🔗 Link wygasa: ' + fmtDate(d.expires_at);
+  }
+  const widgets = d.widgets || [];
+  const grid = document.getElementById('share-dashboard');
+  if (!widgets.length) {
+    grid.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--muted)">Dashboard nie ma jeszcze widgetów.</div>';
+    return;
+  }
+  grid.innerHTML = '<div class="widget-grid">' + widgets.map(w => {
+    const widthClass = (w.type === 'kpi' || w.type === 'pie') ? 'widget-w1'
+      : (w.type === 'time_series' || w.type === 'text_responses') ? 'widget-w3'
+      : 'widget-w2';
+    return `<div class="widget ${widthClass}" data-widget-id="${esc(w.id)}">
+      <div class="widget-header"><span class="widget-title">${esc(w.title || '')}</span></div>
+      <div class="widget-body" id="widget-body-${esc(w.id)}"></div>
+      ${w.annotation ? `<div class="widget-annotation">${esc(w.annotation).replace(/\n/g,'<br>')}</div>` : ''}
+    </div>`;
+  }).join('') + '</div>';
+
+  widgets.forEach(w => renderWidget(w));
+}
+
+// Compact subset of the dashboard widget renderers — same data shape as admin
+function renderWidget(w) {
+  const body = document.getElementById('widget-body-' + w.id);
+  if (!body) return;
+  const data = w.data || {};
+  if (data.error) { body.innerHTML = `<div class="widget-error">⚠ ${esc(data.error)}</div>`; return; }
+  if (data.empty) { body.innerHTML = `<div class="widget-empty">${esc(data.message || 'Brak danych')}</div>`; return; }
+  switch (w.type) {
+    case 'kpi': {
+      let v = data.value;
+      const display = v == null ? '—'
+        : data.format === 'percent' ? v.toFixed(1) + '%'
+        : data.format === 'decimal' ? v.toLocaleString('pl-PL', { maximumFractionDigits: 2 })
+        : v.toLocaleString('pl-PL');
+      body.innerHTML = `<div class="kpi-value">${esc(display)}</div><div class="kpi-sub">${esc(data.subtitle || '')}</div>`;
+      return;
+    }
+    case 'bar_chart': {
+      body.innerHTML = `<div class="widget-chart-wrap"><canvas></canvas></div>`;
+      new Chart(body.querySelector('canvas'), {
+        type: 'bar',
+        data: { labels: data.categories, datasets: [{ data: data.values, backgroundColor: 'rgba(79,124,255,0.65)' }] },
+        options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false }}, scales:{ y:{ beginAtZero:true }}}
+      });
+      return;
+    }
+    case 'time_series': {
+      body.innerHTML = `<div class="widget-chart-wrap"><canvas></canvas></div>
+        <div class="widget-stat">Σ = ${data.total}</div>`;
+      new Chart(body.querySelector('canvas'), {
+        type: 'line',
+        data: { labels: data.dates, datasets: [{ data: data.counts, borderColor: 'rgba(34,197,94,1)', backgroundColor: 'rgba(34,197,94,0.15)', fill:true, tension:0.2 }]},
+        options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false }}, scales:{ y:{ beginAtZero:true, ticks:{ stepSize:1, precision:0 }}}}
+      });
+      return;
+    }
+    case 'pie': {
+      body.innerHTML = `<div class="widget-chart-wrap"><canvas></canvas></div>`;
+      const palette = ['#4f7cff','#22c55e','#f59e0b','#ef4444','#a855f7','#06b6d4'];
+      new Chart(body.querySelector('canvas'), {
+        type: 'doughnut',
+        data: { labels: data.categories, datasets: [{ data: data.counts, backgroundColor: data.categories.map((_,i)=>palette[i%palette.length]) }]},
+        options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'right' }}}
+      });
+      return;
+    }
+    case 'histogram': {
+      body.innerHTML = `<div class="widget-chart-wrap"><canvas></canvas></div>
+        <div class="widget-stat">M = ${data.mean}, SD = ${data.sd}, N = ${data.n}</div>`;
+      const labels = data.bin_edges.slice(0,-1).map((e,i)=>`${e}–${data.bin_edges[i+1]}`);
+      new Chart(body.querySelector('canvas'), {
+        type:'bar',
+        data:{ labels, datasets:[{ data:data.counts, backgroundColor:'rgba(124,58,237,0.6)' }]},
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}}, scales:{ y:{ beginAtZero:true, ticks:{ stepSize:1, precision:0 }}}}
+      });
+      return;
+    }
+    case 'crosstab': {
+      const rs = data.row_categories || [], cs = data.col_categories || [], obs = data.observed || [];
+      body.innerHTML = `<div class="widget-table-wrap"><table class="widget-table">
+        <thead><tr><th></th>${cs.map(c=>`<th>${esc(c)}</th>`).join('')}<th>Σ</th></tr></thead>
+        <tbody>${rs.map((r,i)=>`<tr><th>${esc(r)}</th>${cs.map((_,j)=>`<td>${obs[i][j]}</td>`).join('')}<td>${data.row_totals[i]}</td></tr>`).join('')}
+          <tr class="widget-table-total"><th>Σ</th>${cs.map((_,j)=>`<td>${data.col_totals[j]}</td>`).join('')}<td>${data.grand_total}</td></tr></tbody></table></div>`;
+      return;
+    }
+    default:
+      body.innerHTML = `<div class="widget-empty">[widget typu ${esc(w.type)} — szczegóły w wersji administracyjnej]</div>`;
+  }
+}
+
+load();
+</script>
+</body>
+</html>

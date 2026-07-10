@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — Misinfo Research</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/admin.css">
+  <!-- Chart.js for dashboard widget rendering (loaded once, cached) -->
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- SortableJS for drag-to-rearrange in the dashboard widget grid -->
+  <script defer src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+  <!-- html2canvas for "Export PDF/PNG" — captures dashboard widgets as a single image -->
+  <script defer src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <!-- jsPDF wraps the PNG in a paginated A4 PDF on demand -->
+  <script defer src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+</head>
+<body>
+
+<!-- ── Login ──────────────────────────────────────────────────────────────── -->
+<div id="login-screen">
+  <div class="login-wrap">
+    <div class="login-card">
+      <h1>Panel Administratora</h1>
+      <p class="login-sub">Misinfo Research Platform</p>
+      <form id="login-form">
+        <div class="form-group">
+          <label for="admin-username">Login</label>
+          <input type="text" id="admin-username" placeholder="np. admin" autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label for="admin-password">Hasło</label>
+          <input type="password" id="admin-password" placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn btn-primary btn-full">Zaloguj się</button>
+        <p class="error-text" id="login-error" style="display:none">Nieprawidłowy login lub hasło.</p>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ── Admin panel ────────────────────────────────────────────────────────── -->
+<div id="admin-panel" style="display:none">
+
+  <header class="admin-header">
+    <div class="header-brand" id="brand-home" style="cursor:pointer" title="Wszystkie badania — pulpit zbiorczy">
+      <span class="brand-icon">🔬</span>
+      <span class="brand-name">Misinfo Research</span>
+    </div>
+    <div class="header-center">
+      <div class="study-picker" id="study-picker">
+        <button type="button" class="study-picker-btn" id="study-picker-btn">
+          <span id="study-picker-label">— wybierz badanie —</span>
+          <span class="study-picker-chevron">▾</span>
+        </button>
+        <ul class="study-picker-list" id="study-picker-list"></ul>
+      </div>
+      <button class="btn btn-primary btn-sm" id="btn-create-study">+ Nowe</button>
+    </div>
+    <div class="header-actions">
+      <!-- Session-mode toggle: when set to "preview" (default after login), any
+           study URL opened from this browser tags the resulting session as
+           is_preview=1 — so admin's check sessions never pollute production
+           data. Switch to "production" to do a true live test. -->
+      <label id="admin-mode-wrap" style="display:flex;align-items:center;gap:0.4rem;font-size:0.78rem;color:var(--muted);cursor:pointer;padding:0.3rem 0.6rem;background:var(--surface2);border-radius:7px" title="Jak liczyć Twoje własne sesje w tym badaniu">
+        <span>Moje sesje:</span>
+        <select id="admin-mode-select" style="width:auto;font-size:0.78rem;padding:0.15rem 1.5rem 0.15rem 0.4rem">
+          <option value="preview">🧪 Podgląd (nie liczone)</option>
+          <option value="production">📊 Produkcyjnie (liczone)</option>
+        </select>
+      </label>
+      <button class="btn btn-ghost btn-sm btn-icon" id="btn-platform-settings" title="Tłumaczenia i ustawienia platformy">⚙</button>
+      <button class="btn btn-ghost btn-sm" id="logout-btn">Wyloguj</button>
+    </div>
+  </header>
+
+  <nav class="tab-nav">
+    <button class="tab-btn active" data-tab="dashboard">📊 Pulpit</button>
+    <button class="tab-btn" data-tab="posts">✏️ Posty</button>
+    <button class="tab-btn" data-tab="demographics">👤 Pytania dem.</button>
+    <button class="tab-btn" data-tab="konfigurator">🔧 Konfigurator</button>
+    <button class="tab-btn" data-tab="export">📥 Eksport</button>
+    <button class="tab-btn" data-tab="analyses">📊 Analizy</button>
+    <button class="tab-btn" data-tab="users" id="tab-btn-users" style="display:none">👥 Konta</button>
+    <button class="tab-btn tab-btn-right" data-tab="settings">⚙️ Ustawienia</button>
+  </nav>
+
+  <main class="admin-main">
+
+    <!-- hidden legacy selects – kept for JS compatibility -->
+    <select id="dashboard-study-select" style="display:none"></select>
+    <select id="posts-study-select" style="display:none"></select>
+    <select id="export-study-select" style="display:none"></select>
+
+    <!-- TAB: Dashboard -->
+    <div class="tab-pane active" id="tab-dashboard">
+      <div class="tab-toolbar"><h2>Pulpit</h2></div>
+      <div id="dashboard-content">
+        <div class="empty-state">Wybierz badanie z listy powyżej.</div>
+      </div>
+    </div>
+
+    <!-- TAB: Post Editor -->
+    <div class="tab-pane" id="tab-posts">
+      <div class="tab-toolbar">
+        <h2>Edytor Postów</h2>
+        <div style="display:flex;gap:0.5rem">
+          <button class="btn btn-ghost btn-sm" id="btn-post-library" title="Skopiuj gotowy post z biblioteki wielokrotnego użytku">🗂 Z biblioteki</button>
+          <button class="btn btn-primary btn-sm" id="btn-add-post">+ Dodaj post</button>
+        </div>
+      </div>
+      <div id="posts-list">
+        <div class="empty-state">Wybierz badanie z listy powyżej.</div>
+      </div>
+    </div>
+
+    <!-- TAB: Demographic Questions -->
+    <div class="tab-pane" id="tab-demographics">
+      <div class="tab-toolbar">
+        <h2>Pytania demograficzne</h2>
+        <div style="display:flex;gap:0.5rem">
+          <button class="btn btn-ghost btn-sm" id="btn-preview-dq" title="Otwiera ekran demograficznych w nowej karcie, bez przechodzenia przez zgodę i instrukcje">👁 Podgląd ekranu</button>
+          <button class="btn btn-primary btn-sm" id="btn-add-dq">+ Dodaj pytanie</button>
+        </div>
+      </div>
+      <div id="dq-list">
+        <div class="empty-state">Wybierz badanie z listy powyżej.</div>
+      </div>
+    </div>
+
+    <!-- TAB: Export -->
+    <div class="tab-pane" id="tab-export">
+      <div class="tab-toolbar"><h2>Eksport danych</h2></div>
+      <div id="export-content">
+        <div class="empty-state">Wybierz badanie z listy powyżej.</div>
+      </div>
+    </div>
+
+    <!-- TAB: Analyses (in-app statistical tests) -->
+    <div class="tab-pane" id="tab-analyses">
+      <div class="tab-toolbar"><h2>Analizy statystyczne</h2></div>
+      <div id="analyses-content">
+        <div class="empty-state">Wybierz badanie z listy powyżej.</div>
+      </div>
+    </div>
+
+    <!-- TAB: Settings (inline study settings form) -->
+    <div class="tab-pane" id="tab-settings">
+      <div id="settings-empty" class="empty-state" style="margin-top:3rem">
+        Wybierz badanie z listy powyżej, aby edytować jego ustawienia.
+      </div>
+      <div id="settings-form-wrap" style="display:none">
+        <!-- rendered by renderSettingsTab() -->
+      </div>
+    </div>
+
+    <!-- TAB: Konfigurator (builder-mode studies) -->
+    <div class="tab-pane" id="tab-konfigurator">
+      <div id="konfig-empty" class="empty-state" style="margin-top:3rem">
+        Wybierz badanie z listy powyżej, aby otworzyć konfigurator.
+      </div>
+      <div id="konfig-form-wrap" style="display:none">
+        <!-- rendered by renderKonfiguratorTab() -->
+      </div>
+    </div>
+
+    <!-- TAB: Users (admin-only) -->
+    <div class="tab-pane" id="tab-users">
+      <div class="tab-toolbar">
+        <h2>Konta użytkowników</h2>
+        <button class="btn btn-primary btn-sm" id="btn-add-user">+ Nowe konto</button>
+      </div>
+      <p style="color:var(--muted);font-size:0.85rem;margin:0 0 1rem">
+        Konta zakłada administrator (brak samodzielnej rejestracji). Każdy badacz widzi wyłącznie własne badania; administrator widzi wszystkie.
+      </p>
+      <div id="users-list">
+        <div class="empty-state">Ładowanie…</div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ── Modal ──────────────────────────────────────────────────────────────── -->
+<div id="modal-overlay" class="modal-overlay" style="display:none" role="dialog" aria-modal="true">
+  <div class="modal-box" id="modal-box">
+    <button class="modal-close" id="modal-close" aria-label="Zamknij">✕</button>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<!-- ── Toast ──────────────────────────────────────────────────────────────── -->
+<div id="toast" class="toast" aria-live="polite"></div>
+
+<script src="/js/admin.js"></script>
+</body>
+</html>

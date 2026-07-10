@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Badanie</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/participant.css">
+</head>
+<body>
+
+<!-- ── Screen 1: Consent ──────────────────────────────────────────────────── -->
+<section class="screen active" id="screen-consent">
+  <div class="screen-inner centered">
+    <div class="card consent-card">
+      <div class="study-badge" id="consent-institution"></div>
+      <h1 id="consent-study-name">Badanie</h1>
+      <div class="consent-body" id="consent-text"></div>
+      <div class="consent-actions">
+        <button class="btn btn-primary" id="btn-consent-agree"></button>
+        <button class="btn btn-ghost" id="btn-consent-decline"></button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Screen 2: Instructions ─────────────────────────────────────────────── -->
+<section class="screen" id="screen-instructions">
+  <div class="screen-inner centered">
+    <div class="card">
+      <h2 id="instruction-title"></h2>
+      <div class="instruction-body" id="instruction-text"></div>
+      <div class="action-icons-preview" id="instruction-icons-preview">
+        <div class="icon-row"><span class="icon-demo like">👍</span><span id="icon-label-like"></span></div>
+        <div class="icon-row"><span class="icon-demo dislike">👎</span><span id="icon-label-dislike"></span></div>
+        <div class="icon-row"><span class="icon-demo share">🔄</span><span id="icon-label-share"></span></div>
+        <div class="icon-row"><span class="icon-demo flag">🚩</span><span id="icon-label-flag"></span></div>
+      </div>
+      <button class="btn btn-primary" id="btn-instructions-next"></button>
+    </div>
+  </div>
+</section>
+
+<!-- ── Screen 3: Demographics ─────────────────────────────────────────────── -->
+<section class="screen" id="screen-demographics">
+  <div class="screen-inner centered">
+    <div class="card" data-clarity-mask="true">
+      <h2></h2>
+      <p class="muted screen-subtitle"></p>
+      <form id="demographics-form">
+        <div id="demographics-fields">
+          <!-- rendered dynamically by participant.js from STUDY_CONFIG.demographic_questions -->
+        </div>
+        <button class="btn btn-primary" type="submit" id="btn-demographics-next" disabled></button>
+        <p class="field-hint" id="demographics-hint"></p>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- ── Screen 4: Transition ───────────────────────────────────────────────── -->
+<section class="screen" id="screen-transition-feed">
+  <div class="screen-inner centered">
+    <div class="card centered-text">
+      <div class="big-emoji" id="transition-feed-emoji"></div>
+      <h2 id="transition-feed-title"></h2>
+      <div class="transition-body" id="transition-feed-body"></div>
+      <button class="btn btn-primary" id="btn-start-feed"></button>
+    </div>
+  </div>
+</section>
+
+<!-- ── Screen 5: Feed ─────────────────────────────────────────────────────── -->
+<section class="screen" id="screen-feed">
+  <div class="progress-sticky" id="feed-progress-bar">
+    <div class="progress-label" id="feed-progress-label" data-template="feed.progress_label">
+      <span id="reacted-count">0</span> / <span id="total-count">0</span>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="feed-fill"></div></div>
+  </div>
+  <div class="feed-container" id="feed-container"></div>
+  <div class="feed-footer" id="feed-footer">
+    <button class="btn btn-primary btn-large" id="btn-proceed-feed"></button>
+    <button class="btn btn-primary btn-large" id="btn-feed-next-part" style="display:none"></button>
+  </div>
+</section>
+
+<!-- ── Screen 6: Transition to rating ────────────────────────────────────── -->
+<section class="screen" id="screen-transition-rating">
+  <div class="screen-inner centered">
+    <div class="card centered-text">
+      <div class="big-emoji">⭐</div>
+      <h2 id="transition-rating-title"></h2>
+      <div class="transition-body" id="transition-rating-body"></div>
+      <button class="btn btn-primary" id="btn-start-rating"></button>
+    </div>
+  </div>
+</section>
+
+<!-- ── Screen 7: Rating ───────────────────────────────────────────────────── -->
+<section class="screen" id="screen-rating">
+  <div class="progress-sticky" id="rating-progress-bar">
+    <div class="progress-label" id="rating-progress-label" data-template="rating.progress_label">
+      <span id="rating-current">1</span> / <span id="rating-total">0</span>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="rating-fill"></div></div>
+  </div>
+  <div class="screen-inner centered">
+    <div class="card rating-card" id="rating-post-card">
+      <div class="rating-post-meta" data-clarity-unmask="true">
+        <span class="rating-source" id="rating-source" data-clarity-unmask="true"></span>
+        <span class="rating-handle" id="rating-handle" data-clarity-unmask="true"></span>
+        <span class="topic-pill" id="rating-topic-pill" data-clarity-unmask="true"></span>
+      </div>
+      <h3 class="rating-headline" id="rating-headline" data-clarity-unmask="true"></h3>
+      <p class="rating-content" id="rating-content" data-clarity-unmask="true"></p>
+      <div class="likert-section">
+        <p class="likert-question" id="rating-likert-question"></p>
+        <div class="likert-labels">
+          <span id="rating-likert-min"></span>
+          <span id="rating-likert-max"></span>
+        </div>
+        <div class="likert-buttons" id="likert-buttons" data-clarity-unmask="true">
+          <button class="likert-btn" data-value="1" data-clarity-unmask="true">1</button>
+          <button class="likert-btn" data-value="2" data-clarity-unmask="true">2</button>
+          <button class="likert-btn" data-value="3" data-clarity-unmask="true">3</button>
+          <button class="likert-btn" data-value="4" data-clarity-unmask="true">4</button>
+          <button class="likert-btn" data-value="5" data-clarity-unmask="true">5</button>
+          <button class="likert-btn" data-value="6" data-clarity-unmask="true">6</button>
+          <button class="likert-btn" data-value="7" data-clarity-unmask="true">7</button>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="btn-rating-next" disabled></button>
+    </div>
+  </div>
+</section>
+
+<!-- ── Screen: Paged view ─────────────────────────────────────────────────── -->
+<section class="screen" id="screen-paged">
+  <div class="progress-sticky" id="paged-progress-bar">
+    <div class="progress-label" id="paged-progress-label" data-template="paged.progress_label">
+      <span id="paged-current">1</span> / <span id="paged-total">0</span>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="paged-fill"></div></div>
+  </div>
+  <div class="screen-inner">
+    <div class="paged-outer">
+
+      <!-- ── White card: post content only ── -->
+      <div class="card paged-card">
+        <div class="post-header" id="paged-header">
+          <div class="post-avatar" id="paged-avatar"></div>
+          <div class="post-meta" id="paged-meta">
+            <div class="post-source" id="paged-source" data-clarity-unmask="true"></div>
+            <div class="post-handle" id="paged-handle" data-clarity-unmask="true"></div>
+          </div>
+          <span class="topic-pill" id="paged-topic-pill" data-clarity-unmask="true"></span>
+        </div>
+        <div class="post-body" data-clarity-unmask="true">
+          <h3 class="post-headline" id="paged-headline" data-clarity-unmask="true"></h3>
+          <p class="post-content" id="paged-content" data-clarity-unmask="true"></p>
+        </div>
+        <div id="paged-image-wrap" class="post-image" style="display:none">
+          <img id="paged-image" src="" alt="" loading="lazy">
+        </div>
+        <div class="post-metrics" id="paged-metrics"></div>
+        <div class="post-actions" id="paged-actions">
+          <button class="action-btn" data-action="like"><span class="action-icon">👍</span><span id="paged-lbl-like"></span></button>
+          <button class="action-btn" data-action="dislike"><span class="action-icon">👎</span><span id="paged-lbl-dislike"></span></button>
+          <button class="action-btn" data-action="share"><span class="action-icon">🔄</span><span id="paged-lbl-share"></span></button>
+          <button class="action-btn" data-action="flag"><span class="action-icon">🚩</span><span id="paged-lbl-flag"></span></button>
+        </div>
+        <!-- Researcher comment shown as social-media comment -->
+        <div id="paged-post-comment" style="display:none">
+          <div class="post-comment-divider"></div>
+          <div class="post-comment-entry">
+            <div class="post-comment-avatar" id="paged-comment-avatar"></div>
+            <div class="post-comment-body">
+              <span class="post-comment-author" id="paged-comment-author"></span>
+              <p class="post-comment-text" id="paged-comment-text"></p>
+            </div>
+          </div>
+        </div>
+        <!-- Participant comment input — sits inside the post card so it
+             reads as part of the post (FB-style comment composer at the
+             bottom) and naturally hides when the card is hidden during the
+             after_post questions screen. -->
+        <div id="paged-participant-comment-wrap" style="display:none">
+          <textarea id="paged-participant-comment" class="paged-comment-area" rows="3"></textarea>
+        </div>
+      </div>
+
+      <!-- ── Outside card: Post questions (builder mode) ── -->
+      <div id="paged-post-questions" style="display:none"></div>
+
+      <!-- ── Outside card: Likert scale ── -->
+      <div class="paged-rating-section">
+        <p class="likert-question" id="paged-likert-question"></p>
+        <div class="likert-labels">
+          <span id="paged-likert-min"></span>
+          <span id="paged-likert-max"></span>
+        </div>
+        <div class="likert-buttons" id="paged-likert-buttons" data-clarity-unmask="true">
+          <button class="likert-btn" data-value="1" data-clarity-unmask="true">1</button>
+          <button class="likert-btn" data-value="2" data-clarity-unmask="true">2</button>
+          <button class="likert-btn" data-value="3" data-clarity-unmask="true">3</button>
+          <button class="likert-btn" data-value="4" data-clarity-unmask="true">4</button>
+          <button class="likert-btn" data-value="5" data-clarity-unmask="true">5</button>
+          <button class="likert-btn" data-value="6" data-clarity-unmask="true">6</button>
+          <button class="likert-btn" data-value="7" data-clarity-unmask="true">7</button>
+        </div>
+      </div>
+
+      <!-- ── Navigation ── -->
+      <div class="paged-nav">
+        <button class="btn btn-ghost" id="btn-paged-back"></button>
+        <button class="btn btn-primary" id="btn-paged-next" disabled></button>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── Screen 8: Debrief ─────────────────────────────────────────────────── -->
+<section class="screen" id="screen-debrief">
+  <div class="screen-inner">
+    <div class="card debrief-card">
+      <div class="debrief-header">
+        <div class="big-emoji">🎓</div>
+        <h1 id="debrief-title">Dziękujemy za udział w badaniu!</h1>
+      </div>
+
+      <div class="debrief-section">
+        <h3 id="debrief-section-goal">Cel badania</h3>
+        <div id="debrief-text-content"></div>
+      </div>
+
+      <div class="debrief-section">
+        <h3 id="debrief-section-posts">Posty — prawda i fałsz</h3>
+        <p class="muted" id="debrief-posts-description">Poniżej znajdziesz wszystkie posty, które widziałeś/aś podczas badania, z oznaczeniem, czy zawierały prawdziwe, czy fałszywe informacje.</p>
+        <div id="debrief-posts-list"></div>
+      </div>
+
+      <div class="debrief-contact" id="debrief-contact" style="display:none">
+        <p>W przypadku pytań lub wątpliwości skontaktuj się z nami: <a id="debrief-email" href="#"></a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Screen: Camera Consent (eye-tracking, only shown when study has it enabled) ── -->
+<section class="screen" id="screen-camera-consent">
+  <div class="screen-inner centered">
+    <div class="card consent-card">
+      <div class="big-emoji">👁️</div>
+      <h2 id="camera-consent-title">Śledzenie wzroku (opcjonalne)</h2>
+      <p id="camera-consent-description">To badanie może opcjonalnie rejestrować ruch Twoich oczu za pomocą kamery, aby lepiej zrozumieć, jak przeglądasz posty.</p>
+      <div class="camera-consent-note">
+        <p><strong id="camera-consent-important-title">Ważne informacje:</strong></p>
+        <ul>
+          <li id="camera-consent-bullet-1">Kamera służy wyłącznie do estymacji kierunku wzroku</li>
+          <li id="camera-consent-bullet-2">Obraz z kamery <strong>nigdy nie jest zapisywany ani przesyłany</strong></li>
+          <li id="camera-consent-bullet-3">Zapisywane są jedynie współrzędne punktu patrzenia (x, y)</li>
+          <li id="camera-consent-bullet-4">Odmowa nie wpływa na przebieg badania</li>
+        </ul>
+      </div>
+      <div class="consent-actions" style="flex-direction:column;gap:0.75rem">
+        <button class="btn btn-primary" id="btn-camera-consent-yes">Wyrażam zgodę na śledzenie wzroku</button>
+        <button class="btn btn-ghost" id="btn-camera-consent-no">Nie wyrażam zgody — kontynuuj bez śledzenia</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Screen: Calibration (9-point gaze calibration) ──────────────────── -->
+<section class="screen" id="screen-calibration">
+  <div class="calibration-outer">
+    <p class="cal-instructions" id="cal-instructions">
+      Spójrz na punkt i kliknij go.<br>Punkt <strong id="cal-dot-num">1</strong> z 9
+    </p>
+    <div id="cal-dots-wrap"></div>
+    <div class="cal-progress-bar-outer">
+      <div class="cal-progress-bar-fill" id="cal-progress-fill"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Complete (debrief hidden) ─────────────────────────────────────────── -->
+<section class="screen" id="screen-complete">
+  <div class="screen-inner centered">
+    <div class="card centered-text">
+      <div class="big-emoji">🎓</div>
+      <h2 id="complete-title">Dziękujemy za udział w badaniu!</h2>
+      <p id="complete-body">Twoje odpowiedzi zostały zapisane. Możesz zamknąć tę stronę.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── Thank you (no consent) ─────────────────────────────────────────────── -->
+<section class="screen" id="screen-no-consent">
+  <div class="screen-inner centered">
+    <div class="card centered-text">
+      <div class="big-emoji">👋</div>
+      <h2 id="no-consent-title">Dziękujemy</h2>
+      <p id="no-consent-body">Rozumiemy Twoją decyzję. Możesz zamknąć tę stronę.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── Error ──────────────────────────────────────────────────────────────── -->
+<section class="screen" id="screen-error">
+  <div class="screen-inner centered">
+    <div class="card centered-text">
+      <div class="big-emoji">⚠️</div>
+      <h2 id="error-title">Wystąpił błąd</h2>
+      <p id="error-message">Spróbuj odświeżyć stronę.</p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ── Browser-back warning modal ──────────────────────────────────────────── -->
+<div id="back-warning-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;display:none;align-items:center;justify-content:center">
+  <div style="background:var(--surface,#fff);border-radius:14px;padding:2rem;max-width:380px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.18);text-align:center">
+    <div style="font-size:2.2rem;margin-bottom:0.75rem">⚠️</div>
+    <h3 id="back-warning-title" style="font-size:1.05rem;font-weight:700;margin-bottom:0.6rem">Opuścić badanie?</h3>
+    <p id="back-warning-body" style="font-size:0.9rem;color:var(--muted,#6b7280);margin-bottom:1.5rem;line-height:1.5">Cofnięcie strony zakończy Twoją sesję. Twoje odpowiedzi mogą zostać utracone.</p>
+    <div style="display:flex;gap:0.75rem;justify-content:center">
+      <button id="back-warning-stay" class="btn btn-primary" style="flex:1">Zostań w badaniu</button>
+      <button id="back-warning-leave" class="btn btn-ghost" style="flex:1">Opuść</button>
+    </div>
+  </div>
+</div>
+
+<script src="/lib/logic.js"></script>
+<script src="/js/participant.js"></script>
+</body>
+</html>

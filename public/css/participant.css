@@ -1,0 +1,1013 @@
+/* ── Variables ────────────────────────────────────────────────────────────── */
+:root {
+  --bg: #f4f6fb;
+  --surface: #ffffff;
+  --surface2: #eef0f8;
+  --border: #dde1f0;
+  --text: #1a1f3d;
+  --muted: #6b75a0;
+  --accent: #4f7cff;
+  --accent-light: #2563eb;
+  --error: #dc2626;
+  --success: #16a34a;
+  --radius: 12px;
+  --shadow: 0 2px 16px rgba(79,124,255,0.08), 0 1px 4px rgba(0,0,0,0.06);
+  --font: 'IBM Plex Sans', sans-serif;
+}
+
+/* ── Reset ───────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 16px;
+  line-height: 1.6;
+}
+h1, h2, h3 { font-family: var(--font); font-weight: 600; line-height: 1.2; }
+a { color: var(--accent); }
+p { margin-bottom: 0.75rem; }
+p:last-child { margin-bottom: 0; }
+
+/* ── Screens ─────────────────────────────────────────────────────────────── */
+.screen { display: none; min-height: 100vh; }
+.screen.active { display: block; }
+
+.screen-inner {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+}
+.screen-inner.centered {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 2rem 1.25rem;
+}
+
+/* ── Card ────────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2.5rem 2rem;
+  box-shadow: var(--shadow);
+  width: 100%;
+}
+.card.centered-text { text-align: center; }
+.card h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+.card h2 { font-size: 1.5rem; margin-bottom: 1rem; }
+.card h3 { font-size: 1.15rem; margin-bottom: 0.75rem; }
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.75rem;
+  border: none;
+  border-radius: 8px;
+  font-family: var(--font);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s, box-shadow 0.15s;
+  text-decoration: none;
+}
+.btn:active { transform: scale(0.97); }
+.btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(79,124,255,0.3);
+}
+.btn-primary:hover:not(:disabled) { opacity: 0.88; box-shadow: 0 4px 14px rgba(79,124,255,0.4); }
+.btn-ghost {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+.btn-ghost:hover:not(:disabled) { background: var(--surface2); color: var(--text); }
+.btn-large { padding: 1rem 2.5rem; font-size: 1.1rem; }
+
+/* ── Study badge ─────────────────────────────────────────────────────────── */
+.study-badge {
+  display: inline-block;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 0.25rem 0.9rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+/* ── Consent ─────────────────────────────────────────────────────────────── */
+.consent-card { max-width: 680px; }
+.consent-card h1 { font-size: 1.8rem; margin-bottom: 1.5rem; }
+.consent-body {
+  white-space: pre-line;
+  color: var(--text);
+  margin-bottom: 2rem;
+  font-size: 0.95rem;
+  line-height: 1.7;
+  background: var(--surface2);
+  border-radius: 8px;
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+}
+.consent-actions { display: flex; gap: 1rem; flex-wrap: wrap; }
+
+/* ── Instructions ────────────────────────────────────────────────────────── */
+.instruction-body {
+  white-space: pre-line;
+  color: var(--text);
+  margin-bottom: 1.5rem;
+  line-height: 1.8;
+}
+.action-icons-preview {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+  background: var(--surface2);
+  border-radius: 8px;
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+}
+.icon-row { display: flex; align-items: center; gap: 0.75rem; font-size: 0.95rem; }
+.icon-demo {
+  width: 2.2rem; height: 2.2rem;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem; flex-shrink: 0;
+}
+.icon-demo.like    { background: rgba(79,124,255,0.12); }
+.icon-demo.dislike { background: rgba(220,38,38,0.1); }
+.icon-demo.share   { background: rgba(22,163,74,0.12); }
+.icon-demo.flag    { background: rgba(202,138,4,0.12); }
+
+/* ── Demographics ────────────────────────────────────────────────────────── */
+.muted { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.5rem; }
+.form-group { margin-bottom: 1.75rem; }
+.form-group > label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  font-size: 0.95rem;
+}
+.radio-group { display: flex; flex-direction: column; gap: 0.5rem; }
+.radio-option {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.65rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  font-size: 0.95rem;
+}
+.radio-option:hover { border-color: var(--accent); background: rgba(79,124,255,0.04); }
+.radio-option input[type="radio"] { accent-color: var(--accent); width: 1rem; height: 1rem; }
+.radio-option input[type="checkbox"] { accent-color: var(--accent); width: 1rem; height: 1rem; }
+.radio-option:has(input:checked) {
+  border-color: var(--accent);
+  background: rgba(79,124,255,0.07);
+}
+/* Freeform demographic inputs (input_type='text' / 'number'). Without this
+   rule the input renders as a stock browser control — visually
+   inconsistent with the radio-option style used by every other demographic
+   question. Match the radio container's padding, border, and focus states
+   so the screen reads as a single coherent form. */
+.demo-input {
+  display: block;
+  width: 100%;
+  padding: 0.65rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+  color: inherit;
+  transition: border-color 0.15s, background 0.15s;
+  box-sizing: border-box;
+}
+.demo-input:hover  { border-color: var(--accent); background: rgba(79,124,255,0.04); }
+.demo-input:focus  { outline: none; border-color: var(--accent); background: rgba(79,124,255,0.07); }
+/* Highlight when the value is outside the researcher-set min/max bounds
+   (or the type='number' has non-numeric input). :invalid is HTML5's own
+   constraint validation hook — pairs with the minlength/maxlength/min/max
+   attributes set by the participant render. */
+.demo-input:not(:placeholder-shown):invalid { border-color: #ef4444; }
+/* Hide the browser's native number-input spinner — researchers don't need
+   the up/down arrows cluttering the field; participants type values
+   directly. */
+.demo-input[type="number"]::-webkit-outer-spin-button,
+.demo-input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.demo-input[type="number"] { -moz-appearance: textfield; }
+.demo-input-hint { font-size: 0.78rem; color: var(--muted); margin-top: 0.35rem; }
+.field-hint { font-size: 0.82rem; color: var(--muted); margin-top: 0.75rem; }
+
+/* ── Transition screens ───────────────────────────────────────────────────── */
+.big-emoji { font-size: 3.5rem; margin-bottom: 1rem; line-height: 1; }
+.centered-text p { color: var(--muted); margin-bottom: 1rem; max-width: 480px; margin-left: auto; margin-right: auto; }
+.centered-text .btn { margin-top: 1rem; }
+.transition-body { white-space: pre-line; color: var(--muted); margin-bottom: 1.5rem; line-height: 1.7; font-size: 0.97rem; }
+
+/* ── Progress bar (sticky) ───────────────────────────────────────────────── */
+.progress-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0.75rem 1.25rem;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+}
+.progress-label {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+  text-align: center;
+  font-weight: 600;
+}
+.progress-track {
+  height: 5px;
+  background: var(--surface2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 0.35s ease;
+  width: 0%;
+}
+
+/* ── Feed ────────────────────────────────────────────────────────────────── */
+.feed-container {
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.feed-footer {
+  display: none;
+  position: sticky;
+  bottom: 0;
+  background: linear-gradient(0deg, var(--bg) 60%, transparent);
+  padding: 1.5rem 1.25rem;
+  text-align: center;
+  z-index: 50;
+}
+.feed-footer.visible { display: block; }
+
+/* ── Post card ───────────────────────────────────────────────────────────── */
+.feed-post {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.feed-post.reacted {
+  border-color: var(--accent);
+  box-shadow: 0 2px 16px rgba(79,124,255,0.12);
+}
+
+.post-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem 1rem 0.5rem;
+}
+.post-avatar {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.post-avatar-img { object-fit: cover; padding: 0; }
+.post-meta { flex: 1; min-width: 0; }
+.post-source { font-weight: 700; font-size: 0.9rem; }
+.post-handle { font-size: 0.8rem; color: var(--muted); }
+
+.topic-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.topic-zdrowie  { background: #fee2e2; color: #b91c1c; }
+.topic-klimat   { background: #dcfce7; color: #15803d; }
+.topic-polityka { background: #dbeafe; color: #1d4ed8; }
+.topic-ekonomia { background: #fef9c3; color: #a16207; }
+.topic-nauka    { background: #f3e8ff; color: #7e22ce; }
+
+.post-body { padding: 0 1rem 0.75rem; }
+.post-headline {
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.35;
+  margin-bottom: 0.5rem;
+  color: var(--text);
+}
+/* pre-line preserves the researcher's line breaks / blank lines from the
+   content editor (otherwise the post renders as one wall of text — newlines
+   in textContent/innerHTML collapse to spaces under the default white-space).
+   Matches consent / instruction / transition bodies which already use it. */
+.post-content { font-size: 0.9rem; color: var(--text); line-height: 1.6; white-space: pre-line; }
+
+/* Post images in misinformation studies ARE the stimulus — they're often
+   screenshots of fake-news posts whose TEXT is the manipulation being tested.
+   Cropping (object-fit: cover + fixed max-height) cut off the bottom of tall
+   screenshots, hiding the headline/claim the participant is meant to evaluate.
+   We render the full image at its natural aspect ratio: width fills the card,
+   height follows. No overflow:hidden, no cover-crop. object-fit: contain is a
+   belt-and-suspenders no-op once height is auto, kept only so any future fixed
+   height never silently re-introduces cropping. */
+.post-image { width: 100%; background: var(--surface2); }
+.post-image img { width: 100%; height: auto; object-fit: contain; display: block; }
+
+.post-metrics {
+  display: flex;
+  gap: 1rem;
+  padding: 0.6rem 1rem;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.82rem;
+  background: var(--surface2);
+}
+.metric { display: flex; align-items: center; gap: 0.3rem; }
+.metric.high { color: var(--accent-light); font-weight: 600; }
+.metric.low  { color: var(--muted); }
+
+/* ── Post comments (builder) ─────────────────────────────────────────────── */
+.post-comments-list {
+  border-top: 1px solid var(--border);
+  padding: 0.6rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.post-comment-item {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+}
+.post-comment-avatar {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.post-comment-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  font-size: 0.82rem;
+}
+.post-comment-author {
+  font-weight: 700;
+  color: var(--text);
+}
+.post-comment-text {
+  color: var(--text);
+  line-height: 1.4;
+}
+.post-comment-likes {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 0.15rem;
+}
+
+.post-actions {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+}
+.action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  padding: 0.75rem 0.5rem;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-family: var(--font);
+  transition: color 0.15s, background 0.15s;
+  border-top: 1px solid var(--border);
+}
+.action-btn:not(:last-child) { border-right: 1px solid var(--border); }
+.action-btn .action-icon { font-size: 1.2rem; }
+.action-btn:hover { background: var(--surface2); color: var(--text); }
+.action-btn.active-like    { color: var(--accent);  background: rgba(79,124,255,0.08); }
+.action-btn.active-dislike { color: var(--error);   background: rgba(220,38,38,0.07); }
+.action-btn.active-share   { color: var(--success); background: rgba(22,163,74,0.07); }
+.action-btn.active-flag    { color: #ca8a04;        background: rgba(202,138,4,0.07); }
+
+/* ── Rating screen ───────────────────────────────────────────────────────── */
+.rating-card { max-width: 660px; }
+.rating-post-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.rating-source { font-weight: 700; font-size: 0.95rem; }
+.rating-handle { color: var(--muted); font-size: 0.85rem; }
+.rating-headline { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.75rem; line-height: 1.4; }
+.rating-content { color: var(--text); font-size: 0.9rem; margin-bottom: 1.75rem; line-height: 1.6; white-space: pre-line; }
+
+/* ── Likert ──────────────────────────────────────────────────────────────── */
+.likert-section { margin-bottom: 1.5rem; }
+.likert-question { font-weight: 600; margin-bottom: 1rem; font-size: 0.95rem; }
+.likert-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+}
+.likert-buttons {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.4rem;
+}
+.likert-number-labels {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-align: center;
+  margin-top: 0.3rem;
+}
+.likert-btn {
+  aspect-ratio: 1;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface2);
+  color: var(--muted);
+  font-family: var(--font);
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s, transform 0.1s;
+}
+.likert-btn:hover { border-color: var(--lc, var(--accent)); background: var(--surface); }
+.likert-btn:active { transform: scale(0.95); }
+
+/* All values share the same accent color (blue). The previous red→yellow→green
+ * ramp implied a valence (1=bad, 5=good) which biased Likert items where the
+ * scale represents a neutral construct (e.g. "language tone: 1 neutral …
+ * 10 emotional"). Uniform color keeps the scale visually neutral so the
+ * meaning is conveyed purely by the anchor labels at the ends. */
+.likert-btn.selected { background: var(--accent); border-color: var(--accent); color: #fff; }
+.likert-btn:not(.selected):hover { color: var(--accent); border-color: var(--accent); }
+
+/* ── Paged screen ────────────────────────────────────────────────────────── */
+#screen-paged .screen-inner { padding: 0 1.25rem; }
+
+.paged-outer {
+  width: 100%;
+  max-width: 660px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.5rem 0 3rem;
+}
+
+.paged-card {
+  padding: 0;
+  overflow: hidden;
+}
+.paged-card .post-header  { padding: 1.25rem 1.25rem 0.75rem; }
+.paged-card .post-body    { padding: 0 1.25rem 0.75rem; }
+.paged-card .post-metrics { padding: 0.6rem 1.25rem; }
+
+/* Researcher comment block inside the white card */
+.post-comment-divider {
+  border-top: 1px solid var(--border);
+}
+.post-comment-entry {
+  display: flex;
+  gap: 0.65rem;
+  padding: 0.85rem 1.25rem;
+}
+.post-comment-avatar {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700;
+  font-size: 0.65rem;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.post-comment-body { flex: 1; min-width: 0; }
+.post-comment-author {
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--text);
+  display: block;
+  margin-bottom: 0.15rem;
+}
+.post-comment-text {
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.55;
+  margin-bottom: 0;
+}
+
+/* Likert outside the card */
+.paged-rating-section {
+  background: transparent;
+  padding: 0.5rem 0.25rem;
+}
+.paged-rating-section .likert-question {
+  font-size: 0.92rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: var(--text);
+}
+.paged-rating-section .likert-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+}
+.paged-rating-section .likert-buttons {
+  display: flex;
+  gap: 0.4rem;
+}
+.paged-rating-section .likert-btn {
+  flex: 1;
+  aspect-ratio: unset;
+  height: 46px;
+  font-size: 0.88rem;
+}
+
+/* Participant comment input — lives INSIDE .paged-card as a FB-style
+ * comment composer strip at the bottom of the post. Top border acts as
+ * visual separator from the action buttons row above. Lives in the same
+ * card as the post → automatically hidden when the card is hidden (e.g.
+ * during the after_post questions full-screen takeover). */
+.paged-card #paged-participant-comment-wrap {
+  border-top: 1px solid var(--border);
+  margin-top: 0.5rem;
+  padding: 0.75rem 1rem 0;
+}
+/* Feed-mode comment composer — same FB-style strip pattern as paged.
+ * Sits inside .feed-post (the per-post card in the scrolling feed) so it
+ * reads as part of the post and lives/dies with the card. */
+.feed-post .feed-participant-comment-wrap {
+  border-top: 1px solid var(--border);
+  margin-top: 0.5rem;
+  padding: 0.75rem 1rem;
+}
+.feed-post .feed-comment-input {
+  width: 100%;
+  font-family: var(--font);
+  font-size: 0.88rem;
+  color: var(--text);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 0.55rem 0.9rem;
+  resize: vertical;
+  min-height: 40px;
+  line-height: 1.4;
+  box-sizing: border-box;
+  transition: border-color 0.15s, background 0.15s;
+}
+.feed-post .feed-comment-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--surface);
+}
+.paged-comment-area {
+  width: 100%;
+  font-family: var(--font);
+  font-size: 0.9rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 0.6rem 1rem;
+  resize: vertical;
+  min-height: 44px;
+  line-height: 1.4;
+  transition: border-color 0.15s, background 0.15s;
+  display: block;
+  box-sizing: border-box;
+}
+.paged-card .paged-comment-area {
+  background: var(--surface2);
+  min-height: 44px;
+}
+.paged-comment-area:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--surface);
+}
+
+/* Navigation below likert */
+.paged-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* ── Debrief ─────────────────────────────────────────────────────────────── */
+.debrief-card { max-width: 760px; }
+.debrief-header { text-align: center; margin-bottom: 2rem; }
+.debrief-header h1 { font-size: 1.8rem; }
+.debrief-section { margin-bottom: 2rem; }
+.debrief-section h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.debrief-section p, .debrief-text-block {
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.7;
+  white-space: pre-line;
+}
+.debrief-post-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  margin-bottom: 0.5rem;
+}
+.debrief-truth-badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.badge-true  { background: #dcfce7; color: #15803d; }
+.badge-false { background: #fee2e2; color: #b91c1c; }
+.debrief-post-headline { font-size: 0.88rem; line-height: 1.4; }
+/* Post thumbnail in the debrief list — image-only posts (empty headline)
+   would otherwise show a blank row. Capped height so a tall screenshot
+   doesn't dominate the debrief; full width of the text column, rounded to
+   match the card. margin-top only when it follows a headline. */
+.debrief-post-image {
+  display: block;
+  max-width: 100%;
+  max-height: 220px;
+  height: auto;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  margin-top: 0.4rem;
+}
+.debrief-contact {
+  text-align: center;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+/* ── Camera consent note ─────────────────────────────────────────────────── */
+.camera-consent-note {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  margin: 1.25rem 0;
+  font-size: 0.88rem;
+}
+.camera-consent-note ul {
+  margin: 0.5rem 0 0 1.25rem;
+  color: var(--muted);
+  line-height: 1.7;
+}
+.camera-consent-note p { margin-bottom: 0; }
+
+/* ── Calibration screen ──────────────────────────────────────────────────── */
+#screen-calibration { background: #0f1023; }
+.calibration-outer {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.cal-instructions {
+  position: relative;
+  z-index: 5;
+  color: #c8ceee;
+  text-align: center;
+  padding: 2rem 1.5rem 1rem;
+  font-size: 1rem;
+  line-height: 1.6;
+  max-width: 480px;
+}
+.cal-instructions button { margin-top: 0.5rem; }
+#cal-dots-wrap {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+}
+.cal-dot {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #4f7cff;
+  border: 3px solid #fff;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: calPulse 1.4s ease-in-out infinite;
+  transition: transform 0.15s, background 0.2s;
+}
+.cal-dot:hover { transform: translate(-50%, -50%) scale(1.25); }
+.cal-dot.done {
+  background: #16a34a;
+  border-color: #bbf7d0;
+  animation: none;
+  transform: translate(-50%, -50%) scale(0.7);
+  pointer-events: none;
+}
+.cal-dot.cal-dot-validation {
+  background: #f59e0b;
+  border-color: #fde68a;
+  cursor: default;
+  pointer-events: none;
+  animation: none;
+}
+@keyframes calPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(79,124,255,0.6); }
+  50% { box-shadow: 0 0 0 12px rgba(79,124,255,0); }
+}
+.cal-progress-bar-outer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 5px;
+  background: rgba(255,255,255,0.08);
+  z-index: 10;
+}
+.cal-progress-bar-fill {
+  height: 100%;
+  background: #4f7cff;
+  transition: width 0.3s ease;
+  width: 0%;
+}
+
+/* Hide all WebGazer-injected UI elements */
+#webgazerVideoFeed, #webgazerVideoCanvas,
+#webgazerFaceOverlay, #webgazerFaceFeedbackBox,
+#webgazerPredictionPoints { display: none !important; }
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .card { padding: 1.5rem 1.25rem; }
+  /* Keep all four reaction buttons (Lubię / Nie lubię / Udostępnij / Zgłoś)
+     in a single horizontal row on mobile — the 2×2 grid the override used
+     to force was burning twice the vertical space and pushing the comment
+     box / Dalej button off-screen on shorter phones. Tighter padding +
+     smaller font keep the longest label ("Udostępnij") readable inside
+     the narrower column. */
+  .post-actions { grid-template-columns: repeat(4, 1fr); }
+  .action-btn { padding: 0.6rem 0.25rem; font-size: 0.7rem; gap: 0.15rem; }
+  .action-btn .action-icon { font-size: 1.05rem; }
+  .action-icons-preview { grid-template-columns: 1fr; }
+  .consent-actions { flex-direction: column; }
+  .consent-actions .btn { width: 100%; }
+  .likert-btn { font-size: 0.85rem; }
+  .paged-nav { flex-direction: column-reverse; gap: 0.75rem; }
+  .paged-nav .btn { width: 100%; }
+  /* Post-question Likert on phones — tighten gap + drop horizontal padding
+     so a 10-point scale fits the viewport without overflow. minmax(0, 1fr)
+     on the grid (set inline in renderPostQuestion) already lets columns
+     shrink; these reductions just give each cell more room to breathe its
+     number inside the smaller width. */
+  .post-questions-inner { padding: 1.25rem 0.9rem; }
+  .post-questions-block .likert-buttons { gap: 0.25rem; }
+  .post-questions-block .likert-btn { font-size: 0.78rem; padding: 0 0.15rem; }
+}
+
+/* ── Post questions (builder mode) ──────────────────────────────────────── */
+.post-questions-block {
+  margin: 0.5rem 0 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: opacity 0.3s;
+}
+.post-questions-inner { padding: 1.5rem; }
+/* Optional title + subtitle at the top of the questions block, mirroring the
+   demographics screen header */
+.pq-screen-title    { font-size: 1.35rem; font-weight: 700; margin: 0 0 0.4rem; color: var(--text); }
+.pq-screen-subtitle { font-size: 0.9rem; color: var(--muted); margin: 0 0 1.5rem; line-height: 1.5; }
+/* Each question wraps in .pq-q + .form-group so spacing matches demographics
+   (1.75rem between questions). The inline `margin-bottom:0` override was
+   removed from renderPostQuestion so the default form-group spacing applies. */
+.pq-q { margin-bottom: 0; }
+.pq-req { color: var(--danger, #ef4444); margin-left: 0.15rem; }
+.pq-response { width: 100%; padding: 0.5rem 0.65rem; border: 1px solid var(--border); border-radius: 7px; font-family: inherit; font-size: 0.9rem; resize: vertical; background: var(--surface2, #f9fafb); color: var(--text); }
+.pq-response:focus { outline: none; border-color: var(--primary); }
+.pq-opt { display: flex; align-items: center; gap: 0.5rem; padding: 0.3rem 0; font-size: 0.9rem; cursor: pointer; }
+.pq-opt input { cursor: pointer; }
+.pq-submit-btn { margin-top: 0.75rem; width: 100%; transition: opacity 0.2s, background 0.2s; }
+.pq-submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+#paged-post-questions { margin-top: 0.75rem; }
+/* Likert description shown BELOW the scale (per researcher request) */
+.pq-likert-description { font-size: 0.82rem; color: var(--muted, #6b7280); margin: 0.6rem 0 0; line-height: 1.5; font-style: italic; }
+/* Likert inside post-questions blocks — rectangles spanning the full row width
+   so that .likert-labels ("min" on the left, "max" on the right) line up with
+   the edges of the scale. Buttons are fixed-height rectangles that flex with
+   the available width, which scales smoothly down to phones. */
+.post-questions-block .likert-buttons {
+  gap: 0.35rem;
+}
+.post-questions-block .likert-btn {
+  aspect-ratio: auto;       /* override the global square */
+  height: 44px;             /* consistent visual weight across viewports */
+  min-width: 0;             /* allow grid columns to shrink on narrow screens */
+  padding: 0;
+  font-size: 0.9rem;
+  border-radius: 7px;
+  border-width: 1.5px;
+}
+
+/* ── Post-question modal (pq_display_mode = 'after_interaction_modal') ────
+ * Opens after the participant reacts to a post. The post card stays visible
+ * (dimmed) so re-reading the post while answering is possible. Dismissed
+ * via the .pq-submit-btn inside the modal — see submitPostQuestionsInline
+ * which detects the .pq-modal-backdrop ancestor and closes itself. We
+ * deliberately do NOT close on backdrop click because required questions
+ * would silently lose state. */
+.pq-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0s linear 0.2s;
+}
+.pq-modal-backdrop.open {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.2s ease, visibility 0s linear 0s;
+}
+.pq-modal-card {
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.28);
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 1.25rem 1.5rem 1.5rem;
+  transform: translateY(8px);
+  transition: transform 0.2s ease;
+}
+.pq-modal-backdrop.open .pq-modal-card {
+  transform: translateY(0);
+}
+.pq-modal-body .post-questions-block {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+}
+.pq-modal-body .pq-screen-title {
+  margin-top: 0;
+}
+.pq-modal-body .pq-submit-btn {
+  margin-top: 0.5rem;
+}
+@media (max-width: 640px) {
+  .pq-modal-backdrop { padding: 0; align-items: flex-end; }
+  .pq-modal-card {
+    border-radius: 16px 16px 0 0;
+    max-height: 88vh;
+    transform: translateY(100%);
+  }
+  .pq-modal-backdrop.open .pq-modal-card { transform: translateY(0); }
+}
+
+/* ── Part requirements checklist (Phase 3) ────────────────────────────────
+ * Sticky card under the paged progress bar showing the structured interaction
+ * requirements for the current part. Items flip from "○" to "✓" as the
+ * participant satisfies counts. Only rendered when the part defines a
+ * `requirements: [...]` array — fully invisible otherwise. */
+.part-checklist {
+  margin: 0.75rem auto 0;
+  max-width: 720px;
+  padding: 0.7rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  font-size: 0.88rem;
+}
+.part-checklist-title {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 0.4rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.part-checklist-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.part-checklist-items li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--text);
+  transition: color 0.2s;
+}
+.part-checklist-items li.met { color: var(--success, #16a34a); }
+.part-checklist-check {
+  font-weight: 700;
+  font-size: 1.05rem;
+  width: 1.2rem;
+  text-align: center;
+  color: var(--muted);
+}
+.part-checklist-items li.met .part-checklist-check { color: var(--success, #16a34a); }
+.part-checklist-label { flex: 1; }
+.part-checklist-count {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 0.82rem;
+  color: var(--muted);
+  background: var(--surface2);
+  padding: 0.1rem 0.5rem;
+  border-radius: 12px;
+}
+.part-checklist-items li.met .part-checklist-count {
+  color: var(--success, #16a34a);
+  background: rgba(22, 163, 74, 0.10);
+}

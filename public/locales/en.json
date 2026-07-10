@@ -1,0 +1,175 @@
+{
+  "consent": {
+    "btn_agree": "I agree and want to participate",
+    "btn_decline": "I do not agree"
+  },
+  "instruction": {
+    "btn_start": "I understand, let's start!",
+    "title": "Study instructions",
+    "icon_like": "Like",
+    "icon_dislike": "Dislike",
+    "icon_share": "Share",
+    "icon_flag": "Report"
+  },
+  "demographics": {
+    "title": "A few questions about you",
+    "subtitle": "All data is anonymous and used solely for research purposes.",
+    "btn_next": "Continue",
+    "hint_fill_all": "Please fill in all fields.",
+    "text_placeholder": "Type your answer..."
+  },
+  "feed": {
+    "btn_next_post": "Next post →",
+    "btn_end_feed": "End browsing →",
+    "progress_label": "You reacted to {{reacted}} of {{total}} posts",
+    "btn_proceed_rating": "Proceed to credibility rating →"
+  },
+  "rating": {
+    "hint_select": "Select a rating to continue",
+    "btn_next": "Next →",
+    "btn_finish": "Finish rating →",
+    "progress_label": "Rating {{current}} of {{total}}"
+  },
+  "paged": {
+    "progress_label": "Post {{current}} of {{total}}",
+    "btn_back": "← Back",
+    "btn_next": "Next →"
+  },
+  "back_warning": {
+    "title": "Leave the study?",
+    "body": "Going back will end your session. Your answers may be lost.",
+    "stay": "Stay in the study",
+    "leave": "Leave"
+  },
+  "transition_feed": {
+    "emoji": "📱",
+    "title": "You will now see a social media feed",
+    "body": "Browse it as you would normally. You can react to posts.",
+    "btn_start": "Start browsing →",
+    "emoji_paged": "📋",
+    "title_paged": "You will now see a series of posts"
+  },
+  "transition_rating": {
+    "emoji": "⭐",
+    "title": "Now you will rate the credibility of posts",
+    "body": "For each post, rate on a scale of 1–7 how credible you find it.",
+    "btn_start": "Start rating →",
+    "h2_after_feed": "Thank you for browsing the feed!"
+  },
+  "debrief": {
+    "btn_finish": "Finish",
+    "btn_back_to_panel": "Back to panel →",
+    "title": "Thank you for participating!",
+    "section_goal": "Study purpose",
+    "section_posts": "Posts — true and false",
+    "posts_description": "Below you will find all the posts you saw during the study, marked as true or false.",
+    "contact_text": "If you have any questions or concerns, contact us:",
+    "badge_true": "TRUE",
+    "badge_false": "FALSE"
+  },
+  "screen": {
+    "complete_title": "Thank you for participating!",
+    "complete_body": "Your answers have been saved. You may close this page.",
+    "no_consent_title": "Thank you",
+    "no_consent_body": "We understand your decision. You may close this page.",
+    "error_title": "An error occurred",
+    "error_body": "Try refreshing the page."
+  },
+  "camera_consent": {
+    "btn_agree": "📷 I agree to eye tracking",
+    "btn_decline": "I do not agree",
+    "loading": "⏳ Loading library…",
+    "allow_camera": "📷 Allow camera access…",
+    "error_blocked": "⚠️ Camera access blocked. Check permissions and try again.",
+    "title": "Eye tracking (optional)",
+    "description": "This study can optionally record your eye movements using the camera to better understand how you browse posts.",
+    "important_title": "Important information:",
+    "bullet_camera_only": "The camera is used solely for estimating gaze direction",
+    "bullet_no_save": "Camera footage is never stored or transmitted",
+    "bullet_coords_only": "Only gaze coordinates (x, y) are recorded",
+    "bullet_optional": "Declining does not affect the study"
+  },
+  "calibration": {
+    "btn_skip": "Skip calibration",
+    "instruction": "Look at the dot and click it. Dot {{n}} of {{total}}",
+    "checking": "Checking calibration accuracy…",
+    "look_at_dot": "Look at the dot…",
+    "inaccurate": "Calibration inaccurate{{error}}. Try again or continue without eye tracking.",
+    "btn_retry": "Recalibrate",
+    "btn_skip_tracking": "Skip tracking"
+  },
+  "errors": {
+    "generic": "An error occurred. Try refreshing the page.",
+    "no_access": "Please access through the study URL.",
+    "session_failed": "Failed to start session.",
+    "saving": "Saving your answers…",
+    "post_question_save": "Could not save your answers. Check your internet connection and try again.",
+    "retry": "Try again",
+    "session_complete_failed": "Error completing session"
+  },
+  "pq": {
+    "answer_placeholder": "Your answer..."
+  },
+  "misc": {
+    "loading": "Loading…",
+    "next": "Next →",
+    "back": "← Back",
+    "study_default_name": "Disinformation study"
+  },
+  "actions": {
+    "like": "Like",
+    "dislike": "Dislike",
+    "share": "Share",
+    "flag": "Report",
+    "likert_question": "How do you rate the credibility of this post?",
+    "likert_min": "Completely unreliable",
+    "likert_max": "Fully reliable",
+    "comment_placeholder": "Write a comment on this post..."
+  },
+  "requirement": {
+    "like": "👍 Like",
+    "dislike": "👎 Dislike",
+    "like_or_dislike": "👍👎 Like / Dislike",
+    "share": "🔄 Share",
+    "flag": "🚩 Report",
+    "comment": "💬 Comment",
+    "any": "⭐ Any interaction"
+  },
+  "topics": {
+    "zdrowie": "Health",
+    "klimat": "Climate",
+    "polityka": "Politics",
+    "ekonomia": "Economy",
+    "nauka": "Science",
+    "technologia": "Technology",
+    "sport": "Sport",
+    "kultura": "Culture"
+  },
+  "builder": {
+    "autosave": "Changes saved automatically",
+    "saved": "Saved ✓",
+    "preview": "Preview",
+    "save": "Save",
+    "basic_info": "Basic information",
+    "screens": "Study screens",
+    "consent_screen": "Consent screen",
+    "no_consent_screen": "Consent declined",
+    "instruction_screen": "Instructions",
+    "debrief_screen": "Debrief",
+    "always": "Always",
+    "parts": "Experiment parts",
+    "add_part": "+ Add part",
+    "post_elements": "Post elements",
+    "add_question": "+ Add question",
+    "question_open": "Open text",
+    "question_single": "Single choice",
+    "question_multi": "Multiple choice",
+    "question_required": "Required",
+    "add_option": "+ Option",
+    "logic": "Conditional logic",
+    "layout_feed": "Feed",
+    "layout_paged": "Pager",
+    "transition_before_part": "Show transition screen before this part",
+    "pq_next": "Next →"
+  }
+}

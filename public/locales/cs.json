@@ -1,0 +1,175 @@
+{
+  "consent": {
+    "btn_agree": "Souhlasím a chci se zúčastnit",
+    "btn_decline": "Nesouhlasím"
+  },
+  "instruction": {
+    "btn_start": "Rozumím, začínám!",
+    "title": "Pokyny k výzkumu",
+    "icon_like": "Líbí se mi",
+    "icon_dislike": "Nelíbí se mi",
+    "icon_share": "Sdílet",
+    "icon_flag": "Nahlásit"
+  },
+  "demographics": {
+    "title": "Několik otázek o vás",
+    "subtitle": "Všechna data jsou anonymní a slouží výhradně pro výzkumné účely.",
+    "btn_next": "Pokračovat dál",
+    "hint_fill_all": "Prosím vyplňte všechna pole.",
+    "text_placeholder": "Napište svou odpověď..."
+  },
+  "feed": {
+    "btn_next_post": "Další příspěvek →",
+    "btn_end_feed": "Ukončit prohlížení →",
+    "progress_label": "Reagoval/a jste na {{reacted}} z {{total}} příspěvků",
+    "btn_proceed_rating": "Přejít na hodnocení důvěryhodnosti →"
+  },
+  "rating": {
+    "hint_select": "Vyberte hodnocení pro pokračování",
+    "btn_next": "Dál →",
+    "btn_finish": "Ukončit hodnocení →",
+    "progress_label": "Hodnocení {{current}} z {{total}}"
+  },
+  "paged": {
+    "progress_label": "Příspěvek {{current}} z {{total}}",
+    "btn_back": "← Zpět",
+    "btn_next": "Dál →"
+  },
+  "back_warning": {
+    "title": "Opustit studii?",
+    "body": "Návrat ukončí vaši relaci. Vaše odpovědi mohou být ztraceny.",
+    "stay": "Zůstat ve studii",
+    "leave": "Opustit"
+  },
+  "transition_feed": {
+    "emoji": "📱",
+    "title": "Za chvíli uvidíte feed sociálních médií",
+    "body": "Procházejte jej tak, jak to děláte každý den. Můžete reagovat na příspěvky.",
+    "btn_start": "Začínám procházet →",
+    "emoji_paged": "📋",
+    "title_paged": "Za chvíli uvidíte sérii příspěvků"
+  },
+  "transition_rating": {
+    "emoji": "⭐",
+    "title": "Nyní ohodnotíte důvěryhodnost příspěvků",
+    "body": "U každého příspěvku ohodnoťte na škále 1–7, do jaké míry jej považujete za důvěryhodný.",
+    "btn_start": "Začínám hodnotit →",
+    "h2_after_feed": "Děkujeme za prohlížení feedu!"
+  },
+  "debrief": {
+    "btn_finish": "Ukončit",
+    "btn_back_to_panel": "Zpět do panelu →",
+    "title": "Děkujeme za účast!",
+    "section_goal": "Cíl výzkumu",
+    "section_posts": "Příspěvky — pravda a lež",
+    "posts_description": "Níže najdete všechny příspěvky, které jste viděl/a během výzkumu, s označením, zda obsahovaly pravdivé nebo nepravdivé informace.",
+    "contact_text": "V případě dotazů nebo pochybností nás kontaktujte:",
+    "badge_true": "PRAVDA",
+    "badge_false": "NEPRAVDA"
+  },
+  "screen": {
+    "complete_title": "Děkujeme za účast!",
+    "complete_body": "Vaše odpovědi byly uloženy. Můžete zavřít tuto stránku.",
+    "no_consent_title": "Děkujeme",
+    "no_consent_body": "Rozumíme vašemu rozhodnutí. Můžete zavřít tuto stránku.",
+    "error_title": "Došlo k chybě",
+    "error_body": "Zkuste obnovit stránku."
+  },
+  "camera_consent": {
+    "btn_agree": "📷 Souhlasím se sledováním pohledu",
+    "btn_decline": "Nesouhlasím",
+    "loading": "⏳ Načítání knihovny…",
+    "allow_camera": "📷 Povolte přístup ke kameře…",
+    "error_blocked": "⚠️ Přístup ke kameře blokován. Zkontrolujte oprávnění a zkuste to znovu.",
+    "title": "Sledování pohledu (volitelné)",
+    "description": "Tato studie může volitelně zaznamenávat pohyb vašich očí pomocí kamery, aby lépe porozuměla tomu, jak procházíte příspěvky.",
+    "important_title": "Důležité informace:",
+    "bullet_camera_only": "Kamera slouží výhradně k odhadování směru pohledu",
+    "bullet_no_save": "Obraz z kamery není nikdy ukládán ani přenášen",
+    "bullet_coords_only": "Ukládají se pouze souřadnice bodu pohledu (x, y)",
+    "bullet_optional": "Odmítnutí neovlivní průběh výzkumu"
+  },
+  "calibration": {
+    "btn_skip": "Přeskočit kalibraci",
+    "instruction": "Dívejte se na bod a klikněte na něj. Bod {{n}} z {{total}}",
+    "checking": "Kontroluji přesnost kalibrace…",
+    "look_at_dot": "Dívejte se na bod…",
+    "inaccurate": "Kalibrace nepřesná{{error}}. Zkuste znovu nebo pokračujte bez sledování pohledu.",
+    "btn_retry": "Znovu kalibrovat",
+    "btn_skip_tracking": "Přeskočit sledování"
+  },
+  "errors": {
+    "generic": "Došlo k chybě. Zkuste obnovit stránku.",
+    "no_access": "Prosím získejte přístup přes URL výzkumu.",
+    "session_failed": "Nepodařilo se zahájit relaci.",
+    "saving": "Ukládání odpovědí…",
+    "post_question_save": "Odpovědi se nepodařilo uložit. Zkontrolujte připojení k internetu a zkuste to znovu.",
+    "retry": "Zkusit znovu",
+    "session_complete_failed": "Chyba při ukončování relace"
+  },
+  "pq": {
+    "answer_placeholder": "Vaše odpověď..."
+  },
+  "misc": {
+    "loading": "Načítání…",
+    "next": "Dál →",
+    "back": "← Zpět",
+    "study_default_name": "Výzkum dezinformací"
+  },
+  "actions": {
+    "like": "Líbí se mi",
+    "dislike": "Nelíbí se mi",
+    "share": "Sdílet",
+    "flag": "Nahlásit",
+    "likert_question": "Jak hodnotíte důvěryhodnost tohoto příspěvku?",
+    "likert_min": "Zcela nespolehlivé",
+    "likert_max": "Plně spolehlivé",
+    "comment_placeholder": "Napište komentář k tomuto příspěvku..."
+  },
+  "requirement": {
+    "like": "👍 Líbí se mi",
+    "dislike": "👎 Nelíbí se mi",
+    "like_or_dislike": "👍👎 Líbí / Nelíbí",
+    "share": "🔄 Sdílet",
+    "flag": "🚩 Nahlásit",
+    "comment": "💬 Komentovat",
+    "any": "⭐ Jakákoli interakce"
+  },
+  "topics": {
+    "zdrowie": "Zdraví",
+    "klimat": "Klima",
+    "polityka": "Politika",
+    "ekonomia": "Ekonomika",
+    "nauka": "Věda",
+    "technologia": "Technologie",
+    "sport": "Sport",
+    "kultura": "Kultura"
+  },
+  "builder": {
+    "autosave": "Změny se ukládají automaticky",
+    "saved": "Uloženo ✓",
+    "preview": "Náhled",
+    "save": "Uložit",
+    "basic_info": "Základní informace",
+    "screens": "Obrazovky studie",
+    "consent_screen": "Obrazovka souhlasu",
+    "no_consent_screen": "Odmítnutí souhlasu",
+    "instruction_screen": "Pokyny",
+    "debrief_screen": "Debriefing",
+    "always": "Vždy",
+    "parts": "Části experimentu",
+    "add_part": "+ Přidat část",
+    "post_elements": "Prvky po příspěvku",
+    "add_question": "+ Přidat otázku",
+    "question_open": "Otevřené",
+    "question_single": "Jednoduchý výběr",
+    "question_multi": "Vícenásobný výběr",
+    "question_required": "Povinné",
+    "add_option": "+ Možnost",
+    "logic": "Podmíněná logika",
+    "layout_feed": "Feed",
+    "layout_paged": "Stránkovaný",
+    "transition_before_part": "Zobrazit přechodovou obrazovku před touto částí",
+    "pq_next": "Další →"
+  }
+}

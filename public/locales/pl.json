@@ -1,0 +1,175 @@
+{
+  "consent": {
+    "btn_agree": "Wyrażam zgodę i chcę wziąć udział",
+    "btn_decline": "Nie wyrażam zgody"
+  },
+  "instruction": {
+    "btn_start": "Rozumiem, zaczynam!",
+    "title": "Instrukcja badania",
+    "icon_like": "Lubię to",
+    "icon_dislike": "Nie lubię",
+    "icon_share": "Udostępnij",
+    "icon_flag": "Zgłoś"
+  },
+  "demographics": {
+    "title": "Kilka pytań o Ciebie",
+    "subtitle": "Wszystkie dane są anonimowe i służą wyłącznie celom badawczym.",
+    "btn_next": "Przejdź dalej",
+    "hint_fill_all": "Proszę wypełnić wszystkie pola.",
+    "text_placeholder": "Wpisz odpowiedź..."
+  },
+  "feed": {
+    "btn_next_post": "Następny post →",
+    "btn_end_feed": "Zakończ przeglądanie →",
+    "progress_label": "Zareagowałeś/aś na {{reacted}} z {{total}} postów",
+    "btn_proceed_rating": "Przejdź do oceny wiarygodności →"
+  },
+  "rating": {
+    "hint_select": "Wybierz ocenę aby przejść dalej",
+    "btn_next": "Dalej →",
+    "btn_finish": "Zakończ ocenę →",
+    "progress_label": "Ocena {{current}} z {{total}}"
+  },
+  "paged": {
+    "progress_label": "Post {{current}} z {{total}}",
+    "btn_back": "← Wstecz",
+    "btn_next": "Dalej →"
+  },
+  "back_warning": {
+    "title": "Opuścić badanie?",
+    "body": "Cofnięcie strony zakończy Twoją sesję. Twoje odpowiedzi mogą zostać utracone.",
+    "stay": "Zostań w badaniu",
+    "leave": "Opuść"
+  },
+  "transition_feed": {
+    "emoji": "📱",
+    "title": "Za chwilę zobaczysz feed mediów społecznościowych",
+    "body": "Przeglądaj go tak jak robisz to na co dzień. Możesz reagować na posty.",
+    "btn_start": "Zaczynam przeglądać →",
+    "emoji_paged": "📋",
+    "title_paged": "Za chwilę zobaczysz serię postów"
+  },
+  "transition_rating": {
+    "emoji": "⭐",
+    "title": "Teraz ocenisz wiarygodność postów",
+    "body": "Dla każdego postu oceń w skali 1–7, na ile uważasz go za wiarygodny.",
+    "btn_start": "Zaczynam oceniać →",
+    "h2_after_feed": "Dziękujemy za przeglądanie feeda!"
+  },
+  "debrief": {
+    "btn_finish": "Zakończ",
+    "btn_back_to_panel": "Wróć do panelu →",
+    "title": "Dziękujemy za udział w badaniu!",
+    "section_goal": "Cel badania",
+    "section_posts": "Posty — prawda i fałsz",
+    "posts_description": "Poniżej znajdziesz wszystkie posty, które widziałeś/aś podczas badania, z oznaczeniem, czy zawierały prawdziwe, czy fałszywe informacje.",
+    "contact_text": "W przypadku pytań lub wątpliwości skontaktuj się z nami:",
+    "badge_true": "PRAWDA",
+    "badge_false": "FAŁSZ"
+  },
+  "screen": {
+    "complete_title": "Dziękujemy za udział w badaniu!",
+    "complete_body": "Twoje odpowiedzi zostały zapisane. Możesz zamknąć tę stronę.",
+    "no_consent_title": "Dziękujemy",
+    "no_consent_body": "Rozumiemy Twoją decyzję. Możesz zamknąć tę stronę.",
+    "error_title": "Wystąpił błąd",
+    "error_body": "Spróbuj odświeżyć stronę."
+  },
+  "camera_consent": {
+    "btn_agree": "📷 Wyrażam zgodę na śledzenie wzroku",
+    "btn_decline": "Nie wyrażam zgody",
+    "loading": "⏳ Ładowanie biblioteki…",
+    "allow_camera": "📷 Zezwól na dostęp do kamery…",
+    "error_blocked": "⚠️ Dostęp do kamery zablokowany. Sprawdź uprawnienia i spróbuj ponownie.",
+    "title": "Śledzenie wzroku (opcjonalne)",
+    "description": "To badanie może opcjonalnie rejestrować ruch Twoich oczu za pomocą kamery, aby lepiej zrozumieć, jak przeglądasz posty.",
+    "important_title": "Ważne informacje:",
+    "bullet_camera_only": "Kamera służy wyłącznie do estymacji kierunku wzroku",
+    "bullet_no_save": "Obraz z kamery nigdy nie jest zapisywany ani przesyłany",
+    "bullet_coords_only": "Zapisywane są jedynie współrzędne punktu patrzenia (x, y)",
+    "bullet_optional": "Odmowa nie wpływa na przebieg badania"
+  },
+  "calibration": {
+    "btn_skip": "Pomiń kalibrację",
+    "instruction": "Spójrz na punkt i kliknij go. Punkt {{n}} z {{total}}",
+    "checking": "Sprawdzam dokładność kalibracji…",
+    "look_at_dot": "Spójrz na punkt…",
+    "inaccurate": "Kalibracja niedokładna{{error}}. Spróbuj ponownie lub kontynuuj bez śledzenia wzroku.",
+    "btn_retry": "Kalibruj ponownie",
+    "btn_skip_tracking": "Pomiń śledzenie"
+  },
+  "errors": {
+    "generic": "Wystąpił błąd. Spróbuj odświeżyć stronę.",
+    "no_access": "Proszę uzyskać dostęp przez URL badania.",
+    "session_failed": "Nie udało się rozpocząć sesji.",
+    "saving": "Zapisywanie odpowiedzi…",
+    "post_question_save": "Nie udało się zapisać odpowiedzi. Sprawdź połączenie z internetem i spróbuj ponownie.",
+    "retry": "Spróbuj ponownie",
+    "session_complete_failed": "Błąd podczas kończenia sesji"
+  },
+  "pq": {
+    "answer_placeholder": "Twoja odpowiedź..."
+  },
+  "misc": {
+    "loading": "Ładowanie…",
+    "next": "Dalej →",
+    "back": "← Wstecz",
+    "study_default_name": "Badanie dezinformacji"
+  },
+  "actions": {
+    "like": "Lubię to",
+    "dislike": "Nie lubię",
+    "share": "Udostępnij",
+    "flag": "Zgłoś",
+    "likert_question": "Jak oceniasz wiarygodność tego postu?",
+    "likert_min": "Zupełnie niewiarygodna",
+    "likert_max": "W pełni wiarygodna",
+    "comment_placeholder": "Napisz komentarz do tego postu..."
+  },
+  "requirement": {
+    "like": "👍 Polub",
+    "dislike": "👎 Nie lubię",
+    "like_or_dislike": "👍👎 Polub / Nie lubię",
+    "share": "🔄 Udostępnij",
+    "flag": "🚩 Zgłoś",
+    "comment": "💬 Skomentuj",
+    "any": "⭐ Dowolna interakcja"
+  },
+  "topics": {
+    "zdrowie": "Zdrowie",
+    "klimat": "Klimat",
+    "polityka": "Polityka",
+    "ekonomia": "Ekonomia",
+    "nauka": "Nauka",
+    "technologia": "Technologia",
+    "sport": "Sport",
+    "kultura": "Kultura"
+  },
+  "builder": {
+    "autosave": "Zmiany zapisywane automatycznie",
+    "saved": "Zapisano ✓",
+    "preview": "Podgląd",
+    "save": "Zapisz",
+    "basic_info": "Podstawowe informacje",
+    "screens": "Ekrany badania",
+    "consent_screen": "Ekran zgody",
+    "no_consent_screen": "Odmowa zgody",
+    "instruction_screen": "Instrukcja",
+    "debrief_screen": "Debriefing",
+    "always": "Zawsze",
+    "parts": "Części eksperymentu",
+    "add_part": "+ Dodaj część",
+    "post_elements": "Elementy po poście",
+    "add_question": "+ Dodaj pytanie",
+    "question_open": "Otwarte",
+    "question_single": "Jednokrotny wybór",
+    "question_multi": "Wielokrotny wybór",
+    "question_required": "Wymagane",
+    "add_option": "+ Opcja",
+    "logic": "Logika warunkowa",
+    "layout_feed": "Feed",
+    "layout_paged": "Pager",
+    "transition_before_part": "Pokaż ekran przejścia przed tą częścią",
+    "pq_next": "Dalej →"
+  }
+}

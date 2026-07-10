@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Misinfo Research — Technical Documentation</title>
+<style>
+  :root {
+    --bg: #f7f8fa; --surface: #ffffff; --border: #e3e6ea; --text: #1f2733;
+    --muted: #667085; --accent: #2563eb; --code-bg: #f2f4f7; --ok: #15803d;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+         color: var(--text); background: var(--bg); line-height: 1.6; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 2.5rem 1.25rem 5rem; }
+  header.top { border-bottom: 1px solid var(--border); padding-bottom: 1.5rem; margin-bottom: 2rem; }
+  h1 { font-size: 1.9rem; margin: 0 0 0.4rem; }
+  h2 { font-size: 1.3rem; margin: 2.5rem 0 0.75rem; padding-top: 0.5rem; border-top: 1px solid var(--border); }
+  h3 { font-size: 1.02rem; margin: 1.5rem 0 0.5rem; }
+  p, li { color: var(--text); }
+  .lead { color: var(--muted); font-size: 1.05rem; }
+  code { background: var(--code-bg); padding: 0.1rem 0.35rem; border-radius: 4px; font-size: 0.88em;
+         font-family: "SF Mono", Menlo, Consolas, monospace; }
+  pre { background: var(--code-bg); padding: 1rem; border-radius: 8px; overflow-x: auto; border: 1px solid var(--border); }
+  pre code { background: none; padding: 0; }
+  table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; font-size: 0.92rem; }
+  th, td { text-align: left; padding: 0.5rem 0.65rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  a { color: var(--accent); }
+  .toc { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.25rem; }
+  .toc ul { margin: 0.25rem 0 0; padding-left: 1.1rem; columns: 2; }
+  .toc a { text-decoration: none; }
+  .note { background: #eef4ff; border-left: 3px solid var(--accent); padding: 0.75rem 1rem; border-radius: 0 6px 6px 0; margin: 1rem 0; }
+  .pill { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); border-radius: 20px;
+          padding: 0.05rem 0.6rem; font-size: 0.8rem; color: var(--muted); }
+  footer { margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.88rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1>🔬 Misinfo Research — Technical Documentation</h1>
+  <p class="lead">A self-hosted platform for running social-media misinformation experiments: build a simulated feed, randomise conditions, collect participant reactions and eye-tracking, and export analysis-ready data.</p>
+</header>
+
+<nav class="toc">
+  <strong>Contents</strong>
+  <ul>
+    <li><a href="#overview">Overview</a></li>
+    <li><a href="#stack">Architecture &amp; stack</a></li>
+    <li><a href="#model">Data model</a></li>
+    <li><a href="#accounts">Accounts &amp; auth</a></li>
+    <li><a href="#flow">Participant flow</a></li>
+    <li><a href="#design">Experimental design</a></li>
+    <li><a href="#logic">Conditional logic</a></li>
+    <li><a href="#i18n">Translations</a></li>
+    <li><a href="#api">API overview</a></li>
+    <li><a href="#deploy">Deployment</a></li>
+    <li><a href="#dev">Local development</a></li>
+  </ul>
+</nav>
+
+<h2 id="overview">Overview</h2>
+<p>Researchers compose studies in a browser admin panel — a feed of posts (true / false, with configurable source, headline, image, engagement metrics and comments), demographic and per-post question screens, consent / instruction / debrief text, and optional between-subjects manipulations. Participants open a public link, complete the study anonymously, and every reaction, rating, answer and (optionally) gaze sample is stored. Data exports to Excel/CSV with one row per participant.</p>
+
+<h2 id="stack">Architecture &amp; stack</h2>
+<table>
+  <tr><th>Layer</th><th>Technology</th></tr>
+  <tr><td>Runtime</td><td>Node.js + Express</td></tr>
+  <tr><td>Database</td><td>SQLite via <code>better-sqlite3</code> (synchronous, WAL mode)</td></tr>
+  <tr><td>Admin panel</td><td>Vanilla HTML/CSS/JS single-page app (<code>public/admin.html</code> + <code>public/js/admin.js</code>)</td></tr>
+  <tr><td>Participant app</td><td>Vanilla SPA (<code>public/index.html</code> + <code>public/js/participant.js</code>)</td></tr>
+  <tr><td>Auth</td><td>JWT (admin panel) — participants are unauthenticated</td></tr>
+  <tr><td>Export</td><td>ExcelJS (.xlsx) + CSV</td></tr>
+  <tr><td>Translations</td><td>Anthropic SDK (optional, key-gated)</td></tr>
+  <tr><td>Images</td><td>Stored as BLOBs in SQLite, streamed via <code>/uploads/:studyId/:file</code></td></tr>
+</table>
+<p>Two Express routers: <code>routes/admin.js</code> (mounted at <code>/api/admin</code>, JWT-protected) and <code>routes/participant.js</code> (mounted at <code>/api</code>, public). Static assets and the two SPAs are served from <code>public/</code>.</p>
+
+<h2 id="model">Data model</h2>
+<p>Everything hangs off a <code>study</code>. Child rows link up by <code>study_id</code>; response tables link via <code>session_id</code>.</p>
+<table>
+  <tr><th>Table</th><th>Purpose</th></tr>
+  <tr><td><code>users</code></td><td>Admin-panel accounts (bcrypt hash, role <code>admin</code>/<code>researcher</code>)</td></tr>
+  <tr><td><code>studies</code></td><td>One experiment; <code>owner_id</code> → <code>users</code>. Holds all study config (text, layout, conditions, <code>logic_json</code>, <code>manipulation_json</code>, translations).</td></tr>
+  <tr><td><code>posts</code></td><td>Feed items for a study (content variants A/B, metrics, image BLOBs, per-post toggles)</td></tr>
+  <tr><td><code>post_library</code></td><td>Study-agnostic catalogue of reusable posts (copy-on-add into a study)</td></tr>
+  <tr><td><code>demographic_questions</code> / <code>post_questions</code></td><td>Survey items shown before the feed / attached to posts</td></tr>
+  <tr><td><code>sessions</code></td><td>One participant run (assigned condition, preview flag, external panel id, timings)</td></tr>
+  <tr><td><code>reactions</code> / <code>ratings</code> / <code>post_views</code> / <code>post_question_responses</code></td><td>Per-session behavioural data</td></tr>
+  <tr><td><code>gaze_points</code></td><td>Optional WebGazer.js eye-tracking samples</td></tr>
+  <tr><td><code>locale_overrides</code></td><td>Global UI string overrides per language</td></tr>
+</table>
+
+<h2 id="accounts">Accounts &amp; auth</h2>
+<p>The admin panel is multi-user and <strong>invite-only</strong> — there is no public sign-up. An <code>admin</code> creates accounts under the <span class="pill">👥 Konta</span> tab; each <code>researcher</code> sees and manages only studies they own (<code>studies.owner_id</code>), while an <code>admin</code> sees all.</p>
+<ul>
+  <li>Login is username + password; passwords are stored as bcrypt hashes.</li>
+  <li>The JWT payload is <code>{ userId, role }</code>; every study-touching endpoint verifies ownership server-side (a researcher probing another owner's study id gets <code>404</code>).</li>
+  <li>On first boot the server seeds one <code>admin</code> account from the <code>ADMIN_PASSWORD</code> environment variable and assigns any pre-existing studies to it. After that, <code>ADMIN_PASSWORD</code> is no longer consulted — change the password from inside the panel.</li>
+  <li>The server refuses to start without <code>JWT_SECRET</code> (no insecure fallback), and the login route is rate-limited.</li>
+</ul>
+<div class="note">Participants are never authenticated. Ownership scoping applies only to the admin API; the public participant routes stay open so anyone with a study link can take part.</div>
+
+<h2 id="flow">Participant flow</h2>
+<p>A participant opening <code>/study/&lt;slug&gt;</code> progresses through (each screen is optional per study): consent → instructions → demographics → the post feed (scrolling or one-post-at-a-time "paged" mode) with reactions and per-post questions → transition screens → debrief. A session row is created at start (<code>POST /api/session/start</code>) and finalised at completion, capturing timings and the assigned condition.</p>
+
+<h2 id="design">Experimental design</h2>
+<p>Studies support a between-subjects <strong>manipulation</strong> (<code>manipulation_json</code>): at session start the server randomly assigns a condition, which selects a per-post content variant (e.g. headline/image A vs B) and can drive social-proof metric levels. Assignment is balanced across a queue so cells fill evenly.</p>
+
+<h2 id="logic">Conditional logic</h2>
+<p>Beyond random assignment, a study can define deterministic <strong>within-subject branching</strong> (<code>logic_json</code>): rules of the form <em>IF &lt;demographic | condition | answer | reaction&gt; &lt;operator&gt; &lt;value&gt; THEN &lt;skip part | end study | go to part | hide question&gt;</em>. Rules are validated on save (dangling references rejected) and evaluated in the participant runtime at defined timings (after demographics, after a part, after an interaction). Skipped parts are recorded so there are no silent gaps in the data.</p>
+
+<h2 id="i18n">Translations</h2>
+<p>A study has a base language and a <code>translations_json</code> overlay per additional language (Polish, English, Czech, Slovak). Researchers can fill a target language automatically with the "Przetłumacz automatycznie" action, which calls the Anthropic API when <code>ANTHROPIC_API_KEY</code> is configured; translations can then be reviewed and edited by hand. Global UI chrome strings are overridable via <code>locale_overrides</code> (admin-only).</p>
+
+<h2 id="api">API overview</h2>
+<table>
+  <tr><th>Group</th><th>Base</th><th>Auth</th></tr>
+  <tr><td>Admin</td><td><code>/api/admin/*</code></td><td>JWT bearer; study endpoints are owner-scoped, <code>/users</code> and <code>/locales</code> writes are admin-only</td></tr>
+  <tr><td>Participant</td><td><code>/api/*</code> (session, reaction, rating, responses, gaze…)</td><td>Public</td></tr>
+  <tr><td>Public read-only dashboard</td><td><code>/api/admin/public/dashboard/:token</code></td><td>Signed share token (self-scoped to one study)</td></tr>
+  <tr><td>Images</td><td><code>/uploads/:studyId/:file</code></td><td>Public (streamed from BLOB)</td></tr>
+</table>
+
+<h2 id="deploy">Deployment</h2>
+<p>The app is a single Node process and runs anywhere Node + a writable disk are available (it is deployed on Railway in the EU region). Configure via environment variables:</p>
+<table>
+  <tr><th>Variable</th><th>Required</th><th>Purpose</th></tr>
+  <tr><td><code>JWT_SECRET</code></td><td>yes</td><td>Signing secret for admin tokens — the server won't start without it</td></tr>
+  <tr><td><code>ADMIN_PASSWORD</code></td><td>first boot</td><td>Initial password for the seeded <code>admin</code> account</td></tr>
+  <tr><td><code>ANTHROPIC_API_KEY</code></td><td>optional</td><td>Enables AI-assisted translation; without it the feature is disabled</td></tr>
+  <tr><td><code>DATABASE_PATH</code></td><td>optional</td><td>SQLite file path (default <code>./data/research.db</code>)</td></tr>
+  <tr><td><code>UPLOADS_PATH</code></td><td>optional</td><td>Legacy disk-image fallback path (default <code>./uploads</code>)</td></tr>
+  <tr><td><code>PORT</code></td><td>optional</td><td>HTTP port (default 3000)</td></tr>
+</table>
+<div class="note">Secrets live only in environment variables — never commit a <code>.env</code> file. The database (<code>data/</code>) and uploads are gitignored; back them up separately.</div>
+
+<h2 id="dev">Local development</h2>
+<pre><code>npm install
+# create a .env with at least:
+#   JWT_SECRET=&lt;a long random string&gt;
+#   ADMIN_PASSWORD=&lt;initial admin password&gt;
+npm run dev        # nodemon
+# open http://localhost:3000/admin.html and log in as "admin"</code></pre>
+
+<footer>
+  Misinfo Research Platform · MIT License · See <a href="https://github.com/lowcydizajnu/missinfo-research">the repository</a> for source and issues.
+</footer>
+
+</div>
+</body>
+</html>
