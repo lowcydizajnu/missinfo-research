@@ -5,6 +5,13 @@ const fs = require('fs');
 
 const app = express();
 
+// Behind a hosting proxy (Railway, Render, most PaaS) the real client IP arrives
+// in the X-Forwarded-For header. Trust exactly ONE proxy hop so req.ip is the
+// real client (not the proxy) — required for express-rate-limit to identify
+// callers, and it otherwise throws ERR_ERL_UNEXPECTED_X_FORWARDED_FOR. Trusting
+// a single hop (not `true`) keeps clients from spoofing X-Forwarded-For.
+app.set('trust proxy', 1);
+
 // Ensure required directories exist
 const dbPath = process.env.DATABASE_PATH || './data/research.db';
 const dataDir = path.dirname(path.resolve(dbPath));
