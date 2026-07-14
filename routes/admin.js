@@ -2416,7 +2416,7 @@ router.patch('/studies/:id/builder', auth, (req, res) => {
     'custom_domain',
     'is_active', 'participant_title',
     'enable_condition_a', 'enable_condition_b',
-    'metric_conditions_json', 'posts_per_session',
+    'metric_conditions_json', 'show_metrics', 'posts_per_session',
     'post_questions_display_mode', 'manipulation_field', 'manipulation_variants', 'manipulation_json'];
   const updates = {};
   allowed.forEach(f => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });

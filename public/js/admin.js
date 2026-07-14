@@ -1308,7 +1308,11 @@ async function renderBuilderView(studyId) {
 
     <div class="builder-section" data-konfig="1">
       <div class="builder-section-title">📊 Warunki metryk (dowód społeczny)</div>
-      <p style="font-size:0.8rem;color:var(--muted);margin-bottom:0.75rem">Drugi czynnik między-osobowy: zakresy metryk (lajki / udostępnienia / reakcje) losowane per warunek — np. <b>wysoki vs niski dowód społeczny</b>. Uczestnik losowo trafia do jednego warunku metryk; łącząc to z podziałem A/B powyżej uzyskujesz plan 2×2. <b>min/max</b> = zakres losowania liczb (0 = użyj wartości bazowych posta).</p>
+      <label style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem;cursor:pointer">
+        <input type="checkbox" id="bld-show-metrics" ${s.show_metrics !== 0 ? 'checked' : ''}>
+        <span style="font-size:0.85rem">Pokaż liczniki metryk uczestnikom (👍 lajki, udostępnienia, reakcje pod postami)</span>
+      </label>
+      <p style="font-size:0.8rem;color:var(--muted);margin-bottom:0.75rem">Drugi czynnik między-osobowy: zakresy metryk (lajki / udostępnienia / reakcje) losowane per warunek — np. <b>wysoki vs niski dowód społeczny</b>. Uczestnik losowo trafia do jednego warunku metryk; łącząc to z podziałem A/B powyżej uzyskujesz plan 2×2. <b>min/max</b> = zakres losowania liczb; jeśli w poście wpiszesz konkretną wartość bazową, ma ona <b>priorytet</b> nad zakresem.</p>
       <div id="es-metric-conditions" style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:0.5rem">
         ${metricConds.map(c => metricConditionRowHTML(c)).join('')}
       </div>
@@ -1854,6 +1858,9 @@ async function builderSave(studyId, silent = false) {
       enabled: row.querySelector('.mc-enabled').checked,
       show_comment: row.querySelector('.mc-show-comment').checked,
     }))),
+    // Only send show_metrics when the toggle is actually in the DOM, so a render
+    // path without it can never silently flip metrics off.
+    ...(document.getElementById('bld-show-metrics') ? { show_metrics: document.getElementById('bld-show-metrics').checked ? 1 : 0 } : {}),
     clarity_enabled:              document.getElementById('bld-clarity-enabled')?.checked ? 1 : 0,
     clarity_project_id:           document.getElementById('bld-clarity-pid')?.value.trim() || null,
     eyetracking_enabled:          document.getElementById('bld-et-enabled')?.checked ? 1 : 0,

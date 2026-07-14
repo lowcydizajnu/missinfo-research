@@ -120,6 +120,29 @@ router.post('/session/start', (req, res) => {
     const condIdx = conditionOptions.indexOf(conditionKey);
     const condSuffix = ['_a', '_b'][condIdx] || '_a';
 
+    // Metric (social-proof) condition — a second between-subjects factor. Assign a
+    // random enabled condition from metric_conditions_json (first one in preview
+    // for determinism). A range (max>0) generates the shown numbers; but a value
+    // pinned on the post itself (base_*) always wins over the range. No conditions
+    // → legacy 'BUILDER' key + base values only (unchanged behaviour).
+    let metricConds = [];
+    try { metricConds = JSON.parse(study.metric_conditions_json || '[]'); } catch {}
+    const enabledMetricConds = metricConds.filter(m => m && m.enabled !== false && m.key);
+    const metricCondObj = enabledMetricConds.length
+      ? (isPreview ? enabledMetricConds[0] : enabledMetricConds[Math.floor(Math.random() * enabledMetricConds.length)])
+      : { key: 'BUILDER', min: 0, max: 0 };
+    // A metric condition is a real between-subjects FACTOR only with 2+ enabled
+    // arms. With 0–1 arms, keep the legacy 'BUILDER' key + simple full_condition
+    // so existing studies' recorded conditions don't change format mid-study
+    // (a single arm still applies its range to the numbers via metricCondObj).
+    const metricKey = enabledMetricConds.length >= 2 ? metricCondObj.key : 'BUILDER';
+    const builderMetric = (baseVal) => {
+      const b = Number(baseVal) || 0;
+      if (b > 0) return b;                                                       // pinned post value wins
+      if (Number(metricCondObj.max) > 0) return randInt(Number(metricCondObj.min) || 0, Number(metricCondObj.max)); // condition range
+      return b;                                                                  // nothing set → 0
+    };
+
     // ORDER BY order_index so the researcher's reorder (admin ↑↓ arrows,
     // which swap order_index) is reflected in the participant feed. id is the
     // tie-breaker for posts that were never reordered (same/0 order_index),
@@ -130,7 +153,7 @@ router.post('/session/start', (req, res) => {
 
     const token = uuidv4();
     db.prepare(`INSERT INTO sessions (study_id, session_token, style_condition, metric_condition, full_condition, is_preview, external_id) VALUES (?, ?, ?, ?, ?, ?, ?)`)
-      .run(study_id, token, conditionKey, 'BUILDER', conditionKey, isPreview ? 1 : 0, externalId);
+      .run(study_id, token, conditionKey, metricKey, metricKey === 'BUILDER' ? conditionKey : `${conditionKey}-${metricKey}`, isPreview ? 1 : 0, externalId);
 
     // Resolve multi-part assignment. part_ids_json is the canonical list when
     // present; otherwise fall back to [part_id] so every pre-migration post
@@ -179,12 +202,12 @@ router.post('/session/start', (req, res) => {
       base_dislikes: post.base_dislikes || 0,
       base_shares: post.base_shares || 0,
       base_flags: post.base_flags || 0,
-      likes_shown: post.base_likes || 0,
-      dislikes_shown: post.base_dislikes || 0,
-      shares_shown: post.base_shares || 0,
-      flags_shown: post.base_flags || 0,
-      metric_min: 0,
-      metric_max: 0,
+      likes_shown: builderMetric(post.base_likes),
+      dislikes_shown: builderMetric(post.base_dislikes),
+      shares_shown: builderMetric(post.base_shares),
+      flags_shown: builderMetric(post.base_flags),
+      metric_min: Number(metricCondObj.min) || 0,
+      metric_max: Number(metricCondObj.max) || 0,
       builder_comments: (() => { try { return JSON.parse(post.builder_comments_json || '[]'); } catch { return []; } })(),
     }));
 
@@ -331,8 +354,8 @@ router.post('/session/start', (req, res) => {
       external_id: externalId,
       is_preview: isPreview ? 1 : 0,
       style_condition: conditionKey,
-      metric_condition: 'BUILDER',
-      full_condition: conditionKey,
+      metric_condition: metricKey,
+      full_condition: metricKey === 'BUILDER' ? conditionKey : `${conditionKey}-${metricKey}`,
       parts: studyParts,
       // Conditional-logic rules for the client-side engine (lib/logic.js). The
       // participant runtime guards on is_preview so rules never fire in preview.
