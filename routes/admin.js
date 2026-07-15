@@ -154,6 +154,14 @@ router.delete('/users/:id', auth, requireAdmin, (req, res) => {
   res.json({ ok: true, reassignedStudies: reassigned });
 });
 
+// Study ids a user collaborates on — for the Konta → "assign to studies" UI.
+// Adding/removing reuses the per-study endpoints (POST/DELETE
+// /studies/:id/collaborators), which admins are already allowed to call.
+router.get('/users/:id/collaborations', auth, requireAdmin, (req, res) => {
+  const rows = db.prepare('SELECT study_id FROM study_collaborators WHERE user_id = ?').all(req.params.id);
+  res.json(rows.map(r => r.study_id));
+});
+
 // ── Multer setup (in-memory: files written to SQLite BLOBs, not the filesystem) ─
 const upload = multer({
   storage: multer.memoryStorage(),
