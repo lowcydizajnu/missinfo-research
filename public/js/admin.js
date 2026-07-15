@@ -1485,17 +1485,19 @@ async function renderKonfiguratorTab(id) {
   const s = S.studies.find(x => String(x.id) === String(id));
   const empty = document.getElementById('konfig-empty');
   const wrap  = document.getElementById('konfig-form-wrap');
+  const toolbar = document.getElementById('konfig-toolbar');
   if (!empty || !wrap) return;
   if (!s) {
     empty.textContent = 'Wybierz badanie z listy powyżej, aby otworzyć konfigurator.';
-    empty.style.display = ''; wrap.style.display = 'none'; return;
+    empty.style.display = ''; wrap.style.display = 'none'; if (toolbar) toolbar.style.display = 'none'; return;
   }
   if (s.builder_mode !== 1) {
     empty.textContent = 'Konfigurator jest dostępny dla badań w trybie builder. To badanie używa klasycznych ustawień (zakładka Ustawienia).';
-    empty.style.display = ''; wrap.style.display = 'none'; return;
+    empty.style.display = ''; wrap.style.display = 'none'; if (toolbar) toolbar.style.display = 'none'; return;
   }
   empty.style.display = 'none';
   wrap.style.display = '';
+  if (toolbar) toolbar.style.display = 'flex';
   await ensureBuilderRendered(id); // populates #settings-form-wrap + relocates sections here
 }
 
@@ -1791,7 +1793,14 @@ async function builderSave(studyId, silent = false) {
   if (!view) return;
   const statusEl = document.getElementById('bld-save-status');
 
-  const partCards = view.querySelectorAll('.builder-part-card');
+  // Query the DOCUMENT, not #builder-view: the Konfigurator relocates the parts
+  // section into #konfig-form-wrap, so a builder-view-scoped query finds ZERO
+  // cards and would save parts_json='[]' — wiping every part (timer, requirements
+  // and all). Relocation MOVES the cards, so they exist in exactly one place.
+  const partCards = document.querySelectorAll('.builder-part-card');
+  // Safety net: never persist an empty parts list — if collection somehow finds
+  // nothing (e.g. mid-render), skip the parts_json field rather than wipe it.
+  if (!partCards.length) { console.warn('builderSave: 0 part cards found — skipping parts_json to avoid a wipe'); }
   const parts = Array.from(partCards).map((card, idx) => ({
     id: card.dataset.partId || `part-${idx}`,
     label: card.querySelector('.part-label-input')?.value || `Część ${idx+1}`,
@@ -1845,7 +1854,8 @@ async function builderSave(studyId, silent = false) {
     // (hidden → 0, anything else → 1).
     demographics_position:        document.getElementById('bld-demographics-position')?.value || 'after_consent',
     show_demographics:            (document.getElementById('bld-demographics-position')?.value === 'hidden') ? 0 : 1,
-    parts_json:                   JSON.stringify(parts),
+    // Never overwrite parts_json with an empty list (would wipe every part).
+    ...(partCards.length ? { parts_json: JSON.stringify(parts) } : {}),
     manipulation_json:            JSON.stringify(builderCollectManipulations()),
     logic_json:                   JSON.stringify(builderCollectLogic()),
     // Metric (social-proof) conditions — collected from the builder's section
@@ -1912,7 +1922,10 @@ async function builderSave(studyId, silent = false) {
 async function builderSaveQuestions(studyId) {
   const view = document.getElementById('builder-view');
   if (!view) return;
-  const cards = view.querySelectorAll('.builder-question-card[data-qid]');
+  // Document-scoped: the Konfigurator relocates the parts (with their question
+  // cards) into #konfig-form-wrap, so a builder-view query would find none and
+  // silently drop question edits made there.
+  const cards = document.querySelectorAll('.builder-question-card[data-qid]');
   const promises = [];
   cards.forEach((card, idx) => {
     const qid = card.dataset.qid;
