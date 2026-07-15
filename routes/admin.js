@@ -96,12 +96,24 @@ router.post('/login', loginLimiter, (req, res) => {
   res.json({ token, role: user.role, username: user.username });
 });
 
-// ── User management (admin-only; invite-only — no public self-registration) ─────
-router.get('/users', auth, requireAdmin, (req, res) => {
+// ── User management (accounts are invite-only — no public self-registration) ────
+// Admin gets the full roster to manage; a researcher gets a minimal login-only
+// list so they can grant collaborators access to studies THEY own. Everything
+// mutating (create/edit/delete/role) stays admin-only below.
+router.get('/users', auth, (req, res) => {
+  if (req.user.role === 'admin') {
+    return res.json(db.prepare(`
+      SELECT u.id, u.username, u.email, u.role, u.is_active, u.created_at, u.last_login,
+             (SELECT COUNT(*) FROM studies s WHERE s.owner_id = u.id) AS study_count
+      FROM users u ORDER BY u.id`).all());
+  }
+  // Researcher roster: login only — no emails, activity, roles, or study counts
+  // leak. Only active researchers (never admins — they already reach every study;
+  // never self — already the owner) are assignable.
   res.json(db.prepare(`
-    SELECT u.id, u.username, u.email, u.role, u.is_active, u.created_at, u.last_login,
-           (SELECT COUNT(*) FROM studies s WHERE s.owner_id = u.id) AS study_count
-    FROM users u ORDER BY u.id`).all());
+    SELECT id, username FROM users
+    WHERE is_active = 1 AND role = 'researcher' AND id != ?
+    ORDER BY username`).all(req.user.userId));
 });
 
 router.post('/users', auth, requireAdmin, (req, res) => {
@@ -156,9 +168,17 @@ router.delete('/users/:id', auth, requireAdmin, (req, res) => {
 
 // Study ids a user collaborates on — for the Konta → "assign to studies" UI.
 // Adding/removing reuses the per-study endpoints (POST/DELETE
-// /studies/:id/collaborators), which admins are already allowed to call.
-router.get('/users/:id/collaborations', auth, requireAdmin, (req, res) => {
-  const rows = db.prepare('SELECT study_id FROM study_collaborators WHERE user_id = ?').all(req.params.id);
+// /studies/:id/collaborators), which owners and admins are allowed to call.
+// Admin sees every collaboration; a researcher sees only the subset on studies
+// THEY own — never which other owners' studies the user can reach. This scopes
+// the pre-checked boxes to exactly what the caller may actually change.
+router.get('/users/:id/collaborations', auth, (req, res) => {
+  const rows = req.user.role === 'admin'
+    ? db.prepare('SELECT study_id FROM study_collaborators WHERE user_id = ?').all(req.params.id)
+    : db.prepare(`
+        SELECT sc.study_id FROM study_collaborators sc
+        JOIN studies s ON s.id = sc.study_id
+        WHERE sc.user_id = ? AND s.owner_id = ?`).all(req.params.id, req.user.userId);
   res.json(rows.map(r => r.study_id));
 });
 

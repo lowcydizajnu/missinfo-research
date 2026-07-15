@@ -232,13 +232,39 @@ function currentUserId() {
   catch { return null; }
 }
 
-// ── User management (admin-only) ─────────────────────────────────────────────
+// ── Konta view — admins manage accounts; researchers share their own studies ──
 async function renderUsersTab() {
+  const isAdmin = currentRole() === 'admin';
+  // Toggle the admin-only "+ Nowe konto" action and adapt the heading/intro.
+  const addBtn = document.getElementById('btn-add-user');
+  if (addBtn) addBtn.style.display = isAdmin ? '' : 'none';
+  const title = document.getElementById('users-title');
+  const intro = document.getElementById('users-intro');
+  if (title) title.textContent = isAdmin ? 'Konta użytkowników' : 'Udostępnianie badań';
+  if (intro) intro.textContent = isAdmin
+    ? 'Konta zakłada administrator (brak samodzielnej rejestracji). Każdy badacz widzi wyłącznie własne badania; administrator widzi wszystkie.'
+    : 'Przypisz innych badaczy do badań, których jesteś właścicielem. „🔗 Badania" otwiera listę Twoich badań — zaznacz te, do których dana osoba ma mieć pełny dostęp do edycji.';
   const wrap = document.getElementById('users-list');
   wrap.innerHTML = '<div class="empty-state">Ładowanie…</div>';
   const users = await api('GET', '/users');
   if (!users) return;
   S.users = users;
+  if (!isAdmin) {
+    // Researcher view: a login-only roster; the only action is "🔗 Badania",
+    // which lists studies THIS researcher owns (openUserStudiesModal filters).
+    wrap.innerHTML = users.length ? `
+      <table class="data-table" style="width:100%;border-collapse:collapse">
+        <thead><tr style="text-align:left;border-bottom:2px solid var(--border)">
+          <th style="padding:0.5rem">Badacz</th><th></th>
+        </tr></thead>
+        <tbody>${users.map(u => `
+          <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:0.5rem;font-weight:600">${esc(u.username)}</td>
+            <td style="text-align:right"><button class="btn btn-ghost btn-sm" title="Przypisz do Twoich badań (współpraca)" onclick="openUserStudiesModal(${u.id})">🔗 Badania</button></td>
+          </tr>`).join('')}</tbody>
+      </table>` : '<div class="empty-state">Brak innych badaczy do przypisania.</div>';
+    return;
+  }
   wrap.innerHTML = `
     <table class="data-table" style="width:100%;border-collapse:collapse">
       <thead><tr style="text-align:left;border-bottom:2px solid var(--border)">
@@ -350,11 +376,15 @@ async function openUserStudiesModal(userId) {
   const user = (S.users || []).find(u => u.id === userId);
   if (!user) return;
   S.assignUser = user;
-  const [studies, collabs] = await Promise.all([
+  const [studiesRaw, collabs] = await Promise.all([
     api('GET', '/studies'),
     api('GET', `/users/${userId}/collaborations`),
   ]);
-  if (!studies || !collabs) return;
+  if (!studiesRaw || !collabs) return;
+  // Admin may assign any study; a researcher may only grant access to studies
+  // they OWN (the server enforces this too — a collaborator can't re-share).
+  const myId = currentUserId();
+  const studies = currentRole() === 'admin' ? studiesRaw : studiesRaw.filter(s => s.owner_id === myId);
   const collabSet = new Set(collabs.map(String));
   const rows = studies.map(s => {
     const owned = s.owner_id === userId;
@@ -365,7 +395,7 @@ async function openUserStudiesModal(userId) {
         ? '<span class="badge" style="background:#dbeafe;color:#1e40af">właściciel</span>'
         : `<label style="cursor:pointer;display:inline-flex;align-items:center;gap:0.4rem"><input type="checkbox" ${checked ? 'checked' : ''} onchange="toggleUserStudy(${s.id}, this.checked)"><span style="font-size:0.82rem;color:var(--muted)">dostęp</span></label>`}</td>
     </tr>`;
-  }).join('') || '<tr><td colspan="2" class="empty-state" style="padding:1rem">Brak badań.</td></tr>';
+  }).join('') || '<tr><td colspan="2" class="empty-state" style="padding:1rem">Nie masz badań do udostępnienia.</td></tr>';
   showModal(`
     <div class="modal-section-title">🔗 Przypisz badania: ${esc(user.username)}</div>
     <p style="color:var(--muted);font-size:0.85rem;margin:0.25rem 0 1rem">Zaznacz badania, do których ten badacz ma mieć <b>pełny dostęp do edycji</b> (posty, konfiguracja, dashboard, eksport). Widzi wyłącznie przypisane badania; nie może ich usuwać ani zarządzać dostępem. „Właściciel" = badanie należy do tego konta.</p>
@@ -426,11 +456,12 @@ function initAdminModeToggle() {
 function showAdminPanel() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('admin-panel').style.display = 'block';
-  // "Konta" lives in the header (top-level nav), admin-only (server also enforces
-  // this on every /users call). It opens the accounts view, not a study tab.
+  // "Konta" lives in the header (top-level nav). Admins manage accounts here;
+  // researchers use it to grant/revoke collaborator access to studies THEY own.
+  // Both roles see the button; the server scopes what each may read and change.
   const kontaBtn = document.getElementById('btn-konta');
   if (kontaBtn) {
-    kontaBtn.style.display = currentRole() === 'admin' ? '' : 'none';
+    kontaBtn.style.display = '';
     kontaBtn.onclick = showKontaView;
   }
   initAdminModeToggle();
