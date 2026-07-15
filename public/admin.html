@@ -161,12 +161,16 @@
       <div id="konfig-empty" class="empty-state" style="margin-top:3rem">
         Wybierz badanie z listy powyżej, aby otworzyć konfigurator.
       </div>
-      <div id="konfig-toolbar" style="display:none;align-items:center;gap:0.75rem;position:sticky;top:0;z-index:5;background:var(--bg,#f7f8fa);padding:0.6rem 0.25rem;margin-bottom:0.75rem;border-bottom:1px solid var(--border)">
-        <span style="font-size:0.82rem;color:var(--muted)">✅ Zmiany zapisują się automatycznie</span>
-        <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="builderPreview(S.activeStudy)">👁 Zapisz i otwórz podgląd</button>
-      </div>
       <div id="konfig-form-wrap" style="display:none">
         <!-- rendered by renderKonfiguratorTab() -->
+      </div>
+      <!-- Save/preview bar — fixed at the bottom, same pattern as Ustawienia -->
+      <div id="konfig-footer" class="study-action-bar" style="display:none">
+        <div class="study-action-bar-inner">
+          <button class="btn btn-primary" onclick="builderSave(S.activeStudy)">💾 Zapisz</button>
+          <button class="btn btn-ghost" onclick="builderPreview(S.activeStudy)">👁 Podgląd w nowej karcie</button>
+          <span class="bld-save-status" style="margin-left:auto;font-size:0.8rem;color:var(--muted)">Zmiany zapisywane automatycznie</span>
+        </div>
       </div>
     </div>
 

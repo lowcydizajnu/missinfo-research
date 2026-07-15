@@ -730,8 +730,10 @@ async function openStudySettings(id, inline = false) {
     </div>` : '';
 
   const footer = inline
-    ? `<div class="modal-footer" style="position:sticky;bottom:0;background:var(--surface);padding:1rem 0;margin-top:1rem">
-         <button class="btn btn-primary" onclick="saveStudySettings(${id})">Zapisz ustawienia</button>
+    ? `<div class="study-action-bar">
+         <div class="study-action-bar-inner">
+           <button class="btn btn-primary" onclick="saveStudySettings(${id})">Zapisz ustawienia</button>
+         </div>
        </div>`
     : `<div class="modal-footer">
          <button class="btn btn-primary" onclick="saveStudySettings(${id})">Zapisz</button>
@@ -1204,7 +1206,7 @@ async function renderBuilderView(studyId) {
       <button class="btn btn-ghost btn-sm" onclick="duplicateStudy(${studyId})">Duplikuj</button>
       <button class="btn btn-danger btn-sm" onclick="deleteStudy(${studyId}, '${esc(s.name)}')">Usuń</button>
     </div>
-    <p id="bld-save-status" style="font-size:0.75rem;color:var(--muted);margin:0.25rem 0 1.25rem">Zmiany zapisywane automatycznie</p>
+    <p id="bld-save-status" class="bld-save-status" style="font-size:0.75rem;color:var(--muted);margin:0.25rem 0 1.25rem">Zmiany zapisywane automatycznie</p>
 
     <div class="builder-section">
       <div class="builder-section-title">📋 Podstawowe informacje</div>
@@ -1476,9 +1478,11 @@ async function renderBuilderView(studyId) {
       <button class="btn btn-ghost btn-sm" style="margin-top:0.5rem" onclick="builderAddLogicRule()">+ Dodaj regułę</button>
     </div>
 
-    <div class="modal-footer" style="position:sticky;bottom:0;background:var(--surface);padding:1rem 0;margin-top:1.5rem;border-top:1px solid var(--border);display:flex;gap:0.75rem">
-      <button class="btn btn-primary" onclick="builderSave(${studyId})">💾 Zapisz</button>
-      <button class="btn btn-ghost" onclick="builderPreview(${studyId})">👁 Podgląd w nowej karcie</button>
+    <div class="study-action-bar">
+      <div class="study-action-bar-inner">
+        <button class="btn btn-primary" onclick="builderSave(${studyId})">💾 Zapisz</button>
+        <button class="btn btn-ghost" onclick="builderPreview(${studyId})">👁 Podgląd w nowej karcie</button>
+      </div>
     </div>
   </div>`;
 
@@ -1523,19 +1527,19 @@ async function renderKonfiguratorTab(id) {
   const s = S.studies.find(x => String(x.id) === String(id));
   const empty = document.getElementById('konfig-empty');
   const wrap  = document.getElementById('konfig-form-wrap');
-  const toolbar = document.getElementById('konfig-toolbar');
+  const footer = document.getElementById('konfig-footer');
   if (!empty || !wrap) return;
   if (!s) {
     empty.textContent = 'Wybierz badanie z listy powyżej, aby otworzyć konfigurator.';
-    empty.style.display = ''; wrap.style.display = 'none'; if (toolbar) toolbar.style.display = 'none'; return;
+    empty.style.display = ''; wrap.style.display = 'none'; if (footer) footer.style.display = 'none'; return;
   }
   if (s.builder_mode !== 1) {
     empty.textContent = 'Konfigurator jest dostępny dla badań w trybie builder. To badanie używa klasycznych ustawień (zakładka Ustawienia).';
-    empty.style.display = ''; wrap.style.display = 'none'; if (toolbar) toolbar.style.display = 'none'; return;
+    empty.style.display = ''; wrap.style.display = 'none'; if (footer) footer.style.display = 'none'; return;
   }
   empty.style.display = 'none';
   wrap.style.display = '';
-  if (toolbar) toolbar.style.display = 'flex';
+  if (footer) footer.style.display = '';
   await ensureBuilderRendered(id); // populates #settings-form-wrap + relocates sections here
 }
 
@@ -1829,7 +1833,9 @@ function builderAddRequirement(btn, studyId) {
 async function builderSave(studyId, silent = false) {
   const view = document.getElementById('builder-view');
   if (!view) return;
-  const statusEl = document.getElementById('bld-save-status');
+  // Both the Ustawienia top-status and the Konfigurator footer status carry this
+  // class; update all so autosave feedback shows on whichever tab is visible.
+  const statusEls = document.querySelectorAll('.bld-save-status');
 
   // Query the DOCUMENT, not #builder-view: the Konfigurator relocates the parts
   // section into #konfig-form-wrap, so a builder-view-scoped query finds ZERO
@@ -1947,11 +1953,11 @@ async function builderSave(studyId, silent = false) {
   if (result) {
     const idx = S.studies.findIndex(x => x.id == studyId);
     if (idx >= 0) S.studies[idx] = { ...S.studies[idx], ...result };
-    if (statusEl) {
-      statusEl.textContent = 'Zapisano ✓';
-      statusEl.style.color = 'var(--success, #22c55e)';
-      setTimeout(() => { if (statusEl) { statusEl.textContent = 'Zmiany zapisywane automatycznie'; statusEl.style.color = 'var(--muted)'; } }, 2500);
-    }
+    statusEls.forEach(el => {
+      el.textContent = 'Zapisano ✓';
+      el.style.color = 'var(--success, #22c55e)';
+      setTimeout(() => { el.textContent = 'Zmiany zapisywane automatycznie'; el.style.color = 'var(--muted)'; }, 2500);
+    });
     if (!silent) toast('Zapisano!');
   }
   return result;
