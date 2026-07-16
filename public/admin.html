@@ -105,60 +105,60 @@
 
     <!-- TAB: Dashboard -->
     <div class="tab-pane active" id="tab-dashboard">
-      <div class="tab-toolbar"><h2>Pulpit</h2></div>
+      <div class="tab-toolbar"><h2 data-i18n="panes.dashboard_title">Pulpit</h2></div>
       <div id="dashboard-content">
-        <div class="empty-state">Wybierz badanie z listy powyżej.</div>
+        <div class="empty-state" data-i18n="common.pick_study_first">Wybierz badanie z listy powyżej.</div>
       </div>
     </div>
 
     <!-- TAB: Post Editor -->
     <div class="tab-pane" id="tab-posts">
       <div class="tab-toolbar">
-        <h2>Edytor Postów</h2>
+        <h2 data-i18n="panes.posts_title">Edytor Postów</h2>
         <div style="display:flex;gap:0.5rem">
-          <button class="btn btn-ghost btn-sm" id="btn-post-library" title="Skopiuj gotowy post z biblioteki wielokrotnego użytku">🗂 Z biblioteki</button>
-          <button class="btn btn-primary btn-sm" id="btn-add-post">+ Dodaj post</button>
+          <button class="btn btn-ghost btn-sm" id="btn-post-library" data-i18n-title="panes.posts_library_title" data-i18n="panes.posts_library" title="Skopiuj gotowy post z biblioteki wielokrotnego użytku">🗂 Z biblioteki</button>
+          <button class="btn btn-primary btn-sm" id="btn-add-post" data-i18n="panes.posts_add">+ Dodaj post</button>
         </div>
       </div>
       <div id="posts-list">
-        <div class="empty-state">Wybierz badanie z listy powyżej.</div>
+        <div class="empty-state" data-i18n="common.pick_study_first">Wybierz badanie z listy powyżej.</div>
       </div>
     </div>
 
     <!-- TAB: Demographic Questions -->
     <div class="tab-pane" id="tab-demographics">
       <div class="tab-toolbar">
-        <h2>Pytania demograficzne</h2>
+        <h2 data-i18n="panes.demog_title">Pytania demograficzne</h2>
         <div style="display:flex;gap:0.5rem">
-          <button class="btn btn-ghost btn-sm" id="btn-preview-dq" title="Otwiera ekran demograficznych w nowej karcie, bez przechodzenia przez zgodę i instrukcje">👁 Podgląd ekranu</button>
-          <button class="btn btn-primary btn-sm" id="btn-add-dq">+ Dodaj pytanie</button>
+          <button class="btn btn-ghost btn-sm" id="btn-preview-dq" data-i18n-title="panes.demog_preview_title" data-i18n="panes.demog_preview" title="Otwiera ekran demograficznych w nowej karcie, bez przechodzenia przez zgodę i instrukcje">👁 Podgląd ekranu</button>
+          <button class="btn btn-primary btn-sm" id="btn-add-dq" data-i18n="panes.demog_add">+ Dodaj pytanie</button>
         </div>
       </div>
       <div id="dq-list">
-        <div class="empty-state">Wybierz badanie z listy powyżej.</div>
+        <div class="empty-state" data-i18n="common.pick_study_first">Wybierz badanie z listy powyżej.</div>
       </div>
     </div>
 
     <!-- TAB: Export -->
     <div class="tab-pane" id="tab-export">
-      <div class="tab-toolbar"><h2>Eksport danych</h2></div>
+      <div class="tab-toolbar"><h2 data-i18n="panes.export_title">Eksport danych</h2></div>
       <div id="export-content">
-        <div class="empty-state">Wybierz badanie z listy powyżej.</div>
+        <div class="empty-state" data-i18n="common.pick_study_first">Wybierz badanie z listy powyżej.</div>
       </div>
     </div>
 
     <!-- TAB: Analyses (in-app statistical tests) -->
     <div class="tab-pane" id="tab-analyses">
-      <div class="tab-toolbar"><h2>Analizy statystyczne</h2></div>
+      <div class="tab-toolbar"><h2 data-i18n="panes.analyses_title">Analizy statystyczne</h2></div>
       <div id="analyses-content">
-        <div class="empty-state">Wybierz badanie z listy powyżej.</div>
+        <div class="empty-state" data-i18n="common.pick_study_first">Wybierz badanie z listy powyżej.</div>
       </div>
     </div>
 
     <!-- TAB: Settings (inline study settings form) -->
     <div class="tab-pane" id="tab-settings">
       <div id="settings-empty" class="empty-state" style="margin-top:3rem">
-        Wybierz badanie z listy powyżej, aby edytować jego ustawienia.
+        <span data-i18n="panes.settings_empty">Wybierz badanie z listy powyżej, aby edytować jego ustawienia.</span>
       </div>
       <div id="settings-form-wrap" style="display:none">
         <!-- rendered by renderSettingsTab() -->
@@ -168,7 +168,7 @@
     <!-- TAB: Konfigurator (builder-mode studies) -->
     <div class="tab-pane" id="tab-konfigurator">
       <div id="konfig-empty" class="empty-state" style="margin-top:3rem">
-        Wybierz badanie z listy powyżej, aby otworzyć konfigurator.
+        <span data-i18n="panes.konfig_empty">Wybierz badanie z listy powyżej, aby otworzyć konfigurator.</span>
       </div>
       <div id="konfig-form-wrap" style="display:none">
         <!-- rendered by renderKonfiguratorTab() -->
@@ -176,8 +176,8 @@
       <!-- Save/preview bar — fixed at the bottom, same pattern as Ustawienia -->
       <div id="konfig-footer" class="study-action-bar" style="display:none">
         <div class="study-action-bar-inner">
-          <button class="btn btn-primary" onclick="builderSave(S.activeStudy)">💾 Zapisz</button>
-          <button class="btn btn-ghost" onclick="builderPreview(S.activeStudy)">👁 Podgląd w nowej karcie</button>
+          <button class="btn btn-primary" onclick="builderSave(S.activeStudy)" data-i18n="panes.konfig_save">💾 Zapisz</button>
+          <button class="btn btn-ghost" onclick="builderPreview(S.activeStudy)" data-i18n="panes.konfig_preview">👁 Podgląd w nowej karcie</button>
           <span class="bld-save-status" style="margin-left:auto;font-size:0.8rem;color:var(--muted)">Zmiany zapisywane automatycznie</span>
         </div>
       </div>
@@ -187,13 +187,13 @@
     <div class="tab-pane" id="tab-users">
       <div class="tab-toolbar">
         <h2 id="users-title">Konta użytkowników</h2>
-        <button class="btn btn-primary btn-sm" id="btn-add-user">+ Nowe konto</button>
+        <button class="btn btn-primary btn-sm" id="btn-add-user" data-i18n="panes.users_add">+ Nowe konto</button>
       </div>
       <p id="users-intro" style="color:var(--muted);font-size:0.85rem;margin:0 0 1rem">
         Konta zakłada administrator (brak samodzielnej rejestracji). Każdy badacz widzi wyłącznie własne badania; administrator widzi wszystkie.
       </p>
       <div id="users-list">
-        <div class="empty-state">Ładowanie…</div>
+        <div class="empty-state" data-i18n="common.loading">Ładowanie…</div>
       </div>
     </div>
 
@@ -211,6 +211,9 @@
 <!-- ── Toast ──────────────────────────────────────────────────────────────── -->
 <div id="toast" class="toast" aria-live="polite"></div>
 
+<!-- Must load BEFORE admin.js: defines window.ADMIN_LOCALES synchronously so
+     t() is usable from the module's first line (module-level constants use it). -->
+<script src="/locales/admin.js"></script>
 <script src="/js/admin.js"></script>
 </body>
 </html>

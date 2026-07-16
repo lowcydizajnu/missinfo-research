@@ -190,6 +190,25 @@ app.get('/study/:slug', (req, res) => {
 });
 
 // Admin panel
+// Admin UI locales as a BLOCKING script, loaded before /js/admin.js.
+// Why a script and not a fetch: admin.js builds some module-level constants
+// (e.g. AN_TESTS) whose labels call t() at parse time. An async fetch resolves
+// after that, so those constants would bake in the raw key forever. Delivering
+// the dictionaries synchronously makes t() valid from the first line of the
+// module and removes that entire class of bug. Both languages ship together —
+// the chosen language lives in localStorage, which the server cannot see.
+app.get('/locales/admin.js', (req, res) => {
+  const load = (lang) => {
+    try {
+      return JSON.parse(fs.readFileSync(
+        path.join(__dirname, 'public', 'locales', 'admin', `${lang}.json`), 'utf-8'));
+    } catch { return {}; }
+  };
+  res.type('application/javascript');
+  res.set('Cache-Control', 'no-cache, must-revalidate');
+  res.send(`window.ADMIN_LOCALES = ${JSON.stringify({ pl: load('pl'), en: load('en') })};`);
+});
+
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
