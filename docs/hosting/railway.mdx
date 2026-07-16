@@ -1,0 +1,217 @@
+---
+title: "Railway"
+description: "Deploy Misinfo Research to Railway to get a public URL for participants — variables, a persistent volume, and proxy behaviour."
+---
+
+To recruit participants you need a public URL. A study running on `localhost` is only reachable from your own machine, which is fine for building and previewing but useless for data collection. Railway is one way to get that public URL without administering a server yourself.
+
+<Note>
+**Railway is an option, not a requirement.** Misinfo Research is a single Node process with a SQLite file — it runs anywhere Node 18+ and a writable disk exist: a university VPS, a departmental server, [Docker](/hosting/docker) on any host, or [plain Node](/hosting/install) on a machine you already have. Nothing in the platform depends on Railway. Everything on this page has an equivalent on any other host: set the same environment variables, and give the process a disk that survives restarts.
+</Note>
+
+## Before you start
+
+Two things are worth deciding before you click anything, because both are awkward to change once participants have started:
+
+- **Where the database file lives.** Without a persistent volume, Railway's filesystem is ephemeral and your SQLite file is destroyed on every redeploy. See [Add a persistent volume](#add-a-persistent-volume) — this is the step to get right.
+- **What URL participants will see.** Railway generates one for you; you can also point your own domain at a single study later.
+
+## Deploy
+
+<Steps>
+
+<Step title="Click the deploy button">
+The repository's README carries a **Deploy on Railway** button, which opens Railway with the repository preloaded as a template:
+
+```
+https://railway.com/new/template?template=https://github.com/lowcydizajnu/missinfo-research
+```
+
+If you prefer to deploy your own copy (recommended if you intend to modify anything), fork or push the code to your own GitHub repository first, then in Railway create a **New Project** and choose **Deploy from GitHub repo**. Either route produces the same running service.
+</Step>
+
+<Step title="Set JWT_SECRET and ADMIN_PASSWORD">
+In the Railway project's **Variables**, set the two required variables:
+
+```
+JWT_SECRET=<a long random string>
+ADMIN_PASSWORD=<your strong password>
+```
+
+Generate the secret locally and paste the output:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+```
+
+The service will not run without `JWT_SECRET` — see [The two required variables](#the-two-required-variables) below for exactly what each one does.
+</Step>
+
+<Step title="Add the volume — before you collect any data">
+In the Railway dashboard, open your service → **Volumes** → **Add Volume**, and set the mount path to:
+
+```
+/app/data
+```
+
+This is the step that keeps your data. Details and the reasoning are in [Add a persistent volume](#add-a-persistent-volume).
+</Step>
+
+<Step title="Let it deploy">
+Railway builds with Nixpacks and starts the app with `node server.js`. Both come from `railway.json` in the repository:
+
+```json
+{
+  "build": { "builder": "NIXPACKS" },
+  "deploy": {
+    "startCommand": "node server.js",
+    "restartPolicyType": "ON_FAILURE"
+  }
+}
+```
+
+Nixpacks detects Node from `package.json`, which pins `"node": ">=18.0.0"`. You do not need to configure a build or start command yourself.
+
+On the first start the server creates the database, applies the schema, and seeds the `admin` account from your `ADMIN_PASSWORD`.
+</Step>
+
+<Step title="Open the panel and sign in">
+Once Railway has assigned the service a public domain, open `/admin` on it:
+
+```
+https://<your-app>.railway.app/admin
+```
+
+Sign in with username `admin` and the password you put in `ADMIN_PASSWORD`. The panel opens in Polish by default — switch to English with the language dropdown on the login card or in the top-right of the header.
+</Step>
+
+</Steps>
+
+<Check>
+You are signed in on a public URL. The header shows the study picker, **+ New**, **👥 Accounts** and **Sign out**; the tab row reads **Dashboard · Posts · Demographics · Configurator · Export · Analyses · Settings**. Anything you now build has a link you can actually send to participants.
+</Check>
+
+## The two required variables
+
+<Warning>
+**`JWT_SECRET` is mandatory and has no fallback.** The server calls `process.exit(1)` on startup if it is missing, logging `FATAL: JWT_SECRET is not set`. A predictable signing secret would let anyone forge an admin token, so the platform refuses to start insecure rather than start weak. On Railway, a deploy that crash-loops immediately after a fresh setup is almost always this variable.
+
+**`ADMIN_PASSWORD` only seeds the first account.** It is read once, on the first start, while the `users` table is still empty: the server creates the `admin` user and stores a bcrypt hash of that password. After that, sign-in checks the hash in the database. Editing `ADMIN_PASSWORD` in Railway later will **not** change your password — change passwords from **👥 Accounts** inside the panel. If the service ever starts with no users and no `ADMIN_PASSWORD`, no account is created and the console warns you; set the variable and restart.
+</Warning>
+
+### Optional variables
+
+<ParamField path="ANTHROPIC_API_KEY" type="string">
+Enables AI-assisted translation of study content. The platform is fully functional without it — leave it unset to disable.
+</ParamField>
+
+<ParamField path="DATABASE_PATH" type="string" default="./data/research.db">
+Path to the SQLite database file. If you change this on Railway, the volume mount path must change to match — see the warning below.
+</ParamField>
+
+<ParamField path="UPLOADS_PATH" type="string" default="./uploads">
+On-disk fallback path for post images. Images uploaded through the panel are stored in the database itself; this directory only serves legacy files that predate that.
+</ParamField>
+
+<Tip>
+**Do not copy `PORT` from `.env.example` into Railway.** The server reads `process.env.PORT` and falls back to `3000` only when it is absent. Railway supplies `PORT` itself, so leave it alone and let the platform choose.
+
+`NODE_ENV` appears in some deployment notes, but the application code never reads it — setting it is harmless and changes nothing.
+</Tip>
+
+## Add a persistent volume
+
+Everything your instance contains — studies, posts, sessions, reactions, ratings, uploaded images, accounts — lives in one SQLite file. On a platform like Railway, the container filesystem is rebuilt on every deploy. Without a volume, that file is created fresh each time and **every participant response collected since the last deploy is gone**, with no warning and no way back.
+
+Mount a volume at:
+
+```
+/app/data
+```
+
+The app runs from `/app`, and the default `DATABASE_PATH` is the relative path `./data/research.db` — which resolves to `/app/data/research.db`. That is why the mount path is `/app/data` and not something else: it is the directory the database file already lives in. The server creates the directory at startup if it is missing, so an empty volume is fine.
+
+<Warning>
+Add the volume **before** you activate a study and send out the link. A volume added afterwards starts empty: it mounts over `/app/data` and the database that was sitting in the ephemeral filesystem is not carried into it. Deploy, add the volume, then check that you can sign in and that your studies are present — and only then recruit.
+</Warning>
+
+<Info>
+**A second volume at `/app/uploads` is optional.** Images uploaded through the **Posts** tab are stored as BLOBs in the database, and are served from there; the on-disk `uploads` directory is a fallback for legacy files that predate that change. If your instance was created recently, the `/app/data` volume already contains your images. Mounting `/app/uploads` too costs nothing and does no harm.
+</Info>
+
+<Tip>
+Because the whole instance is a single file, a backup is a file copy. Read [Backup](/hosting/backup) before real data collection starts — a volume protects you from redeploys, not from mistakes.
+</Tip>
+
+## Your public URL
+
+Railway serves the service on a generated `*.railway.app` domain (if the service does not have one yet, generate it from the service's networking settings). Three paths matter on it:
+
+| Path | Who uses it |
+|---|---|
+| `/admin` | You — the admin panel. `/` redirects here. |
+| `/study/<slug>` | Participants — the study link, no login required. |
+| `/share/dashboard/<token>` | Anyone you give a read-only dashboard link to. |
+
+The participant link is what goes into your recruitment material:
+
+```
+https://<your-app>.railway.app/study/<slug>
+```
+
+<Warning>
+The generated domain also exposes `/admin` publicly. It is protected by username and password, but treat the URL as production: use a strong `ADMIN_PASSWORD`, and create separate **researcher** accounts from **👥 Accounts** rather than sharing the `admin` login. A researcher account only ever sees its own studies.
+</Warning>
+
+### Pointing your own domain at one study
+
+Each study has a **Custom study domain** field in the **Configurator**. If you set up a CNAME from, say, `study.example.org` to this app and enter exactly that hostname (no `https://`, no trailing `/`), then requests arriving on that host serve only that one study: `https://study.example.org/?res_id=ABC123` lands the participant directly in it, query parameters intact. The admin panel and every other study return 404 on that host, while remaining available on the original Railway URL.
+
+This is a per-study setting inside the panel, not Railway configuration — but the DNS record points at your Railway service, so the two are set up together. See [Configurator](/guide/configurator).
+
+## Behind Railway's proxy
+
+Requests to your app do not arrive directly from participants; they pass through Railway's edge proxy, which puts the real client IP in the `X-Forwarded-For` header. The application already accounts for this — `server.js` sets:
+
+```js
+app.set('trust proxy', 1);
+```
+
+You do not need to configure anything. It is worth understanding what it does, because it explains the platform's only rate limit.
+
+**Why exactly one hop.** Trusting a single proxy hop makes `req.ip` the real client rather than Railway's proxy. Trusting everything (`true`) would let a client spoof `X-Forwarded-For` and claim any IP it likes; trusting nothing would make every request appear to come from the proxy — and would make `express-rate-limit` throw `ERR_ERL_UNEXPECTED_X_FORWARDED_FOR` when it sees the header it was told to ignore.
+
+**What is rate-limited.** Exactly one endpoint: `POST /api/admin/login`, capped at **20 attempts per 15 minutes per IP**. This is a brute-force guard on the sign-in form, and it is the only reason the platform needs to identify callers by IP at all.
+
+<Check>
+**The participant API is not rate-limited.** Sessions, reactions, ratings and completions have no limiter in front of them. A panel provider dropping several hundred participants onto your study at once will not be throttled by the platform, and participants sharing an IP (a lab, a university network, a mobile carrier's NAT) will not block each other.
+</Check>
+
+<Warning>
+**Adding another proxy in front changes the hop count.** `trust proxy` is hardcoded to `1` in `server.js` — it assumes exactly one proxy between the client and the app, which is what Railway alone gives you. If you put a second proxy in front (Cloudflare in proxied mode, for instance), there are two hops, and the IP the app treats as the client will no longer be the participant's. Nothing breaks visibly: the login limiter simply groups callers by the wrong address. If you need that topology, adjust the `trust proxy` value in `server.js` to match your real chain.
+</Warning>
+
+## Redeploying
+
+Pushing to the connected GitHub branch triggers a new build and deploy. With the volume mounted at `/app/data`, the database survives it — the schema migrations in `db/database.js` run at startup and are written to be safe to re-run, and the `admin` seed only fires when the `users` table is empty, so a redeploy never touches your accounts.
+
+`restartPolicyType: "ON_FAILURE"` in `railway.json` means Railway restarts the process if it exits with an error. Note the interaction with the mandatory secret: if `JWT_SECRET` is ever unset, the process exits, Railway restarts it, and it exits again — a crash loop whose real cause is one line in the deploy logs.
+
+See [Upgrading](/hosting/upgrading) before pulling in changes mid-study.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="sliders" href="/hosting/configuration">
+    Every environment variable and setting, in detail.
+  </Card>
+  <Card title="Backup" icon="database" href="/hosting/backup">
+    Copy the file that is your entire instance. Do this before recruiting.
+  </Card>
+  <Card title="Accounts" icon="users" href="/guide/accounts">
+    Create researcher accounts instead of sharing the admin login.
+  </Card>
+  <Card title="Build your first study" icon="flask" href="/quickstart">
+    You have a public URL — now put something on it.
+  </Card>
+</CardGroup>

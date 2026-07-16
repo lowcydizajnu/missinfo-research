@@ -1,0 +1,213 @@
+---
+title: "Accounts and sharing"
+description: "How invite-only accounts, the administrator and researcher roles, study ownership, and collaborator access work in Misinfo Research."
+---
+
+Misinfo Research is built for a lab, not for the open internet. Several researchers can work on the same installation, but each one sees only their own studies — and there is no way for a stranger to create an account. This page explains the account model, the two roles, and how to give a colleague access to a study without handing them your whole workspace.
+
+Everything here lives behind the **👥 Accounts** button in the panel header (tooltip: *User accounts and study assignment*). Unlike Dashboard, Posts or Configurator, it is not a study tab — it is a top-level view, so opening it hides the study tab bar and does not depend on which study you have selected.
+
+## Accounts are invite-only
+
+There is no sign-up form, no "register" link, and no public endpoint that creates a user. Accounts exist only because an administrator created them. In the panel's own words:
+
+> Accounts are created by an administrator (no self-registration). Each researcher sees only their own studies; the administrator sees all of them.
+
+This is a deliberate design choice rather than a missing feature. An installation of this platform holds participant response data — reactions, ratings, free-text comments, demographics. Self-registration on such a system would mean anyone who finds the URL can create a foothold inside the same application that serves your data. Invite-only keeps the roster to exactly the people your ethics approval covers.
+
+<Note>
+Only **active** accounts can sign in. Disabling an account (see below) blocks login immediately without destroying anything the person owns — the usual choice when a research assistant's contract ends but their studies must stay intact.
+</Note>
+
+## The first administrator
+
+The first account cannot be created from the panel — nobody could be signed in to create it. Instead the platform seeds it at startup from the `ADMIN_PASSWORD` environment variable: if the `users` table is empty and `ADMIN_PASSWORD` is set, an account with the username `admin` and the `admin` role is created, and every pre-existing study without an owner is assigned to it.
+
+<Warning>
+`ADMIN_PASSWORD` is read **only** to seed that one row, and only while no users exist. Once the account is in the database, login checks the stored bcrypt hash — changing the environment variable later has no effect on the password. To change it afterwards, use the **🔑 Password** action in the Accounts view.
+</Warning>
+
+If no users exist and `ADMIN_PASSWORD` is not set, the seed is skipped with a warning in the server log and no account is created. Set the variable and restart.
+
+## The two roles
+
+Every account is either an **administrator** or a **researcher**. There is no third role, and no per-permission configuration — the role is the whole permission model.
+
+<CardGroup cols={2}>
+  <Card title="Administrator" icon="shield">
+    Sees every study on the installation, and is the only role that can create, edit, disable, or delete accounts. The role selector describes it as *Administrator (sees everything + accounts)*.
+  </Card>
+  <Card title="Researcher" icon="user">
+    Sees only the studies they own or have been assigned to. Can share their own studies with colleagues, but cannot touch the account roster. The role selector describes it as *Researcher (sees only their own studies)*.
+  </Card>
+</CardGroup>
+
+Researcher is the default: when an account is created or edited, any role value other than `admin` is stored as `researcher`.
+
+<Info>
+The panel decides what to show you by reading the role out of your sign-in token, but that is only cosmetic. Every account-management endpoint re-checks the role on the server, so a tampered browser session gains nothing — the buttons disappear *and* the requests are refused.
+</Info>
+
+## What each role sees under Accounts
+
+Both roles see the **👥 Accounts** button; the view adapts to who you are, and the server sends each role a different amount of data.
+
+<Tabs>
+  <Tab title="Administrator">
+    The heading reads **User accounts**, and you get the full roster as a table:
+
+    | Column | Contents |
+    | --- | --- |
+    | Login | The username, with *(You)* next to your own row |
+    | E-mail | The optional address, or `—` |
+    | Role | An *administrator* or *researcher* badge |
+    | Studies | How many studies the account **owns** |
+    | Status | An *active* or *disabled* badge |
+    | Last login | Timestamp of the last successful sign-in, or `—` |
+
+    A **+ New account** button sits next to the heading.
+  </Tab>
+  <Tab title="Researcher">
+    The heading reads **Study sharing**, and the table has a single **Researcher** column listing logins, each with a **🔗 Studies** button. No **+ New account** button.
+
+    The server deliberately sends researchers a stripped-down roster: logins only — no e-mails, roles, statuses, last-login times, or study counts. It lists only accounts that are *active*, have the *researcher* role, and are not you. Administrators are excluded because they already reach every study, and you are excluded because you cannot be your own collaborator.
+
+    If nothing matches, the view shows *No other researchers to assign.*
+  </Tab>
+</Tabs>
+
+## Creating an account
+
+<Steps>
+  <Step title="Open the roster">
+    Click **👥 Accounts** in the header, then **+ New account**. Administrators only.
+  </Step>
+  <Step title="Fill in the account">
+    **Login** and **Initial password** are required; **E-mail** is optional. The password must be at least 8 characters — the form and the server both enforce this. The field hint says: *(min. 8 characters — pass it on to the user)*.
+  </Step>
+  <Step title="Pick a role">
+    **Researcher (sees only their own studies)** or **Administrator (sees everything + accounts)**.
+  </Step>
+  <Step title="Create">
+    Click **Create account**. A duplicate login is rejected with an error.
+  </Step>
+</Steps>
+
+<Tip>
+The password field is called *Initial password* for a reason: you type it, so you know it. Hand it to the person over a channel you trust and have them ask you to change it once they are in — the platform has no self-service password reset and no e-mail delivery, so a password only ever moves between people the way you move it.
+</Tip>
+
+## Managing an existing account
+
+Each row in the administrator's table carries its actions on the right:
+
+<AccordionGroup>
+  <Accordion title="🔗 Studies — assign to specific studies">
+    Opens the assignment modal described below. This button appears only on **researcher** rows: administrators already have access to every study, so there is nothing to assign.
+  </Accordion>
+  <Accordion title="↑ admin / ↓ researcher — change role">
+    Flips the account between the two roles, after a confirmation prompt.
+  </Accordion>
+  <Accordion title="Disable / Enable — change status">
+    A disabled account cannot sign in. Nothing is deleted: the account keeps owning its studies and keeps its collaborations, and enabling it restores access exactly as it was. This is the reversible alternative to deletion.
+  </Accordion>
+  <Accordion title="🔑 Password — set a new password">
+    Prompts for a new password (minimum 8 characters) and replaces the stored hash. There is no confirmation e-mail — you tell the person yourself.
+  </Accordion>
+  <Accordion title="🗑 — delete the account">
+    Permanently removes the account. Disabled on your own row, with the tooltip *You cannot delete your own account*. See the guards below.
+  </Accordion>
+</AccordionGroup>
+
+## Who owns a study
+
+Ownership is not something you set — it is recorded automatically. Whoever creates a study becomes its owner, and ownership is what the whole access model hangs off.
+
+- **Administrators** see and manage every study, regardless of owner.
+- **Researchers** see studies they own **or** have been assigned to as a collaborator. Everything else is invisible.
+
+<Note>
+When a researcher requests a study they have no access to, the server answers *Not found* rather than *Forbidden*. That is intentional: a "forbidden" response would confirm that a study with that ID exists, letting someone map the installation by trying IDs in sequence. "Not found" reveals nothing.
+</Note>
+
+The **Studies** column in the roster counts studies **owned** by the account — not studies it can merely reach as a collaborator.
+
+## Assigning collaborators
+
+A collaborator is someone granted full edit access to **one specific study**. This is how two people run a project together without either seeing the other's unrelated work.
+
+Click **🔗 Studies** on someone's row to open **🔗 Assign studies**. It lists studies with an **Access** checkbox each; tick to grant, untick to revoke, and the change applies immediately (*Assigned to the study.* / *Access revoked.*). A study the person already owns shows an **owner** badge instead of a checkbox.
+
+What the list contains depends on who you are:
+
+| You are | Studies offered in the modal |
+| --- | --- |
+| Administrator | Every study on the installation — you can assign anyone to anything |
+| Researcher | Only the studies **you own** |
+
+A researcher who is a collaborator on a study cannot re-share it. Only the owner or an administrator may manage a study's collaborators — the server enforces this independently of what the panel shows, so a filtered list is not the only thing standing between a collaborator and re-sharing.
+
+If you own nothing to share, the modal shows *You have no studies to share.*
+
+<Info>
+Some assignments are refused by design: an account that is **disabled**, an account that already **owns** the study, and any **administrator** (who already has access to everything). The panel avoids offering these, and the server rejects them if attempted anyway.
+</Info>
+
+### What a collaborator can and cannot do
+
+The panel states the boundary directly in the modal:
+
+> Select the studies this researcher should have **full edit access** to (posts, configuration, dashboard, export). They see only the studies assigned to them; they cannot delete them or manage access.
+
+<CardGroup cols={2}>
+  <Card title="A collaborator can" icon="check">
+    Edit posts, change the configuration, read the dashboard, run the export — the full working surface of that one study.
+  </Card>
+  <Card title="A collaborator cannot" icon="xmark">
+    Delete the study, or add and remove its collaborators. Those two operations are owner-and-administrator only.
+  </Card>
+</CardGroup>
+
+This split is worth understanding before you rely on it. Collaboration here is generous about **content** and strict about **existence and access**: your colleague can restructure the feed you built, but cannot destroy the study or widen the circle of people who can see your participants' data. If you need someone to be able to do those things too, they need to be the owner or an administrator — there is no middle setting.
+
+<Warning>
+Collaborator access is per-study and full-strength. There is no read-only collaborator role. Someone added to a study to "just look at the dashboard" can also edit its posts and configuration — including on a study that is already collecting data. If you only want to show results to someone, consider whether a share of the dashboard fits better than an account assignment.
+</Warning>
+
+The pre-ticked boxes are scoped to what you may actually change: an administrator sees all of a person's collaborations, while a researcher sees only the ones on studies they themselves own. You are never shown which *other* owners' studies a given person can reach.
+
+## Lockout and deletion guards
+
+Two things could quietly break an installation — locking every administrator out, and orphaning studies. Both are guarded on the server.
+
+### The last administrator cannot be locked out
+
+If an account is an administrator and no *other* active administrator exists, the platform refuses to:
+
+- demote it to researcher, or
+- deactivate it, or
+- delete it.
+
+The error is explicit — the last active administrator can be neither demoted nor deactivated. Promote a second administrator first if you genuinely need to change the current one.
+
+You also cannot delete your own account, whatever your role.
+
+### Deleting a user reassigns their studies
+
+Deleting an account never deletes the research. Every study owned by that account is transferred to **the administrator performing the deletion**, and the confirmation dialog warns you before it happens:
+
+> WARNING: this account owns *n* studies — after deletion you will take them over as administrator.
+
+Afterwards the panel confirms how many moved (*Account deleted (n studies taken over)*). The person's **collaborations** — studies owned by others that they had been assigned to — are removed along with the account, since those were access grants rather than possessions.
+
+<Tip>
+Because deletion silently makes you the owner of someone else's studies, disabling is usually the better move when a colleague simply leaves. It blocks their login, keeps ownership where the project history says it belongs, and is reversible with one click.
+</Tip>
+
+## Signing in
+
+Sign-in is a username and password against the account roster — bcrypt-hashed, with only active accounts accepted. A session lasts 24 hours, after which you sign in again. Repeated login attempts from the same source are rate-limited (20 per 15 minutes), which blunts password guessing.
+
+<Note>
+The login screen carries its own panel-language switch, not only the header one. A self-hoster whose panel defaults to Polish can switch to English *before* signing in, rather than having to guess their way through the login card first.
+</Note>

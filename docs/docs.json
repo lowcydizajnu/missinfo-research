@@ -1,0 +1,119 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Misinfo Research",
+  "description": "Open-source platform for running social-media misinformation experiments.",
+  "colors": {
+    "primary": "#4F7CFF",
+    "light": "#7B9DFF",
+    "dark": "#2E5BD8"
+  },
+  "favicon": "/favicon.svg",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Guide",
+        "groups": [
+          {
+            "group": "Getting started",
+            "pages": [
+              "index",
+              "quickstart",
+              "concepts"
+            ]
+          },
+          {
+            "group": "Building a study",
+            "pages": [
+              "guide/configurator",
+              "guide/posts",
+              "guide/demographics",
+              "guide/manipulation",
+              "guide/conditional-logic",
+              "guide/social-proof"
+            ]
+          },
+          {
+            "group": "Running & analysing",
+            "pages": [
+              "guide/preview-and-launch",
+              "guide/dashboard",
+              "guide/export",
+              "guide/analyses"
+            ]
+          },
+          {
+            "group": "Administration",
+            "pages": [
+              "guide/settings",
+              "guide/accounts",
+              "guide/translations",
+              "guide/panel-integration"
+            ]
+          },
+          {
+            "group": "Help",
+            "pages": [
+              "faq",
+              "troubleshooting"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Self-hosting",
+        "groups": [
+          {
+            "group": "Deploy",
+            "pages": [
+              "hosting/install",
+              "hosting/docker",
+              "hosting/railway",
+              "hosting/configuration"
+            ]
+          },
+          {
+            "group": "Operate",
+            "pages": [
+              "hosting/backup",
+              "hosting/upgrading"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API",
+        "groups": [
+          {
+            "group": "Reference",
+            "pages": [
+              "api/overview",
+              "api/authentication",
+              "api/studies",
+              "api/participant",
+              "api/data-model"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "GitHub",
+        "href": "https://github.com/lowcydizajnu/missinfo-research"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Deploy your own",
+      "href": "https://github.com/lowcydizajnu/missinfo-research#railway-deployment"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/lowcydizajnu/missinfo-research"
+    }
+  }
+}

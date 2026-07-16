@@ -1,0 +1,280 @@
+---
+title: "Backup & data"
+description: "Everything your instance stores lives in one SQLite file — how to back it up safely, restore it, and keep it alive across redeploys."
+---
+
+Misinfo Research keeps all of its state in a **single SQLite file**. Not a file plus an image folder, not a file plus a cache — one file. That is the whole point of this page: once you know how to copy that file safely, you know how to back up your instance, move it to another machine, or hand it to a colleague.
+
+For a researcher this matters more than it does for a typical web app. Your participants' responses are not reproducible. A dropped database is not an outage you recover from — it is a study you run again.
+
+## Where the data lives
+
+The database path is set by the `DATABASE_PATH` environment variable, and defaults to `./data/research.db` relative to the project directory:
+
+```bash
+# .env
+DATABASE_PATH=./data/research.db
+```
+
+The server resolves that to an absolute path at startup and creates the directory if it does not exist, so you never have to `mkdir` anything by hand.
+
+Everything the platform knows is in there:
+
+| What | Where it lives |
+| --- | --- |
+| Studies and all their configuration | `studies` |
+| Posts, their A/B variants, images | `posts` |
+| Participant sessions, condition assignment, demographics | `sessions` |
+| Reactions, credibility ratings, comments | `reactions`, `ratings` |
+| Dwell time on posts that got no reaction | `post_views` |
+| Demographic questions and their options | `demographic_questions` |
+| Post questions and participant answers | `post_questions`, `post_question_responses` |
+| Eye-tracking gaze samples | `gaze_points` |
+| Admin/researcher accounts and collaborators | `users`, `study_collaborators` |
+| The reusable post catalogue | `post_library` |
+| Interface translation overrides | `locale_overrides` |
+
+Your saved export layouts, dashboard arrangements and analyses are not separate files either — they are JSON columns on the study's own row. Backing up the database backs up your Export column profiles, your Dashboard widgets and your saved Analyses along with the raw data.
+
+<Note>
+Demographic questions and their answer options are **study content**, not interface text. They live in the `demographic_questions` table in whatever language you wrote them, and they travel with the database. They are unrelated to the admin panel's Polish/English UI switch.
+</Note>
+
+## Images are inside the database, not on disk
+
+This is the part that surprises people, and it is the part that makes backups simple.
+
+When you upload a post image or an avatar, the file is **never written to the filesystem**. The upload is held in memory and written straight into a BLOB column on the post's own row — `image_blob_a`, `image_blob_b` or `avatar_blob`, each alongside a column recording its MIME type. When a participant's browser requests `/uploads/<studyId>/<filename>`, the server looks the post up and streams the bytes back out of the database.
+
+<Check>
+**Copying the database file copies your images too.** There is no second thing to back up.
+</Check>
+
+Uploads are capped at **5 MB** per file and restricted to **JPEG, PNG and WebP**.
+
+### Then what is the `uploads/` directory for?
+
+It is a legacy fallback, and on a new instance it stays empty. Older versions of the platform did write images to disk under `UPLOADS_PATH` (default `./uploads`). Two things remain for their benefit:
+
+- On every boot, the server scans that directory and reads any disk-resident image it finds into the matching BLOB column. The pass is idempotent — posts that already have BLOBs are skipped — so it is harmless to leave running forever.
+- The `/uploads/:studyId/:filename` route falls back to reading from disk if a post somehow has a filename but no BLOB.
+
+Practically: if you are starting fresh, ignore `uploads/`. If you are migrating an instance that predates BLOB storage, copy the folder across **once**, start the server, let the migration pass absorb the images into the database, and from then on the database alone is sufficient.
+
+## The three files, and why `cp` is not enough
+
+The database runs in **WAL mode** (write-ahead logging), which buys concurrent reads during writes — worth having when participants are submitting responses while you refresh the Dashboard. The cost is that your one logical database is three files on disk:
+
+```
+data/
+├── research.db        ← the main database
+├── research.db-wal    ← recently committed data, not yet folded in
+└── research.db-shm    ← shared-memory index for the WAL
+```
+
+<Warning>
+Do not back up by copying `research.db` on its own while the server is running. Recently committed data — the last participant's session, quite possibly — may still be sitting in `research.db-wal` and would be silently missing from your copy. The result is not a corrupt file that announces itself. It is a plausible-looking database that quietly lost your newest rows.
+</Warning>
+
+Use one of the methods below instead. Both use SQLite's **online backup**, which coordinates with the running server and folds the WAL into a single self-contained file. The output is one `.db` file with no sidecars.
+
+## Making a backup
+
+<Tabs>
+  <Tab title="sqlite3 CLI">
+    The shortest route, if the `sqlite3` command is available:
+
+    ```bash
+    sqlite3 ./data/research.db ".backup './backups/research-$(date +%F).db'"
+    ```
+
+    Safe to run while the server is serving participants. The `backups/` directory must already exist.
+  </Tab>
+
+  <Tab title="Node script">
+    No `sqlite3` binary needed — this uses the same database driver the app already depends on. Save it as `backup.js` **in the project root** (it needs to resolve `better-sqlite3` from the project's `node_modules`):
+
+    ```js
+    const fs = require('fs');
+    const path = require('path');
+    const Database = require('better-sqlite3');
+
+    const src = process.env.DATABASE_PATH || './data/research.db';
+    const outDir = process.env.BACKUP_DIR || './backups';
+    fs.mkdirSync(outDir, { recursive: true });
+
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const dest = path.join(outDir, `research-${stamp}.db`);
+
+    const db = new Database(src, { readonly: true });
+    db.backup(dest)
+      .then(() => { console.log(`Backup written: ${dest}`); db.close(); })
+      .catch((err) => { console.error('Backup failed:', err.message); process.exit(1); });
+    ```
+
+    Run it with:
+
+    ```bash
+    node backup.js
+    ```
+
+    Also safe while the server is running.
+  </Tab>
+
+  <Tab title="Cold copy">
+    If you can afford to stop the server, the simplest correct approach is to stop it and copy all three files together:
+
+    ```bash
+    # stop the server first
+    cp data/research.db data/research.db-wal data/research.db-shm /path/to/backup/
+    ```
+
+    A clean shutdown normally leaves an empty WAL, but copying all three is correct either way.
+  </Tab>
+</Tabs>
+
+### Verify the copy
+
+A backup you have never tested is a hypothesis. Check it:
+
+```bash
+sqlite3 ./backups/research-2026-07-16.db "PRAGMA integrity_check;"
+# → ok
+
+sqlite3 ./backups/research-2026-07-16.db "SELECT count(*) FROM studies; SELECT count(*) FROM sessions;"
+```
+
+If `integrity_check` returns `ok` and the counts look like your instance, the file is complete — images included.
+
+## Restoring
+
+<Steps>
+  <Step title="Stop the server">
+    Never swap the file underneath a running process.
+  </Step>
+
+  <Step title="Move the old files aside">
+    ```bash
+    mv data/research.db data/research.db.old
+    rm -f data/research.db-wal data/research.db-shm
+    ```
+
+    Delete the stale `-wal` and `-shm` files. They belong to the database you are replacing, and leaving them next to a restored file is asking for trouble.
+  </Step>
+
+  <Step title="Put the backup in place">
+    ```bash
+    cp /path/to/backup/research-2026-07-16.db data/research.db
+    ```
+
+    Match whatever `DATABASE_PATH` is set to.
+  </Step>
+
+  <Step title="Start the server">
+    The schema migrations run automatically on boot and are safe to apply to a restored file — that is how the platform upgrades itself. A backup from an older version will be brought up to the current schema on first start.
+  </Step>
+</Steps>
+
+<Warning>
+**Your accounts come back with the database, not from your `.env`.** `ADMIN_PASSWORD` only ever seeds the *first* admin account, and only when the `users` table is empty. A restored database already has users in it, so the seed is skipped entirely and login checks the password hashes stored in the file. Restore a database and you get its passwords back — not the one currently in your `.env`.
+</Warning>
+
+## What is *not* in the database
+
+Your environment variables. Back these up separately — a password manager or your host's secret storage, not a git repo:
+
+| Variable | Why it matters on restore |
+| --- | --- |
+| `JWT_SECRET` | Required. The server refuses to start without it. Changing it is not destructive — it only invalidates outstanding login sessions, and admin tokens expire after 24 hours anyway. |
+| `ADMIN_PASSWORD` | Only used to seed the very first admin account. Irrelevant once the `users` table is populated. |
+| `ANTHROPIC_API_KEY` | Optional. Only enables AI-assisted translation of study content; everything else works without it. |
+
+## Persistent storage on PaaS
+
+Most platform hosts give containers an **ephemeral filesystem**: anything written at runtime is discarded on the next deploy, restart or crash. The container is rebuilt from the image, and your database — which was not in the image — is simply gone.
+
+<Warning>
+On an ephemeral host without a persistent volume, `DATABASE_PATH=./data/research.db` means your participants' data is deleted on your next redeploy. Because images live in the database, they go with it. Attach a volume **before** you recruit anyone.
+</Warning>
+
+The fix is the same everywhere: mount a persistent volume, and point `DATABASE_PATH` inside it.
+
+<Tabs>
+  <Tab title="Railway">
+    Attach a volume to the service, then set `DATABASE_PATH` to a path inside its mount point. If the volume is mounted at `/data`:
+
+    ```bash
+    DATABASE_PATH=/data/research.db
+    ```
+
+    The server creates the directory and the file on first start.
+  </Tab>
+
+  <Tab title="Docker">
+    The bundled `docker-compose.yml` already declares named volumes, so `docker compose up -d` is persistent out of the box:
+
+    ```yaml
+    volumes:
+      - misinfo-data:/app/data
+      - misinfo-uploads:/app/uploads
+    ```
+
+    `misinfo-data` is the one that matters — it holds the database, and therefore the images. To back up from the host, run the backup inside the container and copy the result out with `docker cp`.
+  </Tab>
+</Tabs>
+
+## Interface translations survive redeploys
+
+Editing the locale JSON files inside a running container looks like it works, and then vanishes on your next deploy — the container is rebuilt from the image and your edits were never in it. This is exactly the ephemeral-filesystem trap, applied to text.
+
+So translation edits do not go to files. When you open the **⚙** button in the header (**Translations and platform settings**) and edit text in the **Interface translations** modal, each changed key is written as a row in the `locale_overrides` table.
+
+At runtime the server resolves participant-facing text in two layers:
+
+1. **Baseline** — `public/locales/<lang>.json`, shipped in the repo.
+2. **Overrides** — rows from `locale_overrides` for that language, applied on top, key by key.
+
+Because layer 2 is in the database, your wording survives every redeploy — and is captured by every backup. Reverting a key to the file default deletes its row rather than storing a copy, so the table only ever holds text you actually changed.
+
+<Note>
+The same reasoning drives the per-study `demographics_title` and `demographics_subtitle` fields, which override the demographics screen heading from the study's own row.
+</Note>
+
+## Exports are not backups
+
+The **Export** tab produces analysis-ready files — **📥 Download Excel (.xlsx)**, CSV, and an eye-tracking CSV when that is enabled. They are indispensable, and they are not backups.
+
+An export is a *projection*: the rows and columns you selected, flattened for R or SPSS, reflecting your current column profile. It does not contain your study configuration, your posts, your images, your accounts, or the participants who abandoned partway through. You cannot rebuild an instance from one.
+
+Both, then, and for different reasons:
+
+- **Export** — so your analysis survives the platform.
+- **Database backup** — so the platform survives the server.
+
+## A routine that works
+
+<Steps>
+  <Step title="Back up before you touch anything">
+    Before upgrading, editing a live study, or any bulk delete. This is the backup that actually gets used.
+  </Step>
+
+  <Step title="Back up on a schedule while collecting data">
+    Daily is plenty for most studies; hourly during heavy recruitment is not excessive. Wire the script above into `cron` and copy the output somewhere that is not the same disk.
+  </Step>
+
+  <Step title="Keep backups off the machine">
+    A backup sitting next to the database it protects shares its failure modes. Institutional storage, object storage, an encrypted drive — anywhere else.
+  </Step>
+
+  <Step title="Test one restore before you need one">
+    Restore a backup into a scratch directory, point `DATABASE_PATH` at it, start the server, and sign in. Ten minutes, once, and you will know your backups are real.
+  </Step>
+
+  <Step title="Export your data at milestones too">
+    At pilot close and at data-collection close. Different job, still worth doing.
+  </Step>
+</Steps>
+
+<Tip>
+Participant data is personal data, and your ethics approval almost certainly says something about where it may be stored and for how long. A backup is a copy of that data — it inherits every obligation the original carries. Encrypt backups at rest, and give them the same retention and deletion schedule as the study itself.
+</Tip>

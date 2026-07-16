@@ -1,0 +1,328 @@
+---
+title: "FAQ"
+description: "Short answers to the questions researchers ask most often about licensing, API keys, anonymity, conditions, editing live studies, data storage and export."
+---
+
+Common questions, answered from how the platform actually behaves. Where an answer has a caveat that matters methodologically or legally, it is stated rather than smoothed over. Longer treatments live in the linked pages.
+
+## Licensing and cost
+
+<AccordionGroup>
+  <Accordion title="Is it free? What licence is it under?">
+    Yes. The platform is released under the **MIT License** (© 2026 Paweł Rosner). You may use it for research, teaching or commercial work, modify it, and redistribute it, provided you keep the licence and copyright notice.
+
+    There is no hosted service to subscribe to and no per-participant fee. You run your own copy on your own infrastructure, so your only cost is whatever your server costs — which, for a study of a few hundred participants, is typically a few euros a month or nothing at all.
+
+    Source: [github.com/lowcydizajnu/missinfo-research](https://github.com/lowcydizajnu/missinfo-research).
+  </Accordion>
+
+  <Accordion title="Do I need an Anthropic API key?">
+    **No.** The platform is fully functional without one.
+
+    The key enables exactly one optional feature: **AI-assisted translation of study content**. That is the **✨ Translate automatically** button, which takes your Polish study content (consent, instructions, debriefing, button labels, posts, demographic questions, post questions, part labels) and produces a translation stored in the study's `translations_json`.
+
+    Without a key, everything else works normally — building studies, running participants, the dashboard, the export, the analyses, accounts. You simply translate by typing the target-language text in yourself, which many researchers prefer anyway because a professional translation of consent wording is not something to delegate to a machine.
+
+    <Note>
+    The panel's own interface language (Polish/English) is a **separate** mechanism that ships as static locale files. It needs no API key.
+    </Note>
+  </Accordion>
+
+  <Accordion title="What does auto-translation send to Anthropic — does participant data leave my server?">
+    **No participant data is sent.** The translation request carries only your **study content**: the consent, instruction, transition and debriefing texts, the action and Likert labels, your posts (headlines, content, topic, timestamps, post comments), demographic questions and their options, post questions, and part labels.
+
+    Sessions, reactions, credibility ratings, demographics and any external panel IDs are never part of the request. If you have a data-protection assessment that permits your *stimulus material* to be processed by a US provider but not your *participant data*, this feature stays within that boundary. If even the stimulus material must not leave your jurisdiction, leave `ANTHROPIC_API_KEY` unset and the feature is inert.
+  </Accordion>
+</AccordionGroup>
+
+## Setup and configuration
+
+<AccordionGroup>
+  <Accordion title="Where do I put the Anthropic API key?">
+    In the `ANTHROPIC_API_KEY` **environment variable** — never in the admin panel, and never in the repository.
+
+    <Tabs>
+      <Tab title="Local / VPS (.env)">
+        Copy the example file and fill in the value:
+
+        ```bash
+        cp .env.example .env
+        ```
+
+        ```bash .env
+        ANTHROPIC_API_KEY=sk-ant-...
+        ```
+
+        `.env` is gitignored. Never commit it.
+      </Tab>
+      <Tab title="Railway / hosted">
+        Add it in the host's own configuration — on Railway, your project's **Variables** panel. Do not ship a `.env` file to a platform that offers environment variables.
+      </Tab>
+      <Tab title="Docker">
+        `docker compose` reads the `.env` file next to `docker-compose.yml`. Set the value there and recreate the container.
+      </Tab>
+    </Tabs>
+
+    <Warning>
+    **Restart the server after setting it.** The key is read from the process environment, so a running server will not pick up a newly added value. If translation fails with *"No Anthropic API key. Set the `ANTHROPIC_API_KEY` environment variable (a `.env` file next to the application, or your hosting's environment variables) and restart the server"*, that message is literal — the variable is missing or the process predates it.
+    </Warning>
+
+    The other two variables matter more: `JWT_SECRET` (required — the server refuses to start without it) and `ADMIN_PASSWORD` (seeds your first `admin` account on first boot only).
+  </Accordion>
+
+  <Accordion title="Can participants take the study on a phone?">
+    Yes. The participant page sets `width=device-width` and its stylesheet carries mobile breakpoints, so the feed, the reaction buttons and the 1–7 Likert scale reflow for narrow screens. Participants need only a browser and the link — no app, no account, no install.
+
+    <Tip>
+    Two things are worth checking yourself rather than trusting in the abstract:
+
+    - **Preview on the device classes your sample will actually use.** Long headlines, uploaded post images and custom consent text are yours, not the platform's, and they are what usually breaks a narrow layout.
+    - **Optional eye tracking (WebGazer.js) needs a camera and a calibration step.** If you enable it, pilot it on mobile before fielding — a desktop-calibrated gaze study is not automatically a mobile-viable one.
+    </Tip>
+
+    The admin panel is also responsive, but building a study on a phone is a joyless experience. Use a laptop for that.
+  </Accordion>
+</AccordionGroup>
+
+## Participants and privacy
+
+<AccordionGroup>
+  <Accordion title="Are participants tracked? Is the data anonymous?">
+    Participants are **unauthenticated and anonymous by default**. There is no login, no sign-up, and no e-mail address. A session row stores a random `session_token` (a UUID), the study, the assigned conditions, timestamps, the demographic answers you asked for, and whether the person consented and finished. No name, no IP address, no account identifier.
+
+    Because the demographic answers are the categories *you* define, anonymity is partly your design decision. Four coarse radio questions (age band, residence, education, gender) do not identify anyone; a free-text "which department do you work in" question in a 40-person organisation might.
+
+    Three optional features change the picture, and all three are **off unless you turn them on**:
+
+    | Feature | What it adds |
+    | --- | --- |
+    | **Analytics (MS Clarity)** | Session recordings and heatmaps sent to Microsoft. The demographic form is masked (`data-clarity-mask`); post content and the Likert buttons are deliberately unmasked so you can see what the participant looked at and chose. |
+    | **Eye tracking (WebGazer.js)** | Gaze coordinates. Participants are asked to consent to camera use and can decline with no effect on the study. The camera image itself is never stored or transmitted — only coordinates. |
+    | **Panel recruitment** | A respondent ID captured from the study URL into `sessions.external_id`, so the agency can map completions back to their panellist. This is pseudonymous by construction — that is its purpose. |
+
+    <Warning>
+    If you enable MS Clarity, your participants' interaction data goes to a third party and your consent text and ethics submission need to say so. The platform will not add that disclosure for you.
+    </Warning>
+  </Accordion>
+
+  <Accordion title="Who can see my studies?">
+    Studies are **private to their owner**. Every study endpoint checks ownership server-side, so a researcher cannot reach another researcher's studies or data by guessing an ID.
+
+    Access resolves to exactly three groups:
+
+    - **The owner** — full control, including deleting the study and managing its collaborators.
+    - **Any `admin` account** — sees and manages every study on the instance, and manages accounts. On a shared departmental instance, your admin can read your data. That is inherent to the role, so pick your admins accordingly.
+    - **Collaborators you add** — full edit access to that one study only (posts, configuration, dashboard, export). They cannot delete it and cannot manage its access list.
+
+    Two things sit outside that model by design:
+
+    - **The participant link.** `/study/<slug>` requires no login — anyone holding the URL can take an active study. That is what makes recruitment possible. It is not a secret.
+    - **Public share links**, if you generate one (below).
+
+    The panel is **invite-only**: there is no public sign-up. Accounts exist because an admin created them, and passwords are stored as bcrypt hashes.
+  </Accordion>
+</AccordionGroup>
+
+## Design and conditions
+
+<AccordionGroup>
+  <Accordion title="How many experimental conditions can I have?">
+    It depends which factor you mean, and the asymmetry is deliberate.
+
+    **Manipulation (post content) — exactly two arms, A and B.** This is not a UI limit; it follows from storage. A post carries `headline_a`/`headline_b`, `content_a`/`content_b`, `image_path_a`/`image_path_b`. There is no `_c`. A third arm would have no content to display, so the constraint is enforced at the builder, the server and the participant runtime rather than allowing a study that silently shows variant A to everyone labelled "C". A study can hold **at most one** such split.
+
+    **Metric conditions (social proof) — as many as you like.** Use **+ Add metric condition** in the **Configurator**. Each condition defines a min/max range that likes/shares/reactions are drawn from, and each participant is randomly assigned to one.
+
+    **A 2×2 is the two factors combined:** A/B on content × HIGH/LOW on metrics gives the four cells `A-HIGH`, `A-LOW`, `B-HIGH`, `B-LOW`. Adding a third metric condition gives you 2×3, and so on — the metric factor is where you expand.
+
+    <Warning>
+    If you are analysing data from an **older version** of the platform, check whether any session rows carry a `style_condition` other than `A` or `B`. Earlier builds let you add C/D arms and recorded them faithfully while showing those participants variant A content. The recorded condition and the actual stimulus did not match. This is now blocked, but historic rows are historic rows.
+    </Warning>
+
+    See [Manipulation (A/B)](/guide/manipulation) and [Social proof](/guide/social-proof).
+  </Accordion>
+
+  <Accordion title="Do my own preview sessions pollute the data?">
+    **No.** Preview sessions are tagged `is_preview = 1` and are excluded from the dashboard, the export and the analyses by default.
+
+    A session is tagged as preview when **either**:
+
+    1. the URL carried `?preview=1` (the **👁 Preview in a new tab** button), **or**
+    2. your browser sends the admin mode cookie set to preview — the header toggle reading **🧪 Preview (not counted)**.
+
+    That second rule is the useful one: while the toggle sits on 🧪 Preview, even opening the *live* participant link produces a preview-tagged session. You can click through your own study on the real URL as often as you like without touching your dataset. The participant page shows a banner when a session is a preview.
+
+    You have three further controls:
+
+    - The header toggle can be flipped to **📊 Production (counted)** when you deliberately want a genuine end-to-end test that behaves exactly like a participant's.
+    - The **Export** tab has an **Include preview sessions** option when you *do* want them (checking that your pilot clicks recorded correctly, for instance).
+    - **🗑 Delete preview sessions** in the **Export** tab removes them and their reactions, ratings and answers, leaving production sessions untouched. It cannot be undone.
+
+    <Note>
+    **Preview is not a simulation of your randomisation.** To stay reproducible, preview sessions always get the *first* manipulation arm and the *first enabled* metric condition, and conditional-logic rules never fire. A preview answers "does my content read correctly and does the flow work?" — not "is my 2×2 balanced?" or "does my skip rule fire?". Use a production test for those. See [Preview and launch](/guide/preview-and-launch).
+    </Note>
+  </Accordion>
+
+  <Accordion title="Can I edit a study after launch?">
+    Technically, yes — posts and settings stay editable while a study is active. **Methodologically, editing mid-collection is usually a mistake**, and the platform will not stop you or warn you.
+
+    The reason is that posts are edited **in place**. There is no version history. Reactions and ratings reference `post_id`, so once you change a headline, earlier rows and later rows point at the same post but the participants behind them saw different stimuli — and nothing in the export distinguishes them. You would be pooling two conditions and calling them one.
+
+    <Warning>
+    **Removing an A/B split is worse than it looks.** With no split, the **Posts** tab stops rendering the B headline and B content fields, and the next save of that post writes `headline_b` and `content_b` as empty strings. Re-adding the split does not bring the B text back for any post saved in between.
+    </Warning>
+
+    Safe changes mid-collection are the ones that cannot alter what a participant experiences or how you read their data — fixing a contact e-mail, adjusting dashboard widgets, reordering export columns (the export builder is presentation-only and never modifies the database).
+
+    If you need to change stimuli or design, **duplicate the study instead**. Duplication copies settings and posts without session data, giving you a clean slug and a clean dataset, with the original's data intact and interpretable. If you must change a live study, stop collection first, change it, and treat the before and after as separate samples — because that is what they are.
+  </Accordion>
+</AccordionGroup>
+
+## Collaboration
+
+<AccordionGroup>
+  <Accordion title="How do I share a study with a colleague?">
+    Two mechanisms, depending on whether they need to *work on it* or just *see the numbers*.
+
+    **To give them edit access**, use the **👥 Accounts** button in the header (owner or admin only):
+
+    <Steps>
+      <Step title="Create an account for them">
+        There is no public sign-up — an admin creates the account with a login and an initial password (minimum 8 characters). Role **researcher** means they see only the studies they own or are assigned to.
+      </Step>
+      <Step title="Assign the study">
+        Use **🔗 Studies** on their row to open **🔗 Assign studies**, then tick the studies they should have full edit access to — posts, configuration, dashboard, export.
+      </Step>
+    </Steps>
+
+    A collaborator **cannot** delete the study or manage its access list; those stay with the owner (and admins). Access is per-study, so assigning one project exposes nothing else you own.
+
+    **To let someone read the results without an account**, use **🔗 Share** on the **Dashboard**. It generates a public, read-only dashboard link valid for a number of days you choose (1–365, default 30), which you can hand to a supervisor or a collaborator at another institution.
+
+    <Warning>
+    A share link is a **bearer token**: anyone who has the URL can open the dashboard until it expires. It cannot be revoked before expiry — regenerating produces a new link but the old one keeps working until its own expiry date. Choose a short duration for anything sensitive, and do not post one anywhere public.
+    </Warning>
+
+    See [Accounts](/guide/accounts).
+  </Accordion>
+</AccordionGroup>
+
+## Data, storage and export
+
+<AccordionGroup>
+  <Accordion title="Where is my data stored?">
+    In a **single SQLite file on your own server** — by default `./data/research.db`, configurable with the `DATABASE_PATH` environment variable. Nothing is sent anywhere else, and there is no vendor holding a copy.
+
+    That one file contains everything: studies, posts, sessions, reactions, ratings, demographic and post-question responses, gaze points, accounts. Post images and avatars are stored as **BLOBs inside the database** too, not as loose files — which means the database file alone is the complete state of your instance. (An `uploads` directory exists as a legacy fallback; images found there are read into the database on boot.)
+
+    Under Docker, the file lives in the named volume `misinfo-data` (mounted at `/app/data`), alongside `misinfo-uploads` for the legacy uploads path, so it survives container rebuilds. On Railway, it lives on the volume you mount at `/app/data` — **without that volume the database is destroyed on every deploy.**
+  </Accordion>
+
+  <Accordion title="How do I back it up?">
+    There is no backup button in the panel. Backing up is your job as the operator, and it is genuinely simple: **copy the database file.**
+
+    <Warning>
+    The database runs in **WAL mode**, so `research.db` is not the whole story while the server is running — recent writes may still sit in `research.db-wal`. Copying only the main file from a live instance can yield a backup that is missing your most recent sessions.
+    </Warning>
+
+    <CodeGroup>
+    ```bash Safe (server running)
+    # sqlite3 handles WAL correctly and produces a consistent snapshot
+    sqlite3 ./data/research.db ".backup '/backups/research-$(date +%F).db'"
+    ```
+
+    ```bash Simple (server stopped)
+    # Stop the app first, then a plain copy is complete
+    cp ./data/research.db /backups/research-$(date +%F).db
+    ```
+    </CodeGroup>
+
+    Practical advice:
+
+    - **Automate it.** A daily cron job to storage on a different machine beats a heroic manual copy you forget during data collection.
+    - **Test a restore at least once**, before you need it. An untested backup is a hope, not a backup.
+    - **The Excel export is not a backup.** It contains your analysable data, not your studies, posts, images or accounts. Still — export at milestones and keep those files. It is free insurance and it costs one click.
+
+    Also see [Backup](/hosting/backup).
+  </Accordion>
+
+  <Accordion title="Can I self-host in the EU?">
+    Yes, and for most European institutions this is the main reason to use the platform at all. It is one Node process (Node 18+) plus a writable disk, with no managed services and no external calls in its normal operation — so it runs on an EU-region VPS, an EU Railway/Render region, your university's own servers, or a machine in your department.
+
+    Data residency then follows your hosting choice. To keep it that way, note the only three ways data or content leaves your server, all optional:
+
+    | Feature | What leaves, and to whom |
+    | --- | --- |
+    | **MS Clarity** (off by default) | Participant interaction recordings → Microsoft. The demographic form is masked, but this is a genuine third-party transfer. |
+    | **Auto-translation** (needs `ANTHROPIC_API_KEY`) | Your study *content* → Anthropic. No participant data. |
+    | **Panel end-links** | The participant's browser is redirected to the agency's URL, optionally carrying their panel ID. |
+
+    Leave all three alone and no participant data ever leaves the machine you chose.
+
+    <Note>
+    Self-hosting in the EU is a precondition for GDPR compliance, not a substitute for it. Your consent text, lawful basis, retention period, DPIA where required, and ethics approval remain yours — the platform gives you the infrastructure to honour them, not the paperwork.
+    </Note>
+  </Accordion>
+
+  <Accordion title="How do I get the data into SPSS or R?">
+    The **📥 Export** tab offers two formats.
+
+    **Excel (`.xlsx`)** — **📥 Download Excel (.xlsx)** gives you the full workbook, one sheet per view of the data, including:
+
+    | Sheet | Contents |
+    | --- | --- |
+    | `Dane_surowe` | The wide "everything" sheet — one row per session, including one-hot demographic dummies |
+    | `Oceny_wiarygodnosci` | One row per credibility rating |
+    | `Dane_polaczone` / `Dane_kompletne` | Combined long-format views |
+    | `Podsumowanie_sesji` | One row per completed session with aggregates |
+    | `Design_warunki` | Condition breakdown |
+    | `Pytania_demograficzne` / `Pytania_do_postow` | Question-level responses |
+    | `Eye_tracking` | Gaze data, when eye tracking is enabled |
+    | `Klucz_kodowania` | The coding key for the numeric demographic variables |
+
+    **CSV** — the `Dane_surowe` sheet only, written with a UTF-8 BOM so Excel opens Polish characters correctly without prompting. This is the fastest route into R, SPSS or Python (`pandas`, `scipy`, `statsmodels`).
+
+    Both honour the **Export language** selector and the **Include preview sessions** option, and both respect whatever you configured in **Preview and customize columns** — hiding, renaming and reordering columns changes only the file, never the database.
+
+    For analysis, use the pre-coded numeric variables (`age_code`, `gender_code`, `education_code`, `residence_code`) rather than re-coding the label strings yourself; `Klucz_kodowania` documents exactly what each number means, which is also what you cite in your methods section.
+
+    <Note>
+    The **📊 Analyses** tab runs tests inside the panel, and its own footnote is the honest one: *"These statistics are meant for quick exploration. For publication, export the data (xlsx/CSV) and run the analysis in R, SPSS, JASP or Python."* Use it to see whether an effect is there; use your real toolchain to report it.
+    </Note>
+
+    See [Export](/guide/export).
+  </Accordion>
+</AccordionGroup>
+
+## Interface language
+
+<AccordionGroup>
+  <Accordion title="Why is the panel in Polish, and how do I switch it to English?">
+    The platform was built for a Polish research group, so Polish is the default panel language and the source language for the built-in example content.
+
+    **To switch:** use the small language dropdown (tooltip: *Panel language*) in the **top-right of the header**. It is also on the **login screen**, so you can put the panel into English before you sign in for the first time. The options are **Polski** and **English**. The page reloads — that is deliberate, so no stale Polish strings survive in an already-rendered tab.
+
+    Your choice is stored in the browser (`localStorage`), which means it is **per browser, not per account**: a colleague signing into the same instance from their own machine still starts in Polish and sets their own preference.
+
+    <Warning>
+    **The panel language does not translate your study.** Demographic questions and their options, consent, instruction and debriefing texts, post headlines and content are **study content stored in the database** and shown to participants. They stay in whatever language you wrote them in, regardless of the panel switch — which is correct: you do not want your participants' consent form changing language because a researcher toggled their own UI.
+
+    Study content is translated separately — via **Study language** plus per-language translations, or **✨ Translate automatically**. See [Translations](/guide/translations).
+    </Warning>
+
+    <Note>
+    Two things stay Polish whatever you pick, because they are fixed identifiers rather than interface text: the **Excel sheet names** (`Dane_surowe`, `Oceny_wiarygodnosci`, …) and the **column keys** in the export. Treat them as stable variable names — which is exactly what makes an analysis script written against them keep working.
+    </Note>
+  </Accordion>
+</AccordionGroup>
+
+## Still stuck?
+
+<CardGroup cols={2}>
+  <Card title="Troubleshooting" icon="wrench" href="/troubleshooting">
+    Concrete symptoms and their fixes.
+  </Card>
+  <Card title="GitHub" icon="github" href="https://github.com/lowcydizajnu/missinfo-research">
+    Report a bug or read the source — it is the authority on all of the above.
+  </Card>
+</CardGroup>

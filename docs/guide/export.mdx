@@ -1,0 +1,306 @@
+---
+title: "Exporting data"
+description: "Download your study's data as Excel or CSV, understand every column, and customise the table before it leaves the platform."
+---
+
+The **📥 Export** tab is where a finished study becomes a dataset. It produces one wide table — one row per completed session — plus a coding key, and it lets you decide what that table looks like before you download it. Everything here is read-only with respect to your data: hiding, renaming, and reordering columns changes the *view*, never the sessions in the database.
+
+Pick a study from the list at the top of the panel first. The tab then shows the study name, its session counts, the download buttons, an inline column builder, the coding key, and a preview of the last 10 sessions.
+
+## Only completed sessions are exported
+
+Every row in the export comes from a session with `completed = 1`. Participants who opened the study and abandoned it partway are **not** in the file — not as blank rows, not as partial rows.
+
+<Warning>
+If your analysis needs attrition or drop-out numbers, take them from the **📊 Dashboard** (which reports total sessions, completed sessions, and a drop-out rate), not from the row count of the export. The export cannot tell you about people who never finished.
+</Warning>
+
+The tab header states both numbers so the gap is visible before you download: *Completed sessions:* and *All sessions:*.
+
+## What you can download
+
+<CardGroup cols={3}>
+<Card title="📥 Download Excel (.xlsx)">
+The full workbook: the wide data sheet plus the coding key.
+</Card>
+<Card title="📄 CSV">
+The wide data sheet only, as a single flat file for R, SPSS, or Python.
+</Card>
+<Card title="👁 Download eye-tracking CSV">
+Raw gaze points. Appears only when eye-tracking is enabled for the study.
+</Card>
+</CardGroup>
+
+Both the Excel and CSV downloads respect two pickers sitting next to them: the export language and the include-preview checkbox (both described below). The filename encodes your choices — `slug_2026-07-16.xlsx`, or `slug_cs_with-preview_2026-07-16.csv` when you picked a non-default language and included preview sessions — so a Polish export, a Czech export, and a preview-inclusive export can sit in the same folder without overwriting each other.
+
+The CSV is written with a UTF-8 byte-order mark, so Excel opens it with correct diacritics instead of prompting for an encoding.
+
+### Excel and CSV are not identical
+
+This is the one asymmetry worth remembering:
+
+| | Excel (.xlsx) | CSV |
+| --- | --- | --- |
+| Wide session table | Yes | Yes |
+| Coding key sheet | Yes | No (single file) |
+| One-hot 0/1 columns | Yes | No |
+| `post_N_answered_at` columns | Yes | No |
+| Your saved column layout | Applied | Applied |
+
+The one-hot columns and the per-post answer timestamps are appended by the Excel writer only. If you plan to work with the dummy-coded columns, download the `.xlsx`.
+
+### Export language
+
+When a study has translations saved, a language dropdown appears to the left of the download buttons: 🇵🇱 PL *(canonical)*, 🇬🇧 EN, 🇨🇿 CS, 🇸🇰 SK — whichever exist for that study. A Polish study with no translations gets no dropdown at all, just the buttons.
+
+The picker controls the **content** in the file: post headlines and body text, topic names, question labels, and the option labels behind participants' answers. Picking `pl` gives you the canonical source text; picking another language gives you what the participant actually read.
+
+<Note>
+Choosing a language does not translate the file's structure. Sheet names (`Dane_surowe`, `Klucz_kodowania`), the coding key's own headers, and every column key stay as they are, in Polish, in every export. They are stable identifiers your analysis scripts can rely on, not display text.
+</Note>
+
+## The `Dane_surowe` sheet
+
+One row per completed session, one column per measurement. This is the sheet the CSV mirrors, the sheet the column builder edits, and the sheet the Dashboard and **📊 Analyses** tab read from.
+
+### Session and condition columns
+
+| Column | Meaning |
+| --- | --- |
+| `session_id` | Numeric primary key. Sticky-left in the builder preview. |
+| `session_token` | The session's UUID — the key that ties a row to session recordings. |
+| `external_id` | Panel-recruitment respondent ID. See [below](#external_id-and-panel-recruitment). |
+| `full_condition` | The condition the participant was assigned to. Sticky-left. |
+| `style_condition` | The content variant shown (`A` / `B`). |
+| `metric_condition` | The social-proof arm. Blanked when the study is builder-based. |
+| `is_preview` | `1` for a researcher preview session, `0` for a real participant. |
+| `started_at` / `completed_at` | Timestamps, converted to Europe/Warsaw local time. |
+| `duration_min` | Completion time in minutes, one decimal place. |
+| `logic_applied` | `1` when any conditional-logic rule affected this session. |
+| `logic_skipped_parts` | Semicolon-joined list of parts a rule skipped. |
+| `logic_end_rule` | The rule that ended the session early, if any. |
+| `clarity_link` | Link to the session recording. Only populated when Clarity is configured. |
+
+The three `logic_*` columns exist so that a gap in the data reads as *"skipped by rule"* rather than as silently missing. A participant routed past a whole block of posts will have empty per-post columns for that block — `logic_skipped_parts` is what tells you why.
+
+<Tip>
+`is_preview` stays in the file even when you include preview sessions, so you can always filter them out again in your analysis rather than re-downloading.
+</Tip>
+
+### Demographic columns
+
+Every active demographic question becomes a column named after its `field_key`, holding the answer as text. The four default questions (`age`, `residence`, `education`, `gender`) are ordered first, then your custom questions in their configured order.
+
+The four defaults additionally get a numeric twin: `age_code`, `residence_code`, `education_code`, `gender_code`.
+
+<Note>
+Custom demographic questions get a text column but **no** `_code` column. If you need one of your own questions numerically coded, use its one-hot columns (Excel), or recode from the text in your analysis software.
+</Note>
+
+The code is simply the **1-indexed position of the option** in that question's option list: first option → `1`, second → `2`, and so on. This is deliberate and it is the reason the codes survive translation — the participant who clicked the third option gets `3` whether they read it in Polish, English, or Czech. It also means the codes are **not** portable across studies: if you reorder or insert options, the numbers shift with them.
+
+<Warning>
+Reordering the options of a demographic question mid-collection silently re-codes the answers of everyone who came before. Freeze your option lists before you launch.
+</Warning>
+
+The **Coding key for demographic variables** panel further down the Export tab prints the current mapping for every question, read straight from your study's own options — so you can check what `3` means today without opening the workbook. Questions with no options (free-text answers) are listed as *Free-text answer (not coded)*.
+
+### Per-post columns
+
+For each post slot `N` (numbered by the order posts were shown), the sheet carries:
+
+| Column | Meaning |
+| --- | --- |
+| `post_N_id` | The post's database ID. |
+| `post_N_topic` | Topic, translated for the chosen export language. |
+| `post_N_is_true` / `post_N_is_misinfo` | Mirror-image 0/1 flags for the post's veracity. |
+| `post_N_headline` / `post_N_content` | The exact variant this participant saw. |
+| `post_N_likes_shown` … `post_N_flags_shown` | The engagement metrics displayed on the post. |
+| `post_N_reaction` | The participant's currently-active reactions. |
+| `post_N_liked` / `_shared` / `_disliked` / `_flagged` | 0/1 per action. |
+| `post_N_commented` | 0/1 — whether a comment was left. |
+| `post_N_comment` | The comment text. |
+| `post_N_dwell_ms` | Time spent on the post, in milliseconds. |
+| `post_N_belief_1_7` | Credibility rating. Emitted only for legacy (non-builder) studies. |
+| `post_N_q<id>` | One column per post question, headed with a shortened question label. |
+
+Two sentinels are worth knowing:
+
+<AccordionGroup>
+<Accordion title="`no_reaction` instead of a blank cell">
+When a participant saw a post and clicked nothing — or clicked and then toggled everything back off — `post_N_reaction` reads `no_reaction`, and the four 0/1 action flags read `0`. A blank cell would be ambiguous between *"they didn't react"* and *"we didn't export this"*. Filter with `reaction != 'no_reaction'` rather than a null test.
+</Accordion>
+<Accordion title="`dwell_ms` of 0 means no recorded dwell">
+Dwell is filled from the reaction event when there is one, and otherwise from passive view tracking. When neither exists, the cell is `0`, not blank, so the column stays uniformly numeric and Excel's `AVERAGE` doesn't trip over mixed types. Treat `0` as *no recorded dwell*, not as a measured zero.
+</Accordion>
+<Accordion title="Metrics fall back to the post's configured baseline">
+If a participant never reacted to a post, the platform has no per-participant record of the metrics they were shown, so the `*_shown` columns fall back to the post's configured `base_likes` / `base_shares` / `base_dislikes` / `base_flags`. In builder studies these are exact (what is configured is what is shown). In legacy studies using randomised metric ranges they are the configured baseline, not the participant-specific random draw.
+</Accordion>
+</AccordionGroup>
+
+### Part-level question columns
+
+When a part is configured to ask its questions once, after all its posts, those answers cannot live in a per-post slot. They get their own columns instead, named `partX_q<id>` — for example `part0_q12` — grouped together at the right of the per-post block.
+
+Per-post columns for the same questions still exist. This is intentional forward-compatibility: a study that switched a part to after-all-posts mode mid-collection has older answers stored against individual posts, and dropping the per-post columns would make them disappear from the file. If both are populated for one study, the split marks the mode change, not a bug.
+
+### One-hot 0/1 columns (Excel only)
+
+At the far right of `Dane_surowe`, the Excel writer appends a dummy-coded column for **every option of every choice question**, headed `field_key::Option label` or `post_N_q<id>::Option label`.
+
+Coverage is built from the question's *definitions*, not from the answers actually given — so an option nobody ever chose still gets its own column of zeros. That is what makes the block safe to feed straight into a regression: your design matrix has the same shape regardless of which options happened to attract responses.
+
+Which questions get them:
+
+- Demographic questions of any input type that have an option list — both multiselect and single-choice (radio).
+- Post questions of type `multi` and type `single`.
+
+Free-text questions and Likert questions get no one-hot columns (there is nothing to enumerate).
+
+The value convention is the important part:
+
+<ParamField path="1" type="0/1/blank">
+The participant chose this option.
+</ParamField>
+<ParamField path="0" type="0/1/blank">
+The participant answered this question and did **not** choose this option.
+</ParamField>
+<ParamField path="(blank)" type="0/1/blank">
+The participant did not answer this question at all — no response was recorded.
+</ParamField>
+
+<Warning>
+Blank is not zero. If your software reads empty cells as `0`, a skipped question becomes indistinguishable from a rejected option, and every non-answer silently joins the reference category. Set the blanks to your software's missing value explicitly before modelling — `NA` in R, `.` or a declared user-missing in SPSS, `NaN` in pandas.
+</Warning>
+
+<Note>
+The one-hot columns are appended *after* your saved column layout is applied, so they always appear in the `.xlsx` regardless of what you hid in the builder. They are also not shown in the builder preview, and they are not in the CSV.
+</Note>
+
+Multiselect demographic answers are stored as one delimited string, and some option values legitimately contain commas. The export uses a longest-match-first parser that consumes whole option values at delimiter boundaries, so an option like *"gazety, czasopisma"* is matched as one option rather than split into two. A token matching no known option is logged to the server console as an unrecognised value.
+
+### `post_N_answered_at` (Excel only)
+
+One timestamp per post slot: when the participant answered the questions on that post, in Europe/Warsaw local time. Blank when they answered nothing there.
+
+## The `Klucz_kodowania` sheet
+
+The workbook's second and last sheet: the codebook. Three columns — `Zmienna` (variable), `Wartość tekstowa` (text value), `Kod numeryczny` (numeric code) — listing:
+
+- Every demographic question with each option label and its numeric code.
+- The study's conditions under `WARUNEK (full_condition)`.
+- A legend of post questions with their `question_id` and type.
+- A legend of demographic questions with their field keys.
+
+Question and option labels here follow your chosen export language, so the codebook and the data sheet agree with each other.
+
+<Info>
+The workbook contains exactly these two sheets. Earlier versions produced long-format reshapes and summary sheets alongside them; those were dropped because they restated data already present in `Dane_surowe` while accounting for the bulk of the file size. Reshape from the wide sheet in your analysis software instead.
+</Info>
+
+## Preview sessions
+
+Preview sessions are the ones you generate yourself while building and checking a study — the mode toggle in the panel header (**🧪 Preview (not counted)** / **📊 Production (counted)**) decides which kind your own runs create. They carry `is_preview = 1` and they are **excluded from the export by default**, so a fortnight of testing your own stimuli doesn't contaminate the dataset.
+
+When a study has any, the Export tab shows *Preview sessions (hidden):* with the count, and a bar with two controls:
+
+<Steps>
+<Step title="The include-preview checkbox">
+Ticking it adds completed preview sessions to the Excel and CSV downloads, refreshes the builder preview, and appends `_with-preview` to the filename. Untick it and they vanish again — nothing is deleted either way.
+
+The label currently reads *Dołącz sesje podglądowe (preview) do eksportu* ("Include preview sessions") in both panel languages; this one string is not yet translated.
+</Step>
+<Step title="🗑 Delete preview sessions">
+Permanently removes every preview session for this study, along with its reactions, ratings, question responses, and gaze points. Production participant sessions are untouched. You are asked to confirm, and the operation cannot be undone.
+</Step>
+</Steps>
+
+The count next to *Preview sessions (hidden)* may be followed by *(+ n incomplete)*. Those are preview runs you started and never finished. They **never** appear in the export — not even with the checkbox ticked, because the export only takes completed sessions — but the delete button cleans them up too, which is why its count is the sum of both.
+
+## The export builder
+
+Under the download buttons sits a collapsible section: **Preview and customize columns** — *hide, rename, reorder. Changes never delete data from the database.* Open it and you get a live 20-row sample of `Dane_surowe` rendered exactly as it will be exported.
+
+### Reading the preview table
+
+Each column header carries a selection checkbox, a type badge (🔢 number, 📝 text, 🏷 categorical, 🔗 link), the header text, and a **⋮** menu. Beneath the headers is a row of group bars — `meta`, `demographics`, and one per post — which collapse and expand on click. `session_id` and `full_condition` are pinned to the left so you never lose your place scrolling through per-post columns.
+
+The status line reports how many columns are visible out of the total, how many are hidden, and whether they are hidden manually or by a collapsed group. The **🔍 Filter rows…** box filters the preview only — it has no effect on what gets exported.
+
+### Making changes
+
+<Steps>
+<Step title="Reorder">
+Drag any column header sideways. Pinned columns don't drag; use their **⋮** menu's **← Left** / **Right →** buttons instead.
+</Step>
+<Step title="Rename">
+Open **⋮** → **Header name**, type a new header, then **Apply**. Clearing the field restores the default header.
+</Step>
+<Step title="Hide">
+Open **⋮** and untick **Column visible**. Hidden columns stay in the preview greyed out; **🙈 Hide hidden** removes them from view entirely.
+</Step>
+<Step title="Bulk hide">
+Tick the checkboxes on several headers. A bar appears showing the selection count with **🙈 Hide selected**, **👁 Show selected**, and **↺ Deselect**. This is the fast path for dropping a whole block of per-post columns.
+</Step>
+<Step title="Save">
+Nothing persists until you press **💾 Save layout**. The confirmation reads *Column layout saved. The next export will use it.*
+</Step>
+</Steps>
+
+**↺ Reset** returns everything to defaults — order, visibility, and header names — after a confirmation. It too only takes effect on the next **💾 Save layout**.
+
+### Profiles
+
+Named, reusable layouts for the same study. **💾 Save as profile** prompts for a name (*e.g. "Minimal", "Demographics only"*); the dropdown loads one back; **🗑 Delete profile…** removes one.
+
+<Note>
+Loading a profile only populates the builder — the toast says so explicitly: *Click "Save layout" to make it permanent.* A saved profile and the live layout are separate things, and deleting a profile never touches your live layout.
+</Note>
+
+### What the layout affects
+
+Hiding a column removes it from the Excel and CSV downloads. Renaming one changes the header there — **and** in the Dashboard's widget pickers and the **📊 Analyses** tab, so a column you renamed to something readable stays readable everywhere. Ordering and visibility are export-only concerns and do not propagate to those pickers.
+
+<Tip>
+New columns are forward-compatible. If your study later gains a post or a question, its columns appear at the end of your saved layout rather than being silently dropped — a saved layout can never hide a column that didn't exist when you saved it.
+</Tip>
+
+## Eye-tracking gaze CSV
+
+When **eye-tracking is enabled** for the study, a **👁 Download eye-tracking CSV** button appears under the main download buttons. It produces one row per recorded gaze sample:
+
+```text
+session_id,session_token,full_condition,post_id,post_order,screen_name,t,x,y,vw,vh,scroll_y,aoi
+```
+
+- `t` — sample timestamp.
+- `x`, `y` — gaze coordinates.
+- `vw`, `vh` — viewport dimensions, so coordinates can be normalised across participants' screens.
+- `scroll_y` — scroll offset at the moment of the sample.
+- `aoi` — the area of interest under the gaze: `headline`, `content`, `image`, `metrics`, `actions`, `avatar`, or empty.
+
+<Warning>
+The gaze CSV ignores the language picker and the include-preview checkbox. It exports gaze points for **every** session of the study — preview sessions and unfinished sessions included. Join it to `Dane_surowe` on `session_id` (or `session_token`) and filter there if you need only completed production sessions.
+</Warning>
+
+This file is raw sample data and grows quickly — expect it to be far larger than the workbook.
+
+## `external_id` and panel recruitment
+
+If you recruit through a panel or agency, the participant arrives on a link carrying their respondent ID as a URL query parameter. The platform captures that value at session start and stores it in `sessions.external_id`, which surfaces as the `external_id` column in `Dane_surowe`.
+
+The parameter name is per-study and configurable in the study's settings; the default is `res_id`, so a link like `https://your-domain/s/your-slug?res_id=abc-123` records `abc-123`. Captured values are trimmed and capped at 256 characters — agency IDs are typically UUID-shaped, so anything longer is treated as junk.
+
+Sessions that arrived without the parameter — anyone who reached the study directly — have an empty `external_id`. This is the column you hand back to the agency to reconcile your completions against their sample.
+
+<Warning>
+`external_id` is by definition an identifier supplied by a third party and linkable back to a person by that third party. It is personal data. Decide deliberately whether it belongs in the file you archive or share, and hide it in the export builder if it does not.
+</Warning>
+
+## A short checklist before you analyse
+
+<Check>Confirm the row count matches your expected N — remember drop-outs are absent by design.</Check>
+<Check>Decide on preview sessions: excluded (default), included and filtered later on `is_preview`, or deleted.</Check>
+<Check>Set the blanks in the one-hot columns to a proper missing value — they are not zeros.</Check>
+<Check>Check the coding key so you know what `1`, `2`, `3` mean for this study's option order.</Check>
+<Check>Note that all timestamps are Europe/Warsaw local time, not UTC.</Check>

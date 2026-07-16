@@ -1,0 +1,258 @@
+---
+title: "Demographic questions"
+description: "Define the demographic questions your participants answer, control where they appear, and understand how they land in the export."
+---
+
+Demographic questions are the short profile block participants fill in — age bracket, place of residence, education, gender, plus anything else your design needs. In Misinfo Research they are not a fixed form: every question is a row you own, edit, reorder, or delete, and every answer becomes a named column in your export.
+
+Everything on this page lives in the **👤 Demographics** tab of the admin panel. Pick a study from the list at the top first — otherwise the tab shows *Select a study from the list above.*
+
+## Demographic questions are study content, not interface
+
+This distinction matters more than it first appears, and it is the single thing researchers most often get wrong.
+
+The admin panel's own chrome — tab names, buttons, labels like *Save* or *Required* — is **interface**, and it is translated: the panel defaults to Polish and has an English switch in the header. Your demographic questions are **content**. They are rows in the study's database, they are shown to participants, and they stay in whatever language you wrote them in.
+
+<Note>
+Switching the admin panel to English changes the panel around your questions. It does not translate the questions themselves — nor should it, because a participant in a Polish-language study must see Polish options regardless of which language *you* happen to be reading the panel in.
+</Note>
+
+The practical consequence: if you are building a study in a language other than Polish, you have to write (or translate) the question labels and answer options yourself. The platform will not do it as a side effect of the language switch.
+
+## The four default questions
+
+A study does not get its demographic questions at creation time. They are seeded lazily — the first time you open the **👤 Demographics** tab for that study, or the first time a participant starts a session, the platform notices the study has no questions and inserts four defaults:
+
+| Order | `field_key` | Type | Options |
+| --- | --- | --- | --- |
+| 1 | `age` | Radio | 18–25, 26–35, 36–45, 46–60, 60+ |
+| 2 | `residence` | Radio | large city (100k+), medium city (10–100k), small town (under 10k), village |
+| 3 | `education` | Radio | primary, secondary, higher (bachelor), higher (master or above) |
+| 4 | `gender` | Radio | woman, man, other, prefer not to say |
+
+All four are seeded **required** and **active**.
+
+<Warning>
+The seeded labels and options are in **Polish** — the platform's original study language — regardless of what language your study is in. This is deliberate (they are content, not interface), but it means an English, Czech, or Slovak study needs you to edit these four questions before launch. Open each one and rewrite the label and every option's displayed label.
+</Warning>
+
+<Warning>
+Seeding is triggered by "this study has zero demographic questions". If you **delete all four**, the next time the tab loads or a session starts, the four Polish defaults come back. To run a study with no demographics, use the position dropdown described below (**Skip entirely**) or switch each question's **Active** toggle off — do not try to achieve it by deleting rows.
+</Warning>
+
+## Reading the question list
+
+Each question renders as a card showing, in order: its position number, the question label, its `field_key` in a code pill, its input type, an **Active** / **Hidden** badge, and a `required` marker when the question is required. Radio and multiselect questions also show their options as small pills, so you can scan the whole instrument without opening anything.
+
+On the right of each card: **↑** / **↓** (Move up / Move down), **✏️ Edit**, and **🗑 Delete**.
+
+## Field key
+
+The **Field key (unique name)** is the question's machine identifier. It is what the participant's answer is stored under, what the export column is named, and what conditional-logic rules match on. The label is for humans; the field key is for your data.
+
+<ParamField path="field_key" type="string" required>
+Unique name for the question, e.g. `job_status`. Becomes the export column header. Choose something you'd be happy typing in R or SPSS — lowercase, no spaces.
+</ParamField>
+
+Two rules worth internalising:
+
+<AccordionGroup>
+<Accordion title="The four default field keys are locked">
+For `age`, `residence`, `education` and `gender` the Field key input is read-only in the edit dialog. You can freely change their labels, options, type, required status and order — but not the key itself, because those four keys have dedicated columns in the sessions table and dedicated `_code` columns in the export.
+</Accordion>
+
+<Accordion title="Custom field keys are yours, but rename with care">
+Any question you add gets whatever key you type. Its answers are stored in a per-session JSON blob keyed by that field key. If you rename the key **after** collecting data, previously-collected answers remain stored under the old key and will no longer line up with the renamed column. Settle your keys before you launch.
+</Accordion>
+</AccordionGroup>
+
+## Input types
+
+Choose under **Field type**. Four types are available:
+
+<Tabs>
+<Tab title="Radio">
+`Radio (single choice)` — the default. Participant picks exactly one option. Renders as a radio group.
+
+This is the right choice for most demographics. Closed brackets are easier to analyse than free text and they get numeric codes in the export (see below).
+</Tab>
+
+<Tab title="Multiselect">
+`Multiselect (multiple choice — checkboxes)` — participant ticks any number of options.
+
+The selected values are joined with commas into a **single cell** in the export. Good for "which of these do you use for news?" style questions. **Required** here means "at least one box ticked".
+</Tab>
+
+<Tab title="Text">
+`Text (free-text field)` — a free-text input.
+
+For text, the min/max bounds are a **character count** (mapped onto the browser's `minlength` / `maxlength`).
+</Tab>
+
+<Tab title="Number">
+`Number (digits only)` — a numeric input with a numeric keypad on mobile and a step of 1.
+
+For numbers, the min/max bounds are an allowed **value range** — e.g. 18–120 for an exact age.
+</Tab>
+</Tabs>
+
+The dialog swaps its own middle section based on this choice: pick Radio or Multiselect and you get **Answer options**; pick Text or Number and you get the bounds fields instead.
+
+### Answer options
+
+Each option row has two inputs:
+
+<ParamField path="Value (value)" type="string" required>
+The stored value — what lands in your data file, and what conditional-logic rules compare against. An option row with an empty value is dropped on save.
+</ParamField>
+
+<ParamField path="Displayed label" type="string">
+What the participant actually reads. If you leave it empty, the value is used as the label.
+</ParamField>
+
+Splitting value from label is what lets you show a participant *"Higher (master or above)"* while your dataset carries a short, stable `wyższe magister+`-style token. Use **+ Add option** to add rows; the ✕ button removes one.
+
+<Tip>
+Option **order is meaningful**. The numeric code in the export is the option's 1-indexed position in this list — first option → 1, second → 2, and so on. Order your options along their natural scale (lowest education first, youngest bracket first) and your codes come out ordinal for free.
+</Tip>
+
+### Bounds for Text and Number
+
+Shown as **Character count (min/max)** for Text and **Value range (min/max)** for Number. Leaving a field empty means no limit on that side. The bounds are enforced in the participant's browser and shown to them as an inline hint before they type, rather than as a validation error after they submit.
+
+## Required and Active
+
+Two toggles at the bottom of the dialog:
+
+- **Required** — the participant cannot continue past the screen until this question is answered. The Continue button stays disabled and a hint is shown. For Text and Number, browser-level validation of the bounds must also pass.
+- **Active** — whether the question is shown at all. Inactive questions display a **Hidden** badge in the list and are excluded from the participant screen, from the export's demographic columns, and from the codebook.
+
+<Tip>
+**Active** is the safe way to retire a question mid-project. Deleting it removes the row (and can trigger re-seeding if it was the last one); switching it off keeps the definition intact and stops asking. Note that toggling a question off does not remove answers already collected under that key from the underlying database.
+</Tip>
+
+## Ordering
+
+**↑** and **↓** swap a question with its neighbour. The order you see is the order participants see, and it is the order the questions appear in the export's demographic column group — with one caveat: in the export, the four default keys (`age`, `residence`, `education`, `gender`) are always listed first, followed by your custom questions in their configured order.
+
+## Adding a question
+
+<Steps>
+<Step title="Open the tab">
+Select the study, go to **👤 Demographics**, click **+ Add question**.
+</Step>
+<Step title="Name it">
+Fill in **Field key (unique name)** (e.g. `job_status`) and **Question (label)** (e.g. *What is your employment status?*). Both are required — saving without them shows an error.
+</Step>
+<Step title="Pick the type">
+Choose the **Field type**, then either add **Answer options** or set the min/max bounds.
+</Step>
+<Step title="Set Required / Active">
+Both default to on for a new question.
+</Step>
+<Step title="Create">
+Click **Create question**. It is appended to the end of the list; use ↑ to move it where you want.
+</Step>
+</Steps>
+
+## Previewing the screen
+
+**👁 Preview screen** opens the demographics screen in a new tab, skipping consent and instructions entirely so you see exactly the form your participants will get.
+
+The preview session is flagged as a preview, so it does not pollute your production data. Submitting the form in this mode does not save anything and does not advance the flow — it replaces the card with a confirmation that the screen rendered correctly. Close the tab when you're done.
+
+<Tip>
+Preview after every substantive edit, and especially after editing a non-Polish study. It's the fastest way to catch a stray Polish default option or an option whose label you forgot to fill in.
+</Tip>
+
+## Where the screen sits in the flow
+
+The Demographics tab defines *what* is asked. *Where* it is asked is set in the **🔧 Configurator**, under **👤 Demographics** → **Position in the study flow**:
+
+- **After consent (before the instruction) — default.** The classic placement.
+- **At the end (before the debriefing).** Choose this when you're concerned that asking about age, gender or education up front could prime the participant's behaviour in the main task — a live worry in misinformation research, where demographic salience can plausibly shift how critically someone reads a feed. The cost is attrition: participants who drop out mid-study leave you no demographics at all.
+- **Skip entirely.** The screen never renders. Use this when your recruitment platform already supplies demographics out-of-band (Prolific, Lucid) — asking twice wastes participant time and invites inconsistency. Sessions then carry empty demographic fields in the export.
+
+## Screen heading and subtitle
+
+The screen's heading and subtitle are **not** part of a question — they come from the participant-facing translation keys `demographics.title` and `demographics.subtitle` (in English, *"A few questions about you"* and *"All data is anonymous and used solely for research purposes."*).
+
+To change them, use **⚙ → Translations and platform settings** and edit those keys. Edits made there are stored in the database, so they survive a redeploy — editing the locale files on a hosted deployment does not.
+
+<Info>
+These keys are platform-wide per language, not per study. If two studies in the same language need different headings, this is not the mechanism for it.
+</Info>
+
+## What lands in the export
+
+This is the payoff. Answers are stored two ways, and the difference shows up in your columns.
+
+The four default keys (`age`, `residence`, `education`, `gender`) have their own dedicated fields on the session. Every other question's answer is stored in a per-session JSON object keyed by field key. You don't need to touch either — the export flattens both into named columns — but it explains why the default four get one extra thing the others don't.
+
+### Text columns and code columns
+
+In the **Dane_surowe** sheet, each active question contributes a column named after its `field_key`, carrying the value as stored.
+
+The four default keys **additionally** get a paired numeric column: `age_code`, `residence_code`, `education_code`, `gender_code`. The code is the 1-indexed position of the chosen option in that question's option list — so if you reorder or rewrite the options, the codes follow your list, not some hard-coded assumption. Custom questions do not get a `_code` column.
+
+```text
+session_id | age    | age_code | residence   | residence_code | ... | job_status
+1          | 26-35  | 2        | duże miasto | 1              | ... | employed
+2          | 60+    | 5        | wieś        | 4              | ... | student
+```
+
+### One-hot columns
+
+The Excel export also appends a 0/1 column for every option of every question that has options — both radio and multiselect. They are headed `field_key::Option label`:
+
+```text
+gender::Woman | gender::Man | gender::Other | gender::Prefer not to say
+1             | 0           | 0             | 0
+```
+
+These are generated from the option **definitions**, so options nobody ever picked still get a column of zeros — which is what you want when you're building a model matrix and need stable columns across waves. A blank cell (rather than 0) means the question was genuinely unanswered. For multiselect answers, the comma-joined string is parsed back out into one flag per option.
+
+### Other sheets
+
+<CardGroup cols={2}>
+<Card title="Pytania_demograficzne" icon="table">
+One row per completed session, with a column per demographic question — the demographics-only view, if you don't want to wade through the mega sheet.
+</Card>
+<Card title="Klucz_kodowania" icon="key">
+The codebook. Lists each question with its options and their numeric codes, generated from your study's actual configuration — so it is correct for your questions, not for the defaults.
+</Card>
+</CardGroup>
+
+<Note>
+Export sheets carry Polish names (`Dane_surowe`, `Pytania_demograficzne`, `Klucz_kodowania`) regardless of the panel's interface language. The **column** headers inside them are your field keys.
+</Note>
+
+## Using demographics in conditional logic
+
+Field keys are the bridge to the **🔧 Configurator**'s conditional-logic rules. A rule can trigger on a **Demographic answer**, with timing **After the demographic questions** — matching on the field key and comparing against a value.
+
+The obvious use is a screen-out: an age rule that ends the study for anyone under 18. This is also why the placement decision has a hidden constraint — a rule that screens on demographics needs the demographics to have been *asked* already, so it cannot fire if you moved the screen to the end of the flow.
+
+<Card title="Conditional logic" href="/guide/conditional-logic" icon="code-branch">
+How to build screen-out and branching rules.
+</Card>
+
+## Practical guidance
+
+<AccordionGroup>
+<Accordion title="Ask only what you will analyse">
+Every question is a cost — participant time, attrition, and (for anything identifying) a data-protection burden. Demographic blocks tend to accumulate questions nobody ever models. If you can't name the analysis a question feeds, drop it.
+</Accordion>
+
+<Accordion title="Brackets over free text, unless you need precision">
+The seeded `age` question is a radio with brackets, not a number field. Brackets are less identifying, faster to answer, and come with ordinal codes ready to use. Switch to Number only when your analysis genuinely needs exact age — and then set a sane range (e.g. 18–120) so a typo doesn't quietly become an outlier.
+</Accordion>
+
+<Accordion title="Always give an opt-out on sensitive items">
+The seeded `gender` question includes *prefer not to say* for a reason. Forcing a required question with no opt-out doesn't produce better data — it produces false data or a dropout.
+</Accordion>
+
+<Accordion title="Settle your instrument before you launch">
+Field keys, option values and option order all propagate into your dataset. Changing option order mid-collection changes the numeric codes for participants collected afterwards, while earlier participants keep the codes from the old order — leaving two incompatible codings in one file. Preview, check the codebook, then launch.
+</Accordion>
+</AccordionGroup>

@@ -1,0 +1,278 @@
+---
+title: "Docker"
+description: "Run your own Misinfo Research instance with Docker Compose — configuration, persistent volumes, ports and upgrades."
+---
+
+Docker is the shortest path to a working instance if you would rather not install Node and a compiler toolchain on your machine. One command builds the image and starts the server; the SQLite database and uploaded images live in named volumes, so they survive rebuilds and upgrades.
+
+The repository ships both halves of this setup: a `docker-compose.yml` in the project root and a `Dockerfile` under `docker/`. You do not need to write either one.
+
+## What you need
+
+- Docker with the Compose plugin (`docker compose`, not the older `docker-compose` script).
+- A clone of the repository — Compose builds the image from the source tree, so the code has to be on disk.
+
+```bash
+git clone https://github.com/lowcydizajnu/missinfo-research.git
+cd missinfo-research
+```
+
+## Set up
+
+<Steps>
+
+<Step title="Create your .env">
+Compose automatically reads a file named `.env` sitting next to `docker-compose.yml`, so this is where your configuration goes.
+
+```bash
+cp .env.example .env
+```
+</Step>
+
+<Step title="Set the two required values">
+Open `.env` and fill in `JWT_SECRET` and `ADMIN_PASSWORD`. Nothing starts without them.
+
+Generate a strong secret:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+```
+
+If you have no Node on the host, any long random string from a password manager works equally well — the value is never parsed, only used to sign tokens.
+
+<Warning>
+Never commit your real `.env`. It is gitignored, and `.dockerignore` also keeps it out of the build context — the image contains no secrets, and configuration is injected at run time only.
+</Warning>
+</Step>
+
+<Step title="Start the stack">
+```bash
+docker compose up -d
+```
+
+The first run builds the image, which takes a few minutes: the native `better-sqlite3` module may have to be compiled from source. Later runs reuse the cached image and start in seconds.
+</Step>
+
+<Step title="Sign in">
+Open **http://localhost:3000/admin**.
+
+On the very first boot — and only when the database contains no users at all — the server creates one account from your `ADMIN_PASSWORD`:
+
+- **Username:** `admin`
+- **Password:** whatever you put in `ADMIN_PASSWORD`
+
+The panel opens in Polish by default; the language selector sits on the login card and in the top-right of the header.
+
+<Note>
+`ADMIN_PASSWORD` seeds that one account and nothing else. Changing it later in `.env` does **not** change the password of an existing `admin` — passwords are managed from the **Accounts** button in the panel header once you are signed in.
+</Note>
+</Step>
+
+</Steps>
+
+## The compose file
+
+The whole deployment is one service:
+
+```yaml docker-compose.yml
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in your .env (see .env.example)}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in your .env}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    volumes:
+      - misinfo-data:/app/data
+      - misinfo-uploads:/app/uploads
+    restart: unless-stopped
+
+volumes:
+  misinfo-data:
+  misinfo-uploads:
+```
+
+Two details worth knowing:
+
+- The `:?` syntax on the first two variables makes Compose **refuse to start** and print that message if the value is missing from your `.env`, rather than booting a broken container. `ANTHROPIC_API_KEY` uses `:-` instead, so it defaults to empty and the key is simply optional.
+- `restart: unless-stopped` brings the container back after a crash or a host reboot, but respects an explicit `docker compose stop`.
+
+## Environment variables
+
+Compose forwards exactly three variables into the container:
+
+<ParamField body="JWT_SECRET" type="string" required>
+Signs admin login tokens. The server calls `process.exit(1)` with `FATAL: JWT_SECRET is not set` if this is missing — it refuses to run with a forgeable token secret. Treat it as a password: anyone holding it can mint valid admin tokens.
+</ParamField>
+
+<ParamField body="ADMIN_PASSWORD" type="string" required>
+Password for the first `admin` account, created on first boot only. If the database already has users, this value is ignored.
+</ParamField>
+
+<ParamField body="ANTHROPIC_API_KEY" type="string">
+Optional. Enables AI-assisted translation of study content via the Anthropic API. The platform is fully functional without it — leave it blank and the feature reports a missing key instead.
+</ParamField>
+
+<Warning>
+`.env.example` also documents `PORT`, `DATABASE_PATH` and `UPLOADS_PATH`. Those apply when you run the server directly with Node, but **Compose does not forward them** — the `environment:` block lists only the three variables above. Inside the container they keep their defaults: port `3000`, database at `/app/data/research.db`, uploads at `/app/uploads`. Those defaults are exactly what the volumes and the port mapping are built around, so leave them alone unless you also edit `docker-compose.yml`.
+</Warning>
+
+## Persistence
+
+Everything you would hate to lose is in the volumes:
+
+| Volume | Mount point | Contents |
+|---|---|---|
+| `misinfo-data` | `/app/data` | The SQLite database (`research.db` plus its WAL sidecar files) — studies, posts, participants, reactions, ratings, accounts |
+| `misinfo-uploads` | `/app/uploads` | Legacy on-disk image fallback |
+
+<Info>
+**The database volume is the one that matters.** Post images and avatars are stored as BLOBs in the database alongside the rows that own them — a deliberate choice, because on many hosts the filesystem is ephemeral and images stored on disk vanish on redeploy. `/app/uploads` only serves as a fallback for files not yet migrated into the database, so a healthy instance can have an almost empty uploads volume. Back up `misinfo-data`.
+</Info>
+
+Both volumes are declared as Docker named volumes, so Docker manages their location. Compose prefixes them with the project name (the directory name by default), which is why `docker volume ls` shows entries like `missinfo-research_misinfo-data`.
+
+<Warning>
+Do not copy `research.db` out of a running container as a backup. The database runs in WAL mode, so recent writes may still be in the `-wal` file and a bare file copy can be inconsistent. See the backup page for the safe procedure.
+</Warning>
+
+If you would rather see the database as an ordinary file on your host — easier to back up with the tools you already use — swap the named volume for a bind mount:
+
+```yaml
+    volumes:
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+```
+
+## Ports
+
+The container listens on `3000` and the compose file publishes it as `3000:3000`. To serve on a different host port, change the **left** side only:
+
+```yaml
+    ports:
+      - "8080:3000"
+```
+
+The panel is then at `http://localhost:8080/admin`. Leave the right side at `3000` — that is the port the process actually binds inside the container.
+
+<Tip>
+For anything reachable from the internet, put a reverse proxy (Caddy, nginx, Traefik) in front and terminate TLS there. The app expects to sit behind at most one proxy hop: it trusts a single `X-Forwarded-For` hop so rate limiting sees real client IPs rather than the proxy's.
+</Tip>
+
+## Upgrading
+
+Pull the new code and rebuild — the `--build` flag is the important part, since Compose otherwise happily reuses the old image:
+
+```bash
+git pull
+docker compose up -d --build
+```
+
+Your data is untouched: the volumes are independent of the image, and the container is replaced rather than the volume. Schema migrations run automatically when the server starts, so there is no separate migration command.
+
+<Warning>
+Back up the `misinfo-data` volume before upgrading a live instance. Migrations run forward only — there is no automatic rollback if you decide to return to an older commit.
+</Warning>
+
+## Everyday commands
+
+<CodeGroup>
+
+```bash Logs
+docker compose logs -f app
+```
+
+```bash Restart
+docker compose restart app
+```
+
+```bash Stop
+docker compose stop
+```
+
+```bash Stop and remove containers
+# Volumes are kept — your data survives this.
+docker compose down
+```
+
+```bash Shell inside the container
+docker compose exec app sh
+```
+
+</CodeGroup>
+
+<Warning>
+`docker compose down -v` deletes the named volumes **and your entire database with them**. There is no undo. The plain `down` above is the one you normally want.
+</Warning>
+
+## Why the Dockerfile lives in `docker/`
+
+An unusual detail worth explaining, because it looks like a mistake: the `Dockerfile` is at `docker/Dockerfile`, not in the repository root.
+
+Railway auto-detects a root `./Dockerfile` and, if it finds one, builds with Docker instead of Nixpacks — silently overriding the `"builder": "NIXPACKS"` setting in `railway.json`. Keeping the file one directory down means the Railway deploy keeps using Nixpacks, while `docker-compose.yml` points at it explicitly through `dockerfile: docker/Dockerfile`. Both deployment paths work, neither fights the other.
+
+If you build the image by hand rather than through Compose, remember that the build context is the project root, not the `docker/` directory:
+
+```bash
+docker build -f docker/Dockerfile -t misinfo-research .
+```
+
+### What the image does
+
+The build is two-stage. The build stage starts from `node:20-slim`, installs `python3`, `make` and `g++` so `better-sqlite3` can compile when no prebuilt binary matches the platform, then runs `npm ci --omit=dev`. The runtime stage starts from a clean `node:20-slim`, sets `NODE_ENV=production` and copies the finished app across — including `node_modules` with the compiled native binary, whose ABI matches because both stages share the same base image. The toolchain never ships in the final image.
+
+The runtime stage declares `VOLUME ["/app/data", "/app/uploads"]`, exposes `3000`, and runs `node server.js`.
+
+## Troubleshooting
+
+<AccordionGroup>
+
+<Accordion title="Compose exits immediately with 'set JWT_SECRET in your .env'">
+Your `.env` is missing, is not next to `docker-compose.yml`, or has an empty `JWT_SECRET=`. Compose reads `.env` from the directory you run the command in — check that you are in the project root.
+</Accordion>
+
+<Accordion title="Container starts, then exits with 'FATAL: JWT_SECRET is not set'">
+The variable reached Compose but not the container — most often because you passed it some other way and the `environment:` block was edited. Confirm with `docker compose config`, which prints the fully resolved configuration including the values Compose will inject.
+</Accordion>
+
+<Accordion title="The login page rejects the admin password">
+`ADMIN_PASSWORD` only seeds the `admin` account when the database has **no users at all**. If the volume already holds a database from an earlier run, the original password still applies — editing `.env` changes nothing. Either sign in with the original credentials, or discard the volume and start over (destroying all data).
+
+Check the startup logs: a successful seed prints `[accounts] Seeded admin user "admin"`. If it prints `admin seed skipped`, users already existed.
+</Accordion>
+
+<Accordion title="Data vanished after rebuilding">
+Almost always a missing or renamed volume. Verify the mapping with `docker compose config` and confirm the volume still exists in `docker volume ls`. Renaming the project directory changes the volume prefix, which makes Compose create fresh, empty volumes — the old ones are still there under the old prefix.
+</Accordion>
+
+<Accordion title="The build fails while compiling better-sqlite3">
+The build stage installs the toolchain it needs, so this usually means the build ran out of memory or the layer cache is stale. Retry with `docker compose build --no-cache app`, and give Docker Desktop more memory if the failure repeats.
+</Accordion>
+
+</AccordionGroup>
+
+## Next steps
+
+<CardGroup cols={2}>
+
+<Card title="Configuration" href="/hosting/configuration">
+Every environment variable in full, including the ones Compose does not forward.
+</Card>
+
+<Card title="Backups" href="/hosting/backup">
+Copying a live SQLite database safely, and what to keep.
+</Card>
+
+<Card title="Upgrading" href="/hosting/upgrading">
+Migrations, version pinning and rollback considerations.
+</Card>
+
+<Card title="Quickstart" href="/quickstart">
+Now that it runs — build your first study.
+</Card>
+
+</CardGroup>

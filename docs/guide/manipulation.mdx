@@ -1,0 +1,165 @@
+---
+title: "Manipulation (A/B)"
+description: "Add a between-subjects A/B split to a study: two post variants, random assignment, and why the platform allows exactly two arms."
+---
+
+The **Manipulation (A/B condition)** section of the **Configurator** adds a between-subjects split to your study. Each participant is randomly assigned to condition **A** or condition **B**, and sees the matching variant of every post in the feed. It is the platform's core experimental manipulation — everything else (demographics, post questions, reactions) is measured *within* whichever arm the participant landed in.
+
+The split is deliberately a **1×2 design**: one factor, exactly two levels. This page explains why that constraint exists, how assignment works, and how to reach a 2×2 by combining it with metric conditions.
+
+## Why exactly two arms
+
+The constraint is not a UI limitation — it follows from how post content is stored. Every post in the database carries exactly **two** content variants for each element:
+
+- `headline_a` / `headline_b`
+- `content_a` / `content_b`
+- `image_path_a` / `image_path_b`
+
+There is no `_c` or `_d`. A third arm would have no content to show. So a between-subjects manipulation on post content is a single binary split, and the platform enforces that at three separate layers (builder, server, participant runtime) rather than letting a methodologically broken study run.
+
+<Warning>
+**Historic studies with C/D conditions.** Earlier versions let you add a third or fourth condition. Because posts only store `_a`/`_b` content, a participant assigned to **C** or **D** had that arm recorded in their session row — but was silently shown **variant A** content. The recorded condition and the stimulus the person actually saw did not match.
+
+This is now blocked. The server drops extra arms when a study is saved, and the participant runtime caps the assignable arms at the first two, so C/D can no longer be assigned. If you are analysing data collected by an older version of the platform, check whether any session rows carry a `style_condition` other than `A` or `B` — those participants saw variant A regardless of their label.
+</Warning>
+
+## Adding the split
+
+<Steps>
+  <Step title="Open the Configurator">
+    Select your study and go to the **Configurator** tab. Scroll to the **🔀 Manipulation (A/B condition)** section.
+  </Step>
+  <Step title="Click + Add A/B split">
+    This creates the split with two fixed rows, **A** and **B**. The button then disappears — a study can hold at most one manipulation.
+  </Step>
+  <Step title="Choose what differs">
+    Use the **What differs (description):** dropdown. See [the field choices](#what-differs-the-field-choices) below.
+  </Step>
+  <Step title="Name the two conditions">
+    Type a label into each row. The placeholders suggest the classic misinformation contrast — *e.g. Manipulative* for A, *e.g. Neutral* for B. Each row shows a reminder of what it maps to: **→ variant A of the posts** and **→ variant B of the posts**.
+  </Step>
+  <Step title="Write both variants on every post">
+    Go to the **Posts** tab. See [Writing the two variants](#writing-the-two-variants) below.
+  </Step>
+</Steps>
+
+The Configurator autosaves, so there is no separate save button for this section.
+
+To remove the split later, use **✕ Remove split**. Its tooltip states the consequence plainly: every participant will then see variant A.
+
+<Warning>
+After removing the split, the **Posts** tab stops rendering the B headline and B content fields. The next time you save that post, its `headline_b` and `content_b` are written as empty strings. Removing a split and re-adding it does **not** bring back the B text you had written for posts you saved in between.
+</Warning>
+
+## What differs — the field choices
+
+The **What differs (description):** dropdown offers four values:
+
+| Option | Use it when |
+| --- | --- |
+| **Headline** | A and B differ only in the headline wording |
+| **Content** | A and B differ only in the body text |
+| **Image** | A and B differ only in the attached image |
+| **Several elements at once** | A and B differ in more than one element |
+
+<Warning>
+This dropdown is **descriptive metadata, not a switch.** It records your intent for your own documentation and analysis; it does not control which elements the runtime swaps.
+
+Whatever you choose here, a participant in condition B is served `headline_b`, `content_b` **and** `image_path_b` — every `_b` element you filled in. If you select **Headline** but also write different body text into the B field, participants in B will see both differences, and your manipulation will be confounded.
+</Warning>
+
+The practical rule: **the field you pick must match what you actually typed into the Posts tab.** If you intend a headline-only manipulation, paste identical body text into the A and B content fields. If A and B differ in more than one element, select **Several elements at once** and be honest with yourself about what you can attribute the effect to.
+
+<Note>
+Each variant falls back to A when B is empty. A participant in condition B whose post has a blank `headline_b` is shown `headline_a`. This makes a headline-only manipulation easy to build — fill in `headline_b`, leave `content_b` empty — but it also means a post you forgot to write a B variant for silently behaves as a no-difference post rather than raising an error.
+</Note>
+
+## Writing the two variants
+
+Once the split exists with two named conditions, the **Posts** tab changes shape. Instead of a single set of fields, each post editor shows two labelled sections that use the condition names you typed:
+
+- **Condition A: `<your label>`** — Headline, Content, and an **Image — `<your label>`** upload
+- **Condition B: `<your label>`** — Headline, Content, and an **Image — `<your label>`** upload
+
+Without a manipulation, the post editor shows one plain Headline, Content and Image — no A/B anywhere.
+
+To check both arms before launching, open a post's preview. It has tabs for the two variants, labelled with your condition names (falling back to **Version A** / **Version B**), so you can read exactly what each arm will see.
+
+<Tip>
+The whole-study **Preview** button always assigns **condition A**, deterministically. That is intentional — a preview that flipped a coin would make it impossible to check a specific arm. Use the per-post preview tabs to inspect variant B. Preview sessions are flagged and excluded from your data by default.
+</Tip>
+
+## How a participant is assigned a condition
+
+Assignment happens once, at the moment the participant's session starts — before consent, demographics or any exposure. The server:
+
+1. Reads the study's manipulation and takes the condition keys, **capped at the first two**.
+2. Picks one of them **uniformly at random** (an independent draw per participant).
+3. Writes the chosen arm to the session row as `style_condition`, and serves every post with the matching `_a`/`_b` content.
+
+The assignment is fixed for the whole session — a participant in condition B sees variant B on every post, in every part of the study.
+
+<Note>
+Assignment is an **independent random draw per participant**, not a balanced alternation. With small samples the two cells will not be exactly equal — a 50/50 split is the expectation, not a guarantee. Check the realised cell sizes on the **Dashboard** or in your export before running your analysis, and plan your N with a little slack.
+</Note>
+
+If no manipulation is defined, every participant is assigned `A` and sees variant A content. This is the correct configuration for a purely descriptive or within-subjects study.
+
+## Combining with metric conditions for a 2×2
+
+The A/B split is one factor. To add a second, use the **📊 Metric conditions (social proof)** section directly below it in the Configurator. Metric conditions randomise the engagement numbers shown under posts (likes, shares, reactions) from a `min`–`max` range per condition — the standard operationalisation of **high vs low social proof**.
+
+Add two conditions with **+ Add metric condition**, name them, give them non-overlapping ranges, and leave both enabled. The result is a fully crossed **2×2 between-subjects design**:
+
+| | Metric: Low | Metric: High |
+| --- | --- | --- |
+| **Style A** | A × Low | A × High |
+| **Style B** | B × Low | B × High |
+
+The two factors are drawn independently, so the design is crossed, not nested.
+
+<Info>
+A metric condition counts as a real experimental **factor** only when **two or more** are enabled. With zero or one enabled condition, the platform records the internal `BUILDER` placeholder as the metric condition instead of a factor level — a single condition still applies its range to the numbers, it just isn't a manipulation. The placeholder is blanked out in exports, so a `metric_condition` column that is empty means "this study had no metric factor".
+</Info>
+
+<Note>
+A base value pinned on an individual post always **overrides** the condition's random range for that post's counter. If you want the metric factor to be clean, leave the per-post base values at zero.
+</Note>
+
+Metric conditions carry one extra lever: a per-condition toggle that shows or hides the debunking comment under posts. That lets you cross A/B with the presence of a correction, rather than with social-proof volume.
+
+## What lands in your data
+
+The **Export** tab produces one row per participant with three condition columns:
+
+<ResponseField name="full_condition" type="string">
+  The cell the participant belongs to. `A-<metric key>` when a metric factor is active (two or more enabled metric conditions); otherwise just the style key, `A` or `B`.
+</ResponseField>
+
+<ResponseField name="style_condition" type="string">
+  The A/B arm — `A` or `B`. This is your manipulation factor.
+</ResponseField>
+
+<ResponseField name="metric_condition" type="string">
+  The metric (social-proof) arm. Blank when the study has no metric factor.
+</ResponseField>
+
+The export also records, per post, the headline and content **as actually shown** to that participant — resolved from their `style_condition`. This gives you a stimulus check without reconstructing the assignment yourself.
+
+For analysis, `style_condition` is your independent variable and `full_condition` identifies the 2×2 cell. Both are categorical.
+
+## Using the assigned condition in conditional logic
+
+The assigned arm is available to the conditional-logic engine as a trigger source: **Assigned condition (Manipulation)**. You can, for example, skip a part or hide a question for participants in one arm only.
+
+<Warning>
+Branching on the assigned condition breaks the symmetry between your arms. If participants in A answer questions that participants in B never see, the arms are no longer comparable on those measures, and any difference you find may reflect the different instruments rather than the manipulation. Use condition-based logic for genuinely arm-specific content — an arm-specific debrief, say — not for your dependent variables.
+</Warning>
+
+## Reporting the design
+
+Because the platform constrains the design, the methods section writes itself. A study with an A/B split and two metric conditions is:
+
+> A 2 (post framing: manipulative vs. neutral) × 2 (social proof: high vs. low) between-subjects design, with participants randomly assigned to one of four cells at session start.
+
+Substitute your own condition labels, and state which elements differed between A and B — matching the **What differs** value you selected, and verified against what you actually typed into the Posts tab.

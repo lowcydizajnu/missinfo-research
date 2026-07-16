@@ -1,0 +1,201 @@
+---
+title: "Conditional logic"
+description: "Build if–then rules that skip parts, jump between them, hide questions or end a study early based on a participant's answers, reactions or assigned condition."
+---
+
+Most experiments are the same for everyone: same parts, same order, same questions. Sometimes they should not be. You may want to screen out minors before they see any stimulus, show a follow-up block only to people in one experimental condition, or hide a question that makes no sense given an earlier answer.
+
+Conditional logic gives you a small set of **if → then** rules for exactly that. The rules live in the study's **🔧 Configurator** tab, in the **⚙️ Conditional logic** section, and they are stored with the study (in the `logic_json` field).
+
+The engine is deliberately small. It has no expression language, no AND/OR chaining, and no way to write arbitrary code — one rule tests exactly one condition and performs exactly one action. Complex behaviour is expressed by stacking several rules and ordering them, not by writing bigger rules. That keeps a study's flow auditable: you can read the rule list and know what any participant could have experienced.
+
+<Warning>
+**Ending a study based on a participant's answers changes your sample.** A rule that ends the study when someone answers a certain way removes those people from your completed data — and they are, by definition, not a random subset. That is fine and standard for eligibility screening (age, country, consent-adjacent criteria) and for pre-registered attention checks. It is *not* fine as an ad-hoc filter applied after data collection has started, and it is not a substitute for exclusion criteria you can apply transparently at analysis time. Whenever you can, let people finish and exclude them in analysis instead — you keep the record of who dropped and why. If you do screen out, decide the rule before launch, write it into your pre-registration, and report the screen-out rate.
+</Warning>
+
+## The rule model
+
+Every rule has the same five ingredients:
+
+| Field | What it does |
+| --- | --- |
+| **Rule name** | A label for you. It appears in the rule list and in the badges shown on affected elements. It is never shown to participants. |
+| **When to check** | The moment in the flow at which the rule is evaluated (the trigger). |
+| **IF…** | The condition: a source, an operator and a value. |
+| **THEN…** | The action: end, skip, go to, or hide. |
+| Enabled / priority | A toggle and a position in the list (see [Order and priority](#order-and-priority)). |
+
+Rules do not run continuously. Except for **Hide a question**, a rule is only evaluated at its trigger moment; if the condition is false at that moment, nothing happens and the rule is not reconsidered later.
+
+## Triggers — "When to check"
+
+<ParamField path="After the demographic questions" type="trigger">
+Fires once, immediately after the participant submits the demographic form. This is the trigger for eligibility screening, because it is the earliest point at which you know anything about the person.
+</ParamField>
+
+<ParamField path="After a part ends" type="trigger">
+Fires each time a part of the experiment finishes, before the next part is chosen. This is the only moment at which **Skip a part** and **Go to a part** can change where the participant lands.
+</ParamField>
+
+<ParamField path="After a reaction to a post" type="trigger">
+Fires every time the participant reacts to a post (👍 / 👎 / 🔄 / 🚩). Useful for behaviour-contingent endings such as a bot check — and for the same reason, the trigger most likely to distort your sample.
+</ParamField>
+
+<Note>
+If you set demographics to appear at the end of the study rather than after consent, the **After the demographic questions** trigger fires at that later point — it follows the form, not a fixed position in the flow. A screen-out rule on demographics only screens people out early if the demographic form itself comes early.
+</Note>
+
+## Conditions — the "IF…" block
+
+A condition is **Source** + **Operator** + **Value**.
+
+### Source
+
+<AccordionGroup>
+<Accordion title="Demographic answer">
+Tests one demographic field. You pick it from the **Demographic field** dropdown, which lists the demographic questions of this study by their field key and label. The value compared is whatever the participant submitted for that field.
+</Accordion>
+
+<Accordion title="Assigned condition (Manipulation)">
+Tests the experimental condition the participant was randomly assigned to by the Manipulation — `A` or `B`. This is the safe kind of branching: assignment is random, so a rule keyed to the condition does not select on anything the participant did. Type `A` or `B` into **Value**.
+</Accordion>
+
+<Accordion title="Answer to a post question">
+Tests the participant's answer to one specific post question, chosen from the **Post question** dropdown (questions are listed by their id and label). The answer must already have been given — a rule that reads a question the participant has not reached yet will simply not match.
+</Accordion>
+
+<Accordion title="Reaction to a post (👍/👎/🔄/🚩)">
+Tests the set of reactions the participant has used so far, across the whole session. Use the **contains** operator with one of `like`, `dislike`, `share` or `flag` — for example *contains `flag`* means "the participant has flagged at least one post". The panel shows this hint in the editor.
+</Accordion>
+</AccordionGroup>
+
+### Operators
+
+`= equals`, `≠ not equal to`, `< less than`, `≤ less or equal`, `> greater than`, `≥ greater or equal`, `contains`, `is empty`, `is not empty`.
+
+How they actually compare matters, because participant answers arrive as text:
+
+- **`=` / `≠`** compare numerically when *both* sides look like numbers (so `18` matches `18`), and otherwise compare as text, ignoring case (`yes` matches `Yes`).
+- **`<` `≤` `>` `≥`** are numeric only. If either side is not a number, the condition is false — it does not fall back to alphabetical order. Comparing an option label like `secondary` with `>` will never match anything.
+- **`contains`** is a case-insensitive substring test for text answers, and an exact membership test for lists (multi-select answers and reactions). For reactions, *contains `flag`* checks whether `flag` is one of the recorded actions, not whether some string contains the letters "flag".
+- **`is empty` / `is not empty`** test for a missing or whitespace-only value. Selecting either hides the **Value** field, since there is nothing to compare against.
+- Any other operator applied to a value the participant never provided evaluates to **false**. A missing answer never triggers a rule, except via `is empty`.
+
+<Tip>
+Numeric screening only works if the answer is stored as a number. If your age question is a set of bracket options labelled "18–24", "25–34", a rule like *age `<` 18* can never fire — there is no number to compare. Either ask for age as an open numeric answer, or screen with `=` / `contains` on the exact bracket label.
+</Tip>
+
+## Actions — the "THEN…" block
+
+<AccordionGroup>
+<Accordion title="End the study">
+Ends the session immediately. If you fill in **Message for the participant (optional)**, the participant sees that message full-screen with a continue button; without a message the study just ends.
+
+Either way the session then goes through the **normal completion path**: it is marked completed, the debrief or completion screen is shown, and — if you configured one — the panel completion redirect fires. This is important for two reasons. First, screened-out participants land in your exported data as completed sessions, not as abandoned ones; you separate them using the export columns described [below](#tracing-logic-in-your-data). Second, if you are recruiting through a panel, a screened-out participant is sent back to the panel as *complete*, which is usually not what a panel expects for a screen-out.
+</Accordion>
+
+<Accordion title="Skip a part">
+Marks the part chosen in **Which part** as skipped for this participant. When the flow next advances, that part is jumped over. Skipping is **forward-only**: marking a part the participant has already seen or is currently in does nothing. If every remaining part is skipped, the study ends normally.
+
+Several skip rules can fire at the same trigger, and their effects add up — this is the one action that does not stop evaluation.
+</Accordion>
+
+<Accordion title="Go to a part">
+Jumps to the part chosen in **Which part**, instead of continuing to the next one. The jump is applied when a part ends, so pair it with the **After a part ends** trigger.
+
+Unlike skipping, jumping can move a participant *backwards*, which means two rules can in principle bounce someone back and forth forever. The runtime guards against this with a cap of 20 jumps per session; past that, the flow simply continues to the next part. Treat the cap as a safety net, not a design tool — a study that hits it is misconfigured.
+</Accordion>
+
+<Accordion title="Hide a question">
+Removes the post question chosen in **Which question to hide** from the screen for this participant.
+
+Hiding behaves differently from the other three actions: it is a **render-time state, not a flow event**. The rule is re-checked every time the question would be drawn, and the **When to check** setting is ignored for it. So a hide rule turns itself on and off as the participant's answers change — if the condition stops being true, the question reappears.
+</Accordion>
+</AccordionGroup>
+
+## Order and priority
+
+Rules are evaluated in list order. The **▲** and **▼** buttons on each rule move it up and down, and moving a rule renumbers the `priority` of every rule so the saved order is the evaluation order — "up" means "checked earlier".
+
+At each trigger, the engine walks the enabled rules for that trigger in order and applies this resolution:
+
+- **End the study** — first match wins and evaluation **stops**.
+- **Go to a part** — first match wins and evaluation **stops**.
+- **Skip a part** — matches **accumulate**; evaluation continues to the next rule.
+- **Hide a question** — outside this pass entirely; every matching hide rule applies.
+
+So ordering only decides anything between rules that stop evaluation. If a screen-out rule and a jump rule could both fire at the same moment, whichever sits higher in the list is the one that happens. If your rules are all skips and hides, order does not change the outcome.
+
+## Enabling and disabling rules
+
+Each rule has a toggle on the left of its card. A disabled rule is kept in the study — with its name, condition and action intact — but is **completely ignored**: it never fires, and it stops contributing badges to the elements it targets.
+
+This is the right way to retire a rule mid-project. Deleting it (the **✕** button) loses the record of what the flow used to do; disabling it leaves an auditable trace of a rule that existed and was switched off.
+
+## Condition badges
+
+A rule list tells you what the rules do. It does not tell you, while you are editing part 3, that part 3 is conditional. Badges close that gap.
+
+Wherever an element is targeted by an enabled rule, the Configurator shows a small purple 🔀 badge on it:
+
+- on a **part** — `skipped, when …` or `jump target, when …`
+- on a **post question** — `hidden, when …`
+
+The `when …` text is a compact summary of the rule's trigger, for example `condition = "A"` or `age < "18"`. Hovering the badge shows the rule's full summary in the form `[after a part] IF assigned condition = "A" → skip part "Part 2"`.
+
+Badges refresh as soon as you add, edit, reorder, disable or delete a rule — they always reflect the current rule set, and they only ever come from **enabled** rules. An element with no badge is unconditional for every participant.
+
+## Templates
+
+If a study has no rules yet, the section offers two starting points instead of an empty box:
+
+- **Template: screen-out by age** — creates a rule that fires after the demographic questions, tests your age field for a value below 18, and ends the study with a message explaining the study is for adults. It tries to find the age field automatically by looking for a demographic field whose key or label mentions age; check that it picked the right one.
+- **Template: skip a part in condition A** — creates a rule that fires after a part ends and skips the study's second part for participants assigned to condition A.
+
+Both are ordinary rules once created. Open them with **Edit** and change anything.
+
+## Saving and validation
+
+Rule changes autosave, and you can save explicitly with **💾 Save** at the bottom of the Configurator.
+
+The server validates the whole rule set before storing it, and **rejects the save** if a rule is broken. The errors it blocks on are the ones that would produce silent nonsense at runtime:
+
+- a rule that points at a part, post question or demographic field that does not exist (typically because you deleted the element but left the rule)
+- two rules sharing the same id
+- a missing or unrecognised trigger, source, operator or action
+
+When a save is rejected, the panel shows the reason as an error toast, naming the offending rule. (Those server-side validation messages are currently only available in Polish, even with the panel switched to English — the rule number and name in them still identify the rule.)
+
+Because deleting a part or a question can strand a rule that referenced it, **check the Conditional logic section after any structural change to the study**. A stranded rule blocks the next save until you fix or remove it.
+
+## Testing your rules
+
+<Warning>
+**Rules never fire in preview.** Opening **👁 Preview in a new tab** — or any session the platform tags as a preview — runs the study with conditional logic switched off entirely: no skips, no jumps, no hiding, no early ending. This is deliberate, so that a researcher testing a screen-out rule is not thrown out of their own study on every pass and can always inspect every part.
+
+The consequence is that **preview cannot verify your logic**. Everything else about a study can be checked in preview; the rules cannot.
+</Warning>
+
+To actually test a rule, run a real (non-preview) session through the participant link, answering so that the rule should fire, and confirm the flow does what you expect. Then check the data — a fired rule leaves a trace (see below) — and delete those test sessions before launch.
+
+## Tracing logic in your data
+
+Every session records what the logic did to it, and three columns carry that into your export:
+
+<ResponseField name="logic_applied" type="0 / 1">
+Whether any rule affected this session at all. Use it as a quick filter to see how many participants got a non-standard path.
+</ResponseField>
+
+<ResponseField name="logic_skipped_parts" type="text">
+The ids of the parts that were skipped for this participant, separated by `;`. Empty when nothing was skipped.
+</ResponseField>
+
+<ResponseField name="logic_end_rule" type="text">
+The id of the rule that ended the study for this participant. Empty for everyone who finished normally — so filtering on this column is how you separate screened-out sessions from genuine completions.
+</ResponseField>
+
+These columns are what make the methodological warning at the top of this page workable: a rule-driven screen-out is recorded, countable and reportable rather than invisible. If you screen out, report the number.
+
+<Note>
+Rules are evaluated in the participant's browser, which means the rule set is present in the page. It is not visible to an ordinary participant, but a technically capable one could read it and see, for instance, which answer ends the study. Do not rely on conditional logic to conceal an attention check from a determined participant, and do not put anything confidential into a rule name or an end-of-study message.
+</Note>

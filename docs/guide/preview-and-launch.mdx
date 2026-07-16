@@ -1,0 +1,203 @@
+---
+title: "Preview and launch"
+description: "Walk through your study as a participant without polluting the data, then activate it and hand the participant URL to your sample."
+---
+
+Between "the study is built" and "the study is collecting data" there is a step every researcher does dozens of times: open it and click through it yourself. The platform is designed so that this costs you nothing — your own walk-throughs are tagged as **preview sessions** and stay out of the dashboard, the export and the analyses.
+
+This page covers how preview works, what it deliberately does *not* simulate, how to run a genuine end-to-end production test, and how to launch.
+
+## Previewing from the Configurator
+
+The **🔧 Configurator** tab has a bar at the bottom with **💾 Save** and **👁 Preview in a new tab**. The same preview button also sits at the bottom of the **⚙️ Settings** tab, and a shorter **👁 Preview** appears among the study actions in the Settings header.
+
+Clicking preview does three things in order:
+
+<Steps>
+<Step title="Saves the builder">
+The study is saved first, so what you are about to see is exactly what you just typed — not the last autosaved state. (The Configurator autosaves anyway: *"Changes are saved automatically"*.)
+</Step>
+<Step title="Makes sure there is something to look at">
+If the study has no active posts, the platform creates one example post for you and reports: *"Added an example post for the preview. Replace it with your own content in the post editor."* This exists so that a half-built study still previews instead of erroring — treat that post as scaffolding and delete or replace it in the **✏️ Posts** tab.
+</Step>
+<Step title="Opens the participant page in a new tab">
+The URL is `/study/<slug>?preview=1`.
+</Step>
+</Steps>
+
+If the study has no slug yet you get *"Save the study before previewing."* instead.
+
+### Why `?preview=1` works before activation
+
+The server resolves the participant page differently depending on that one query parameter:
+
+| URL | What the server looks for |
+| --- | --- |
+| `/study/<slug>` | a study with that slug **that is active** |
+| `/study/<slug>?preview=1` | a study with that slug **that is in builder mode** |
+
+The preview path never checks `is_active`. That is the whole point: you can build, click through, fix and re-click a study for a week without it ever being reachable by anyone who does not already know the slug and think to append `?preview=1`.
+
+<Note>
+`?preview=1` only bypasses activation for **builder-mode** studies. On a classic (non-builder) study the preview lookup finds nothing and the page returns a 404 — *"Badanie nie zostało znalezione lub jest nieaktywne."* ("Study not found or inactive."). Classic studies must be activated before you can open them.
+</Note>
+
+### Jumping straight to one screen
+
+Walking the entire study to check one paragraph of debriefing text gets old fast. Two buttons skip ahead:
+
+- **👁 Preview** next to the debriefing text in the builder → opens `?preview=1&focus=debrief`, *"Opens the debriefing screen in a new tab, without going through the whole study"*.
+- **👁 Preview screen** in the **👤 Demographics** tab → opens `?preview=1&focus=demographics`, *"Opens the demographics screen in a new tab, skipping consent and instructions"*.
+
+Both save the builder first, and both create a real (preview-tagged) session row, exactly like a full preview.
+
+## What a preview session is
+
+Every start of a study creates a row in `sessions`. That row carries an `is_preview` flag, and the server sets it to `1` when **either** of these is true:
+
+1. the URL carried `?preview=1`, **or**
+2. the browser making the request sends a `missinfo_admin_mode` cookie whose value is `preview`.
+
+When the session is tagged, the participant page shows a small yellow banner pinned to the top of the screen telling you the session is a preview and will not enter production data. (The banner text is Polish-only in the participant runtime.)
+
+<Warning>
+**Preview does not simulate randomisation, and it does not run your logic.** To keep previews reproducible, the server makes preview sessions deterministic:
+
+- **Manipulation (A/B):** you always get the **first** condition, never a random draw.
+- **Metric conditions (social proof):** you always get the **first enabled** condition.
+- **Conditional logic:** rules never fire in a preview session — the participant runtime checks `is_preview` and skips the engine. The Configurator says so too: *"Rules do not fire in the preview."*
+
+So a preview answers *"does my content read correctly, is the flow right, do the timers and requirements behave?"*. It cannot answer *"is my 2×2 assignment balanced?"* or *"does my skip rule fire for 18–24-year-olds?"* — for those you need a production test (below), or the data itself.
+</Warning>
+
+To see condition B or a different metric arm in preview, temporarily reorder or disable the arms in the Configurator, preview, then put them back.
+
+## The "My sessions" toggle
+
+Preview by URL covers the builder. It does not cover the case that trips researchers up most: **you click your own live recruitment link to check it, and your click lands in the dataset.**
+
+That is what the header control solves. Top-right, next to the language switcher, there is:
+
+> **My sessions:** &nbsp; `🧪 Preview (not counted)` / `📊 Production (counted)`
+
+with the tooltip *"How your own sessions in this study are counted"*.
+
+<Info>
+The label says "in this study", but the mechanism is per-**browser**, not per-study: the cookie is set on `path=/` and applies to every study link you open from that browser.
+</Info>
+
+### How it behaves
+
+<AccordionGroup>
+<Accordion title="It defaults to Preview">
+The moment you sign in, if no mode cookie exists yet, the panel writes one with the value `preview`. The safe state is the default — you have to opt *in* to being counted, never opt out.
+</Accordion>
+
+<Accordion title="It is a cookie, and it expires">
+Switching the dropdown writes `missinfo_admin_mode` with a 24-hour lifetime (`samesite=lax`). It survives reloads and new tabs. It does **not** survive **Sign out** — logging out deletes the cookie immediately, so a signed-out browser behaves like a real participant's browser.
+</Accordion>
+
+<Accordion title="It tags; it does not unlock">
+The cookie only decides how a session is *recorded*. It grants no access. An admin in preview mode opening the live URL still needs the study to be active — only `?preview=1` bypasses that, and only for builder studies.
+</Accordion>
+
+<Accordion title="Production mode warns you">
+Choosing preview confirms: *"Your sessions on study links will be marked as preview (hidden from the dashboard/export)."*
+Choosing production warns: *"⚠ Your sessions on study links will count as PRODUCTION. Remember to switch back to Preview mode after testing."*
+</Accordion>
+</AccordionGroup>
+
+### When to actually use Production mode
+
+Switch to `📊 Production (counted)` when you need a **true end-to-end rehearsal** on the live link — random condition assignment, conditional logic firing, the panel redirect at the end, the row landing in the export the way a real participant's would. Do the run, verify it, then switch back. If you forget, the run stays in your data as an ordinary session, indistinguishable from a participant's.
+
+<Tip>
+An alternative to production mode that leaves no room for forgetting: open the live link in a **private/incognito window**, where you are not signed in and no admin cookie exists. You get participant-identical behaviour with zero panel state to reset. Production mode is the option when you want to stay signed in — for example to watch the Dashboard update while you click.
+</Tip>
+
+## Where preview sessions are (and aren't)
+
+<Tabs>
+<Tab title="Dashboard">
+Hidden, always. Every session count behind the **📊 Dashboard** tab — total sessions, completed sessions, drop-out rate, median duration, the condition breakdowns, the recent-sessions table — is computed with `is_preview = 0`. The Dashboard never asks the server to include them, so there is no toggle to get them wrong.
+
+The same holds for the cross-study aggregate dashboard you land on after signing in.
+</Tab>
+
+<Tab title="Export">
+Hidden by default, includable on purpose. The **📥 Export** tab shows the counts:
+
+- **Completed sessions:** / **All sessions:** — production only.
+- **Preview sessions (hidden):** *N* — and, when relevant, *(+ N incomplete)*.
+
+A checkbox next to those counts adds the preview sessions to the export (it appends `include_preview=1` to the export request). Every exported row carries an `is_preview` column, so if you do include them you can always filter them out again in your analysis script.
+
+<Note>
+Only **completed** preview sessions can ever be included. The unfinished ones — you opened a preview, glanced at the consent screen, closed the tab — are counted separately and never exported: *"Preview sessions that were never finished — they will not appear in the export even with 'Include preview sessions' enabled"*.
+</Note>
+</Tab>
+
+<Tab title="Analyses">
+The **📊 Analyses** tab does not have its own switch — it reads the Export tab's language picker **and** its include-preview checkbox, so a statistical test always runs on exactly the dataset you would have downloaded. If a test result looks odd, check whether that checkbox is ticked.
+</Tab>
+</Tabs>
+
+### Cleaning up
+
+The Export tab also offers **🗑 Delete preview sessions (N)** — *"Deletes both completed (N) and unfinished (N) preview sessions"*. It removes the preview session rows together with their reactions, ratings, answers and any gaze data, and asks first:
+
+> *"Delete ALL preview sessions (along with their reactions, ratings and answers) for this study? Production participant sessions will remain untouched. This operation cannot be undone."*
+
+Production sessions are untouched — the deletion is scoped to `is_preview = 1`. Running this right before you go live is a good habit: it means the preview counters read zero and nothing from the build phase can be accidentally included later.
+
+## Activating the study
+
+Activation is a single flag (`is_active`) with no wizard and no checks — the platform will happily activate an empty study, so the decision that it is ready is yours.
+
+You will find **Activate** / **Deactivate**:
+
+- in the **⚙️ Settings** tab, in the study actions row next to the study name (with **Duplicate** and **Delete**);
+- and next to the same actions in the builder header.
+
+The badge reads **Active** or **Inactive**, and the study picker in the header appends *"(inactive)"* to the name of any study that is not live. Toggling confirms with *"Study status updated."*
+
+Activating makes `/study/<slug>` resolve. Deactivating makes it stop resolving — anyone opening the link afterwards gets the 404 page, including participants mid-recruitment.
+
+<Warning>
+Deactivation does not pause a study politely; it removes the door. Sessions already open in a participant's browser are a separate matter, but nobody new can start. If you need to stop recruitment, stop it at the panel/recruitment source first, then deactivate.
+</Warning>
+
+### A pre-launch checklist
+
+<Check>Preview the whole flow end to end, including the debriefing.</Check>
+<Check>Delete the auto-created example post if the platform added one.</Check>
+<Check>Run one **Production mode** (or incognito) pass on the live link to confirm randomisation, logic and any redirect actually fire.</Check>
+<Check>Delete the preview sessions.</Check>
+<Check>Confirm the Dashboard reads zero completed sessions.</Check>
+<Check>Activate.</Check>
+
+## The participant URL
+
+The participant link is:
+
+```
+https://<your-host>/study/<slug>
+```
+
+The slug comes from the **Slug (study URL)** field in the study's basic information. Two places in the panel show you the resulting link: the **📊 Dashboard** tab prints it under **URL:** as a clickable link, and the study picker/settings show the `/study/<slug>` path.
+
+<Warning>
+Changing the slug of a running study changes its URL and breaks every link already distributed to participants or lodged with a recruitment panel. Settle the slug before launch.
+</Warning>
+
+### Recruitment parameters
+
+If an agency recruits for you, it appends a respondent ID to the link — by default `?res_id=ABC123`. The parameter name is configurable per study (**Name of the URL parameter carrying the respondent ID**) and the value is captured onto the session. See [Panel integration](/guide/panel-integration) for the full round trip, including the completion and screen-out redirects.
+
+### Custom domains
+
+A study can be bound to its own hostname via **Custom study domain** in Settings. When set, the root of that host serves this one study directly — `https://study.example.org/?res_id=ABC123` — with the query string preserved, and the admin panel and other studies are unreachable on that host.
+
+<Note>
+Custom-domain routing only applies to **active** studies: the host lookup requires `is_active = 1`. Preview a not-yet-active study on the platform's main address with `/study/<slug>?preview=1` — the custom domain will not answer for it until you activate.
+</Note>

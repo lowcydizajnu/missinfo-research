@@ -1,0 +1,217 @@
+---
+title: "Quickstart: your first study"
+description: "Build, preview, activate and export a working misinformation study in about fifteen minutes."
+---
+
+This walkthrough takes you from an empty admin panel to a live study link and a data file. It uses the smallest set of features that produces a valid experiment — a consent screen, one part with a few posts, a debriefing — and leaves the methodological options (A/B manipulation, social-proof conditions, conditional logic) for later pages. Everything you set up here stays valid when you add them.
+
+<Note>
+The admin panel opens at `/admin` on your installation. It defaults to **Polish**; the language selector sits in the top-right of the header, and also on the login card. This guide uses the English labels.
+</Note>
+
+## The walkthrough
+
+<Steps>
+
+<Step title="Sign in">
+Open `/admin` and enter your **Username** and **Password**, then **Sign in**.
+
+There is no self-registration. Accounts are created by an administrator — if you are self-hosting, the first administrator account comes from your environment configuration; otherwise ask whoever runs your instance.
+
+Once you are in, look at the header: a study picker (**— select a study —**), a **+ New** button, a **My sessions:** switch, and (for administrators) an **Accounts** button. Below the header sits the tab bar: **Dashboard**, **Posts**, **Demographics**, **Configurator**, **Export**, **Analyses**, **Settings**.
+
+<Info>
+Signing in sets a browser cookie that marks the sessions *you* start as previews. That is what the **My sessions:** switch in the header controls — **Preview (not counted)** by default, **Production (counted)** if you deliberately want your own run to land in the real dataset. Leave it on Preview while you build.
+</Info>
+</Step>
+
+<Step title="Create the study">
+Click **+ New** in the header.
+
+There is no dialog. The panel creates the study immediately and drops you into it on the **Settings** tab. The new study is:
+
+- named `Nowe badanie` (a Polish placeholder — rename it in the next step),
+- given the slug `nowe-badanie` (with `-2`, `-3`… appended if that slug is taken),
+- **inactive**, so nobody can reach it yet,
+- owned by your account.
+
+The study also appears in the header's study picker, where inactive studies are marked as such.
+</Step>
+
+<Step title="Name it and set the slug">
+You are on the **Settings** tab, looking at the study builder.
+
+At the top: the **study name** field (admin-facing), a language selector (PL / EN / CS / SK), and the action row — **Preview**, **Activate**, **Duplicate**, **Delete**.
+
+Under **Basic information**:
+
+<ParamField path="Slug (study URL)" type="text">
+The last segment of the participant link: `/study/<slug>`. Keep it short and stable.
+</ParamField>
+
+<ParamField path="Title shown to participants" type="text">
+What participants see. Empty falls back to the study name — useful when the internal name is `Pilot 2 — high social proof` but participants should read *A study on social media*.
+</ParamField>
+
+<ParamField path="Description (visible only in the admin panel)" type="text">
+Your own notes. Never shown to participants.
+</ParamField>
+
+The line under the header reads **Changes are saved automatically** — the builder autosaves shortly after you stop typing, and the status flips to **Saved ✓**. There is also an explicit **Save** button in the bar at the bottom of the tab if you want to force it.
+
+<Warning>
+Changing the slug changes the participant URL. Do it before you send the link out, not after — any link already in circulation will stop working.
+</Warning>
+</Step>
+
+<Step title="Shape the flow in the Configurator">
+Switch to the **Configurator** tab. It is the same study, showing only the sections that define the experiment:
+
+<AccordionGroup>
+<Accordion title="Study screens">
+The screens participants walk through. **Consent screen** and **Debriefing** are marked **Always** — they are never optional. **Consent declined** is the text shown to someone who refuses. **Instruction** has an on/off toggle. **Demographics** has a **Position in the study flow** dropdown: *After consent (before the instruction)* (default), *At the end (before the debriefing)*, or *Skip entirely*. Two study-wide behaviour toggles live here too: **Participant comments** and **Multiple reactions on one post**.
+
+For a first study, write the consent text and the debriefing text and leave the rest at their defaults.
+
+<Tip>
+Put demographics **at the end** when you are worried that asking about age, education or political attitudes first could prime behaviour in the main task. Choose **Skip entirely** when you recruit through a panel that already supplies demographics out of band.
+</Tip>
+</Accordion>
+
+<Accordion title="Experiment parts">
+A part is a block of the study with its own post layout. Every study has at least one. Each part card gives you:
+
+- a **Part name**,
+- a **Post layout** — **Feed** (scrolling) or **Pager** (one post per page),
+- **Show reaction buttons (👍 / 👎 / 🔄 / 🚩)**,
+- **Interaction requirements** — e.g. "👍 Likes × 2" before Next unlocks (a count of `0` makes the requirement optional),
+- **Maximum time for this part** in seconds (`0` = no limit),
+- **Allow navigating back**,
+- and, from the second part onwards, a transition screen.
+
+**+ Add part** adds another. One part is enough for now.
+</Accordion>
+
+<Accordion title="Manipulation, Metric conditions, Conditional logic">
+Three optional sections you can skip today:
+
+- **Manipulation (A/B condition)** — a between-subjects split where each post has an A and a B variant.
+- **Metric conditions (social proof)** — a second between-subjects factor that randomises the like/share counters shown under posts.
+- **Conditional logic** — "if → then" rules that skip a part or end the study early.
+
+Leave all three empty and every participant sees the same single-condition study.
+</Accordion>
+</AccordionGroup>
+</Step>
+
+<Step title="Add posts">
+Go to the **Posts** tab and click **+ Add post**. An empty post is created and expands straight away — there is no separate dialog.
+
+Fill in the fields that matter for a first pass:
+
+- **Source (name)**, **Handle**, **Time ago** — the fake account the post appears to come from.
+- **Headline** and **Content** — the post itself. (If you had defined an A/B manipulation, this section would split into one block per condition.)
+- **True post** — your ground-truth label for this item. This is the flag your analyses of belief accuracy depend on, so set it deliberately.
+- **Active** — inactive posts are never shown.
+- **Topic**, **Emoji**, **Hide topic** — the category badge above the post.
+- **Social interactions** — the baseline likes / shares / dislikes / flags printed under the post (`0` hides a counter).
+- **Image** — optional, jpg/png/webp, max 5 MB.
+- **Experiment parts** — appears once the study has two or more parts; tick every part this post belongs to.
+
+Click **Save post**, then repeat. In a builder study every active post is shown, in the order you arrange them with the ↑/↓ controls.
+
+<Tip>
+**From library** copies a ready-made post out of the reusable post library into this study. The copy is independent — later edits to the template do not touch it.
+</Tip>
+</Step>
+
+<Step title="Preview">
+Click **Preview** (in the Settings action row, or **Preview in a new tab** in the bar at the bottom of Settings and Configurator).
+
+The panel saves your work first, then opens `/study/<slug>?preview=1` in a new tab. Two things are worth knowing:
+
+- **Preview works while the study is still inactive.** That is the whole point of the flag — you can walk the full flow before anyone else can reach it.
+- **If the study has no active posts, an example post is created for you** so the preview has something to render. Replace it with your own content.
+
+Preview runs are deterministic: they always use the *first* condition rather than a random one, so what you see is repeatable. Conditional-logic rules do not fire in preview.
+
+<Info>
+Sessions started this way are tagged as previews in the database. They are hidden from the Dashboard and excluded from the export unless you opt them in, and you can delete them in one click from the Export tab.
+</Info>
+</Step>
+
+<Step title="Activate">
+Click **Activate** — in the Settings action row, or on the study's row in the studies list.
+
+Until you do, `/study/<slug>` returns *not found* to anyone who opens it. After you do, the badge flips to **Active** and the link is live.
+
+<Warning>
+Activation is the point of no return for your design: from here on, participants generate real rows. Changing a Likert scale's numbering, a post's **True post** flag, or a manipulation after data collection has started changes the meaning of the data you already hold.
+</Warning>
+</Step>
+
+<Step title="Share the participant link">
+The link is:
+
+```
+https://your-installation.example.org/study/<slug>
+```
+
+The **Dashboard** tab prints it at the top, next to **URL:**, as a clickable link.
+
+<Warning>
+If you open the live link yourself, check the **My sessions:** switch in the header first. On **Preview (not counted)** your run is tagged as a preview and stays out of the data. On **Production (counted)** it lands in your dataset as if you were a participant.
+</Warning>
+
+The separate **Share** button on the Dashboard does something different: it generates a public, read-only link to the *dashboard*, for supervisors or collaborators who should see the numbers without an account. It is not the participant link.
+</Step>
+
+<Step title="Watch the Dashboard">
+Open the **Dashboard** tab with the study selected. On a new study the panel generates a default widget layout from your study's structure — it carries a **Default** badge until you change it.
+
+What you get out of the box:
+
+- A widget grid you can rearrange or extend: **Edit** turns on edit mode, then **+ Widget** adds histograms, bar charts, crosstabs, KPIs, time series and more.
+- A date-range filter with 7d / 30d / all-time shortcuts, and cross-filters — click a chart category to filter every other widget by it.
+- An auto-refresh selector (off / 30s / 1min / 5min) for watching a launch live.
+- **PNG** and **PDF** snapshots of the whole dashboard.
+- A **Last 20 completed sessions** table at the bottom: ID, Condition, Age, Gender, Avg. belief (false), Date. Preview sessions are marked with a 🧪.
+
+<Tip>
+The dashboard is for monitoring recruitment, not for testing hypotheses. Watch it for drop-out and for conditions filling unevenly; do the statistics on the exported file.
+</Tip>
+</Step>
+
+<Step title="Export">
+Open the **Export** tab. It shows how many sessions are completed, how many exist in total, and how many are hidden preview sessions.
+
+- **Download Excel (.xlsx)** — the full multi-sheet workbook.
+- **CSV** — the raw-data sheet only, for a quick import into R / SPSS / Python.
+- **Preview and customize columns** — expands an inline builder where you hide, rename and reorder columns before exporting. It never deletes anything from the database.
+- **Coding key for demographic variables** — the numeric codes used for gender, age, education and place of residence.
+
+Preview sessions are excluded by default; a checkbox lets you include the completed ones, and a delete button removes preview sessions (and their reactions, ratings and answers) without touching production data.
+
+<Check>
+You now have a study that participants can complete end to end, and a data file you can open in your analysis software.
+</Check>
+</Step>
+
+</Steps>
+
+## What to read next
+
+<CardGroup cols={2}>
+<Card title="Core concepts" href="/concepts">
+Studies, parts, posts, conditions and sessions — the vocabulary the rest of the docs assumes.
+</Card>
+<Card title="The Configurator" href="/guide/configurator">
+Every screen, part and toggle in depth.
+</Card>
+<Card title="Manipulation (A/B)" href="/guide/manipulation">
+Turn the single-condition study above into a between-subjects experiment.
+</Card>
+<Card title="Preview and launch" href="/guide/preview-and-launch">
+Preview sessions, activation and the production-mode switch, in detail.
+</Card>
+</CardGroup>

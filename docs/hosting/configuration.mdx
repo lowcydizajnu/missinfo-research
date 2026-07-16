@@ -1,0 +1,237 @@
+---
+title: "Configuration"
+description: "Every environment variable Misinfo Research reads: what it does, what it defaults to, and what happens when it is missing."
+---
+
+Misinfo Research is configured entirely through environment variables — there is no settings file to edit and no configuration screen in the panel for these values. The whole surface is six variables: two you must set, four that have working defaults.
+
+On startup the server calls `dotenv`, which loads a `.env` file from the directory you launch the process in. Variables already present in the real environment (Railway's **Variables**, Docker Compose's `environment:` block, your shell) take precedence and work exactly the same way — `.env` is a convenience for local runs, not a requirement.
+
+<Note>
+Environment variables are read **once, at startup**. Editing `.env` while the server is running changes nothing until you restart the process.
+</Note>
+
+## The full reference
+
+| Variable | Required | Default | Purpose |
+| --- | --- | --- | --- |
+| `JWT_SECRET` | Yes | *none* | Signs admin login tokens and dashboard share links. Server exits if unset. |
+| `ADMIN_PASSWORD` | First boot only | *none* | Seeds the password of the first `admin` account. |
+| `ANTHROPIC_API_KEY` | No | *none* | Enables AI-assisted translation of study content. |
+| `PORT` | No | `3000` | HTTP port the server listens on. |
+| `DATABASE_PATH` | No | `./data/research.db` | SQLite database file. Directory auto-created. |
+| `UPLOADS_PATH` | No | `./uploads` | On-disk image fallback directory. Auto-created. |
+
+A minimal working `.env` is two lines:
+
+```bash
+JWT_SECRET=8f3c…a long random hex string…9b1
+ADMIN_PASSWORD=your-strong-password
+```
+
+<Warning>
+`.env` is gitignored, and it should stay that way. It holds your token signing secret — anyone who has it can mint admin tokens for your instance.
+</Warning>
+
+## Required
+
+<ParamField path="JWT_SECRET" type="string" required>
+Secret used to sign and verify JSON Web Tokens. There is no fallback value.
+</ParamField>
+
+This is the one variable the platform will not start without. If it is unset, the server prints
+
+```
+FATAL: JWT_SECRET is not set. Refusing to start with a forgeable token secret.
+```
+
+and exits immediately with code 1. That is deliberate: a hardcoded or guessable default secret would let anyone forge an admin token and read every study on the instance, so the code fails fast rather than starting insecure. If your process dies the instant you launch it, this is the first thing to check.
+
+Generate a strong value — never reuse a password or a memorable phrase:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+```
+
+`JWT_SECRET` signs two different kinds of token, which is worth knowing before you change it:
+
+- **Admin login tokens** — issued on successful sign-in, valid for **24 hours**.
+- **Read-only dashboard share links** — the token in a `/share/dashboard/<token>` URL, valid for **30 days** by default (configurable per link from 1 to 365 days).
+
+<Warning>
+**Rotating `JWT_SECRET` invalidates both.** Everyone signed in is signed out and must log in again, and every dashboard share link you have already sent to a colleague or a reviewer stops working. Nothing is lost — accounts and data are untouched, and you can generate fresh share links — but do not rotate the secret the week you send a dashboard link to your supervisor.
+</Warning>
+
+## First boot
+
+<ParamField path="ADMIN_PASSWORD" type="string">
+Password used to create the first admin account (username: `admin`) on first start.
+</ParamField>
+
+This variable is easy to misread, so it is worth being precise about what it does.
+
+On startup the server checks whether the `users` table contains any account at all. **Only if it is completely empty** does it read `ADMIN_PASSWORD`, create a single user — username `admin`, role administrator — and store a bcrypt hash of that password. It also hands any pre-existing study that has no owner to that new account. You will see a line like this in the console:
+
+```
+[accounts] Seeded admin user "admin"; assigned 0 existing studies to it.
+```
+
+From that moment on, `ADMIN_PASSWORD` is dead weight:
+
+<Warning>
+**Changing `ADMIN_PASSWORD` after the first boot does nothing.** Sign-in checks the bcrypt hash stored in the database, not the environment variable. To change your password, use the **👥 Accounts** screen in the panel header. Removing the variable does not lock anyone out either — the account already exists.
+</Warning>
+
+If you start a fresh instance **without** `ADMIN_PASSWORD` set, the server does not crash. It warns and carries on:
+
+```
+[accounts] No users yet and ADMIN_PASSWORD not set — admin seed skipped. Set ADMIN_PASSWORD and restart to create the first admin.
+```
+
+The result is a running server you cannot log into, because no account exists and there is no self-registration. The fix is exactly what the message says: set `ADMIN_PASSWORD` and restart. This forgiving behaviour is intentional — it lets command-line scripts load the database module without a `.env` present.
+
+<Tip>
+Because the variable is only ever read into a hash, you can safely remove `ADMIN_PASSWORD` from your environment after the first successful sign-in. Keeping it costs nothing, but it is one less plaintext password sitting in your hosting provider's variable list.
+</Tip>
+
+## Optional
+
+<ParamField path="ANTHROPIC_API_KEY" type="string">
+Enables AI-assisted translation of study content via the Anthropic API. Not set by default.
+</ParamField>
+
+This key powers one feature and nothing else: the **✨ Translate automatically** button, which takes a study's Polish content and produces a translation into **English, Czech, or Slovak** — consent text, instructions, transition and debriefing texts, posts (headlines, content, topic, timestamps, comments), demographic questions and their options, post questions, and part labels.
+
+**The platform is fully functional without it.** Every other feature — building studies, collecting data, dashboards, export, analyses — works normally. Without the key you simply translate study content by hand, typing it into the same fields.
+
+<Note>
+The key is **not** validated at startup. A missing or invalid key produces no boot-time error; it surfaces only when a researcher actually clicks **✨ Translate automatically**, as a translation error asking you to set `ANTHROPIC_API_KEY` and restart the server. If a colleague reports that translation "does not work" on your instance, check this variable before you check anything else.
+</Note>
+
+<Note>
+This affects **study content only** — the text your participants read, which lives in the database. It has nothing to do with the admin panel's own interface language. The panel ships with Polish and English dictionaries built in, switched with the language dropdown on the login screen and in the top-right of the header; that switch needs no API key and no network call.
+</Note>
+
+<ParamField path="PORT" type="number" default="3000">
+The TCP port the HTTP server binds to.
+</ParamField>
+
+Unset, the server listens on `3000` and logs:
+
+```
+Server running on http://localhost:3000
+```
+
+Most platform-as-a-service hosts (Railway among them) inject `PORT` automatically and expect your app to honour it — this one does, so you normally leave it alone. Set it explicitly when port 3000 is already taken on your machine, or when you run several instances side by side.
+
+<ParamField path="DATABASE_PATH" type="string" default="./data/research.db">
+Path to the SQLite database file. Relative paths resolve against the process working directory.
+</ParamField>
+
+This single file *is* your instance: studies, posts, sessions, reactions, ratings, uploaded images, and accounts all live in it. The parent directory is created automatically if it does not exist, and the database itself is created and migrated on first start — there is no separate setup step.
+
+The database runs in **WAL mode**, so on disk you will see up to three files, not one:
+
+```
+data/research.db
+data/research.db-wal
+data/research.db-shm
+```
+
+<Warning>
+Point `DATABASE_PATH` at a directory that actually persists. On container hosts, the default `./data` inside the image is wiped on every rebuild unless a volume is mounted there — the project's Docker setup mounts one at `/app/data` for exactly this reason. See [Backup](/hosting/backup) before you collect real data.
+</Warning>
+
+<ParamField path="UPLOADS_PATH" type="string" default="./uploads">
+Directory for on-disk post images. Created automatically at startup.
+</ParamField>
+
+This one needs a word of explanation, because its name oversells it. Images you upload through the **Posts** tab — post images and avatars — are stored **inside the database**, as BLOBs, not as files in this directory. When a participant's browser requests an image, the server looks it up in the database first and streams it from there.
+
+`UPLOADS_PATH` exists for images that predate that design. On every boot the server scans this directory and copies any image file it finds that is still missing from the database into the database, then keeps serving from disk as a fallback for anything it could not migrate. The pass is idempotent and safe to repeat.
+
+The practical consequence is a happy one: **your images travel with your database file.** Backing up `research.db` backs up your stimuli too. Mounting a volume for uploads on a container host is belt-and-braces, not a requirement.
+
+## Setting variables per platform
+
+<Tabs>
+  <Tab title="Local (.env)">
+    Copy the documented template and fill in the two required values:
+
+    ```bash
+    cp .env.example .env
+    ```
+
+    `.env.example` lists every variable described on this page, with the optional ones already set to their defaults. The file is gitignored — never commit your real `.env`.
+
+    Restart the server after any edit.
+  </Tab>
+
+  <Tab title="Docker Compose">
+    Compose reads the `.env` file sitting next to `docker-compose.yml` automatically and passes three variables into the container:
+
+    ```yaml
+    environment:
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in your .env (see .env.example)}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in your .env}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    ```
+
+    The `:?` syntax means Compose refuses to start with that message if the variable is unset — you find out before the container does.
+
+    `PORT`, `DATABASE_PATH` and `UPLOADS_PATH` are deliberately left at their defaults, and named volumes are mounted at `/app/data` and `/app/uploads` to match. If you override the paths, move the volume mounts to match — otherwise your data lives somewhere the volumes do not cover.
+  </Tab>
+
+  <Tab title="Railway">
+    There is no `.env` on Railway. Set the variables in the project's service **Variables** panel — at minimum `JWT_SECRET` and `ADMIN_PASSWORD`. Railway supplies `PORT` itself.
+
+    Then add a persistent volume mounted at `/app/data`, so the default `DATABASE_PATH` lands on storage that survives redeploys. Without it, every deploy starts from an empty database.
+  </Tab>
+</Tabs>
+
+<Info>
+The project's Dockerfile sets `NODE_ENV=production` in the image, and the Railway guidance suggests the same. It is a conventional Node signal — Express and its dependencies use it to skip development-time overhead — but no application code in this project branches on it. Setting it is fine; it will not change how the platform behaves.
+</Info>
+
+## Checking your configuration
+
+The server is honest at startup, so the console is the fastest diagnostic you have.
+
+<AccordionGroup>
+  <Accordion title="The process exits immediately">
+    Look for `FATAL: JWT_SECRET is not set`. The variable is missing or empty. Note that a `.env` file is only picked up from the directory you started the process in — running the server from a different working directory is a common way to "lose" a `.env` that is definitely there.
+  </Accordion>
+
+  <Accordion title="The server runs but I cannot sign in on a fresh instance">
+    Look for `[accounts] No users yet and ADMIN_PASSWORD not set`. No account was created. Set `ADMIN_PASSWORD` and restart — the seed runs on the next start, because the `users` table is still empty.
+  </Accordion>
+
+  <Accordion title="I set a new ADMIN_PASSWORD but the old one still works">
+    Working as designed. The variable seeds the account once; after that the password lives as a bcrypt hash in the database. Change it under **👥 Accounts** in the panel.
+  </Accordion>
+
+  <Accordion title="Everyone got signed out and share links broke after a deploy">
+    `JWT_SECRET` changed — check whether your host regenerated it or whether it was pasted with a stray newline or quote. Sign in again and reissue any dashboard share links.
+  </Accordion>
+
+  <Accordion title="My studies vanished after a redeploy">
+    Not a variable problem as such, but almost always a `DATABASE_PATH` one: the database was written to ephemeral container storage instead of a mounted volume. Confirm the volume is mounted at the directory `DATABASE_PATH` points into.
+  </Accordion>
+</AccordionGroup>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Backup" icon="database" href="/hosting/backup">
+    Your instance is one file. Rehearse the restore before you need it.
+  </Card>
+  <Card title="Upgrading" icon="arrow-up" href="/hosting/upgrading">
+    Pull new code without losing data.
+  </Card>
+  <Card title="Accounts" icon="users" href="/guide/accounts">
+    Add researchers, set roles, change passwords from inside the panel.
+  </Card>
+  <Card title="Translations" icon="language" href="/guide/translations">
+    What the translation feature actually does to a study.
+  </Card>
+</CardGroup>

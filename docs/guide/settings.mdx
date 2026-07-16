@@ -1,0 +1,222 @@
+---
+title: "Study settings"
+description: "The Settings tab: study identity, participant-facing URL, language, layout, analytics and eye tracking, and the duplicate / deactivate / delete actions."
+---
+
+The **⚙️ Settings** tab answers the question *"what is this study?"* — its name, the address participants open, the language it runs in, what the feed looks like, and whether anything is recorded beyond the responses themselves. It also holds the three actions that change a study's life cycle: duplicate, deactivate and delete.
+
+Pick a study from the selector at the top of the panel first. Without one the tab shows *"Select a study from the list above to edit its settings."*
+
+<Note>
+The admin panel is Polish by default and has an English switch in the header (and on the login screen). This page uses the English labels. Study **content** — consent text, demographic questions and their options, post text — is not affected by that switch: it is stored in the database and stays in the study's own language.
+</Note>
+
+## Builder studies and classic studies
+
+The Settings tab renders one of two different forms depending on the study.
+
+<CardGroup cols={2}>
+  <Card title="Builder studies" icon="wand-magic-sparkles">
+    Everything created with **+ New** in the header. Marked `builder_mode = 1`. Settings shows the *builder* form: identity, language, analytics, panel integration. Everything about the participant's journey lives in the [Configurator](/guide/configurator).
+  </Card>
+  <Card title="Classic studies" icon="clock-rotate-left">
+    Older studies from before the builder existed. Settings shows one long **classic form** that contains *everything* — screens, conditions and layout included. The Configurator tab refuses them with *"The configurator is available for studies in builder mode. This study uses the classic settings (Settings tab)."*
+  </Card>
+</CardGroup>
+
+For builder studies, Settings and the Configurator are literally the same form: the configuration sections are rendered once and then moved into the Configurator pane. Editing in either tab writes to the same record.
+
+<Tip>
+If you are starting fresh, you have a builder study — the **+ New** button creates one and drops you straight onto the Settings tab. The classic form is described here only because existing studies still use it.
+</Tip>
+
+## Basic information
+
+This block establishes the study's identity. Some of it is for you; some of it the participant actually sees.
+
+| Field | Builder | Classic | Who sees it |
+| --- | --- | --- | --- |
+| **Name (admin)** / study name | In the header input | **Name (admin)** | Admin panel. Falls back to the participant-facing title if that is empty. |
+| **Title shown to participants** | ✅ | **Title for participants** | Heading on the consent screen. Empty = the admin name is used. |
+| **Slug (study URL)** | ✅ | **Slug (URL)** | The address: `/study/<slug>` |
+| **Description** | ✅ (*visible only in the admin panel*) | ✅ | Nobody — internal note. |
+| **Institution** | — | ✅ | A badge above the title on the consent screen. Hidden when empty. |
+| **Contact e-mail** | — | ✅ | A `mailto:` link on the debriefing screen. Hidden when empty. |
+
+Separating the admin name from the participant-facing title is deliberate. You want to call a study *"Pilot 2 — CS clone, high social proof"* in your own list, while the participant should see something neutral like *"Study on social media perception"*. A name that leaks the hypothesis is a demand characteristic.
+
+<Warning>
+**Institution** and **Contact e-mail** exist only on the classic form. Builder studies have no field for them in the panel, and the builder save endpoint does not accept them — so on a builder study the consent-screen institution badge and the debriefing contact link stay hidden. If your ethics board requires a visible contact address, put it in the consent and debriefing text itself (Configurator → Study screens).
+</Warning>
+
+### About the slug
+
+The slug is the whole public address of your study: `https://your-host/study/<slug>`. It must be unique across every study on the installation, and it is stored exactly as you type it — the panel does not clean it up for you when you edit an existing study, so keep it lowercase, ASCII, hyphen-separated.
+
+<Warning>
+Changing the slug of a **running** study breaks every link you have already distributed — panel invitations, e-mails, posters. Participants who follow the old link get a 404. Settle the slug before recruitment starts.
+</Warning>
+
+New builder studies are created with the Polish placeholder name `Nowe badanie` and a matching slug, regardless of the panel language. Rename both before you launch.
+
+## Study language
+
+The language selector sets the language of the **study content** the participant reads. Four options: 🇵🇱 Polish, 🇬🇧 English, 🇨🇿 Czech, 🇸🇰 Slovak. On the builder form it sits in the header next to the study name; on the classic form it is the **Study language** field.
+
+Polish is the canonical source. When the language is anything else, the platform stops writing your text into the base columns and puts it into a per-language translation overlay instead — so editing a Czech version can never overwrite the Polish original. The fields that behave this way include the participant title, consent, instruction, transition and debriefing texts, the credibility-scale wording, the reaction labels and the comment placeholder.
+
+Once a non-Polish language is selected, a status indicator and a translate button appear:
+
+- **✓ Translated** / **⚠ No translation** — whether an overlay exists for this language.
+- **✨ Translate automatically** (or **Translate again**) — sends the study's text to an AI translation pass and stores the result in the overlay. It covers posts, demographic questions, post questions and parts, not just the study-level screens.
+
+<Note>
+Automatic translation requires an `ANTHROPIC_API_KEY` on the server. Without it the request fails with a message telling you to set the environment variable and restart. See [Translations](/guide/translations).
+</Note>
+
+<Tip>
+**Recommended workflow for a multilingual project: duplicate the study once per language.** Duplicate, switch the copy's language, click Translate, then correct the machine output by hand. Each language is then its own study with its own slug, its own recruitment link and its own clean data set — rather than one study whose participants are silently split across languages. Machine translation is a first draft, never a final instrument: back-translate anything that carries your manipulation.
+</Tip>
+
+## Layout
+
+**Builder studies have no layout control here.** Layout is set *per part* in the [Configurator](/guide/configurator) (📜 Feed or 📄 Pager), because different parts of the same study can legitimately need different presentations. The study-level layout is derived from the first part when you save.
+
+**Classic studies** have a **Layout type** section with **Participant screen layout**:
+
+<Tabs>
+  <Tab title="Feed — scrolling (classic)">
+    All posts on one scrollable page, like a social media feed. Ecologically closer to real browsing; the participant controls pacing and can scroll back.
+  </Tab>
+  <Tab title="Pager — one post per page">
+    One post per screen. Gives you clean per-post dwell times and prevents backtracking, at the cost of some realism. Selecting it reveals extra wording fields (see below).
+  </Tab>
+</Tabs>
+
+Choosing the Pager option on the classic form exposes a set of label overrides:
+
+- **👇 Reaction buttons (like / dislike / share / flag)** — a toggle, plus a text field for each of **👍 Like**, **👎 Dislike**, **🔄 Share**, **🚩 Flag**.
+- **⭐ Credibility scale** — **Question text**, **Left label (min)**, **Right label (max)**.
+- **💬 Participant comment field** — a toggle plus **Comment field placeholder**.
+
+Every one of these carries the placeholder *"From locale — leave empty"*. That is the important part: **leave a field empty and the participant sees the platform's own translated wording for their study language.** Only fill one in when you deliberately want different wording — and remember that rewording a credibility scale changes the instrument.
+
+The classic form also has two presentation toggles: **Show social interactions (number of likes, shares, etc.)** and **Hide categories (topic badges)**.
+
+## Analytics and eye tracking
+
+Neither of these records responses — your actual data comes from the [Export](/guide/export). These are behavioural-process add-ons, and both have ethics implications.
+
+Builder studies get a single **📊 Analytics and eye tracking** section. Classic studies get two separate sections, **Analytics (MS Clarity)** and **Eye tracking (WebGazer.js)**, with more explanatory text and a live status line.
+
+### MS Clarity
+
+<ParamField path="Enable MS Clarity" type="toggle">
+  Turns session recording and heatmaps on for this study.
+</ParamField>
+
+<ParamField path="Clarity Project ID" type="string">
+  The project identifier from your Clarity dashboard. The hint on the classic form: *"Create a separate project in the MS Clarity panel for this study and paste its Project ID (you will find it in the Clarity dashboard URL)."*
+</ParamField>
+
+The Clarity script is injected **only** when the toggle is on *and* a project ID is present — one without the other does nothing. The classic form makes this explicit with a status line that reads **MS Clarity disabled**, **MS Clarity active (project: …)**, or **Enabled, but no Project ID — enter it above**.
+
+The project ID is validated server-side: alphanumeric characters only, or the save is rejected.
+
+Once loaded, each session is identified to Clarity by its session token, tagged with the assigned condition, and each participant screen gets its own virtual URL so heatmaps segment per screen rather than smearing across the whole app.
+
+<Warning>
+Clarity is a **third-party Microsoft service**. Enabling it means participant interaction data leaves your server. That belongs in your consent text and your ethics application, and it may affect where you can run the study at all. A separate Clarity project per study is not just tidiness — it keeps one study's recordings out of another's.
+</Warning>
+
+### Eye tracking (WebGazer)
+
+<ParamField path="Enable eye tracking (WebGazer)" type="toggle">
+  Adds optional webcam-based gaze estimation to the study.
+</ParamField>
+
+The classic form spells out the contract:
+
+- Participants are asked to consent to camera use, **and they can decline with no effect on the study**.
+- The camera image **is never stored or transmitted** — only gaze coordinates.
+- The data goes to the *Eye_tracking* sheet in the Excel export and the gaze CSV.
+
+Mechanically: the WebGazer library is loaded from an external CDN, and only for studies with the toggle on — a study with eye tracking off never loads it, never asks for a camera and never shows a calibration screen. Gaze samples are throttled to roughly 12 Hz, batched, and tagged with the current screen, post and area of interest. In pager layouts the participant is recalibrated periodically.
+
+<Warning>
+Webcam gaze estimation is far less accurate than lab hardware and depends on the participant's lighting, camera and posture. Treat it as a coarse attention signal — which region of the screen, roughly, for roughly how long — not as a fixation-level measure. And because it needs an external CDN and a working webcam, plan for a meaningful share of participants producing no gaze data at all. Never make it a completion requirement.
+</Warning>
+
+## Study life cycle
+
+For builder studies these buttons sit in the row under the study name; for classic studies they sit in the header of the Settings pane next to the study name.
+
+<AccordionGroup>
+  <Accordion title="Activate / Deactivate" icon="power-off">
+    Toggles whether the study is live. `/study/<slug>` only serves a study that is **active** — an inactive study returns "study not found or inactive" to anyone following the link. Deactivating does **not** delete anything; existing data stays untouched.
+
+    This is your recruitment switch: keep a study inactive while you build it, activate it when the link goes out, deactivate it when you have your sample. Previewing a builder study bypasses the check, so you can test an inactive study without exposing it.
+  </Accordion>
+
+  <Accordion title="Duplicate" icon="copy">
+    Asks *"Duplicate this study? Settings and posts will be copied (without session data)."* and copies **everything about the design** — every setting, all posts with their images, post questions, demographic questions, parts, manipulation, conditional logic and existing translations — while copying **no session data**.
+
+    The copy is created **inactive**, gets a fresh unique slug, and belongs to whoever pressed the button. Its name gets a `(kopia)` suffix, numbered upwards for further copies — this suffix is hardcoded in Polish regardless of panel language, so rename the copy.
+
+    Duplicate is the workhorse of this platform: one copy per language, a copy to pilot a variant without touching the original, a copy to freeze a design once data collection has started.
+  </Accordion>
+
+  <Accordion title="Delete" icon="trash">
+    Asks for confirmation — *"Delete the study … This cannot be undone — all data (sessions, reactions, ratings) will be permanently deleted."* — and it means it. The study row, every session, every reaction and rating, and the study's uploaded images are removed. There is no trash and no undo.
+
+    Only the study's **owner** can delete it; collaborators cannot.
+
+    <Warning>
+    If a study has ever collected a real participant, deactivate it and export the data first. Deletion is irreversible and cascades to everything.
+    </Warning>
+  </Accordion>
+</AccordionGroup>
+
+## Saving
+
+Both forms end in a **fixed bar pinned to the bottom of the screen** — it stays visible however far you scroll, so the save button is never lost below a long form.
+
+<Tabs>
+  <Tab title="Builder studies">
+    The bar has **💾 Save** and **👁 Preview in a new tab**.
+
+    You rarely need the button: builder studies **autosave**. Roughly 800 ms after you stop typing, changes are written and the status line next to the form flips from *"Changes are saved automatically"* to *"Saved ✓"* for a couple of seconds, then back.
+
+    **👁 Preview** saves first, then opens `/study/<slug>?preview=1` in a new tab. If the study has no active posts, preview adds a placeholder post so the preview works at all — it tells you it did, and you should replace it with real content in the [Posts](/guide/posts) tab.
+  </Tab>
+  <Tab title="Classic studies">
+    The bar has a single **Save settings** button.
+
+    There is **no autosave on the classic form.** Nothing you type is stored until you press it, and navigating away loses it. Confirmation is a *"Settings saved."* toast.
+  </Tab>
+</Tabs>
+
+<Note>
+Switching between the **Settings** and **Configurator** tabs of the same builder study does not re-render the form, so a change you made less than a second ago is not discarded when you flip tabs.
+</Note>
+
+## What is not on this tab
+
+The Settings tab is deliberately narrow. Related settings live elsewhere:
+
+<CardGroup cols={2}>
+  <Card title="Screens, parts and layout" icon="layer-group" href="/guide/configurator">
+    The participant's journey — for builder studies.
+  </Card>
+  <Card title="Manipulation (A/B)" icon="code-branch" href="/guide/manipulation">
+    The between-subjects content split.
+  </Card>
+  <Card title="Social proof" icon="chart-simple" href="/guide/social-proof">
+    Metric conditions — randomised like/share counts.
+  </Card>
+  <Card title="Panel integration" icon="link" href="/guide/panel-integration">
+    Respondent IDs, completion and screen-out redirects, custom study domain — the **🔗 Research panel integration** section that also renders on this tab.
+  </Card>
+</CardGroup>
+
+On **classic** studies only, the single long Settings form additionally contains the screen texts (consent, instruction, transitions, debriefing), **Posts per session (1–20)**, **Style conditions** and **Experimental conditions**. On builder studies those same concepts live in the Configurator instead.

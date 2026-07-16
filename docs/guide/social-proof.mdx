@@ -1,0 +1,227 @@
+---
+title: "Social proof (metric conditions)"
+description: "Turn engagement counters — likes, shares, dislikes, flags — into a second between-subjects factor, and cross it with the A/B split for a 2×2 design."
+---
+
+Every post in a feed carries engagement counters: how many people liked it, shared it, disliked it, flagged it. Those numbers are a **social-proof cue** — a signal about what other people think, independent of the content itself. **Metric conditions** turn that cue into an experimental factor: participants are randomly assigned to see high numbers or low numbers under otherwise identical posts, so any difference in belief or sharing intention can be attributed to the cue rather than to the stimulus.
+
+This is the platform's **second** between-subjects factor. The first — [Manipulation (A/B)](/guide/manipulation) — varies what the post *says*. Metric conditions vary what the crowd *appears to think*. Crossing them gives you a 2×2 design.
+
+## Where it lives
+
+Select your study, open the **Configurator** tab and scroll to the **📊 Metric conditions (social proof)** section. The Configurator autosaves — there is no separate save button for this section.
+
+<Note>
+The Configurator is only available for studies built in the builder (they carry a **Builder** badge in the study list). Selecting a non-builder study shows an empty-state message instead.
+</Note>
+
+The section holds:
+
+- A checkbox: **Show metric counters to participants (👍 likes, shares, reactions under posts)**
+- One row per metric condition
+- **+ Add metric condition**
+
+Each condition row has:
+
+| Control | Meaning |
+| --- | --- |
+| Toggle | Whether this condition is **enabled** — i.e. whether participants can be assigned to it |
+| **Condition name** | Your label for the arm, e.g. *High social proof*. Stored as the condition's label; used in the Posts-tab preview and in the dashboard's condition badges |
+| **min** / **max** | The range the shown numbers are drawn from. The hint next to them reads **(0 = use base)** |
+| **💬 comment** | Tooltip: *"Show the debunking comment to participants in this condition"* |
+| **✕** | Removes the row |
+
+<Warning>
+The **💬 comment** toggle has **no effect in builder studies**. The builder participant path sends `post_comment: null` and `show_comment_in_condition: false` regardless of what the toggle says — the checkbox is a leftover from the older, non-builder study path. Do not design a "correction present vs. absent" factor around it. If you need a comment under a post in a builder study, add it in the **Posts** tab under **POST COMMENTS** — but note those comments are attached to the post, not to a condition, so every participant sees them.
+</Warning>
+
+## How the numbers are produced
+
+For every metric on every post, the participant server resolves the shown value with a strict three-step priority:
+
+```js
+// routes/participant.js — builder path
+const builderMetric = (baseVal) => {
+  const b = Number(baseVal) || 0;
+  if (b > 0) return b;                                    // 1. pinned post value wins
+  if (Number(metricCondObj.max) > 0)                      // 2. condition range
+    return randInt(Number(metricCondObj.min) || 0, Number(metricCondObj.max));
+  return b;                                               // 3. nothing set → 0
+};
+```
+
+<Steps>
+  <Step title="A base value pinned on the post wins">
+    If the post's base value for that metric is **greater than zero**, that exact number is shown — the condition's range is ignored entirely.
+  </Step>
+  <Step title="Otherwise, the condition's range applies">
+    If the condition's **max** is greater than zero, a random integer is drawn from **min** to **max** (both endpoints inclusive).
+  </Step>
+  <Step title="Otherwise, zero">
+    No base value, no range → the counter shows `0`.
+  </Step>
+</Steps>
+
+This is the rule the Configurator's own help text states: *"if you enter a specific base value on a post, it takes **priority** over the range."*
+
+### The priority rule is per metric, not per post
+
+Each of the four counters — likes, shares, dislikes, flags — runs through the rule **independently**. A post with `base_likes = 1200` and `base_shares = 0`, in a condition with range 10–50, shows **1200 likes** (pinned) and a **random 10–50 shares** (range). The post is half-manipulated.
+
+<Warning>
+**This is the single easiest way to break a social-proof study.** Base values are set in the **Posts** tab, in each post's **Social interactions** section (**👍 Likes**, **🔄 Shares**, **👎 Dislikes**, **🚩 Flags**). Any of them left above zero silently overrides your manipulation for that counter on that post — no error, no warning.
+
+If the metric factor is meant to be clean, **set every base value to 0 on every post** and let the ranges do all the work. If you want realistic-looking fixed numbers on some posts, accept that those posts are outside the manipulation and say so when you report.
+</Warning>
+
+### Draws are per post and per session
+
+The random draw happens once, at session start, when the feed payload is built. Consequences worth knowing:
+
+- **Within a session**, different posts in the same condition show different numbers — they are separate draws from the same range. This is realistic (real feeds don't have uniform engagement) but it means your manipulation is a *distribution*, not a fixed value.
+- **Across sessions**, two participants in the same condition see different numbers. The condition is the range; the numbers are noise within it.
+- The numbers a participant saw are **fixed for their whole session** and are recorded (see [What lands in your data](#what-lands-in-your-data)), so you never have to reconstruct them.
+
+<Tip>
+Make the two ranges **non-overlapping** and far apart — e.g. 5–40 vs. 800–1300 — so the contrast is unmistakable to a participant who is scrolling, not studying. Overlapping ranges (e.g. 100–500 vs. 300–900) will produce sessions where the "high" feed happens to look lower than a "low" feed, weakening the manipulation for no benefit.
+</Tip>
+
+## Two or more arms make it a real factor
+
+A metric condition only becomes a **between-subjects factor** when **two or more** conditions are enabled. The server enforces this explicitly:
+
+```js
+const metricKey = enabledMetricConds.length >= 2 ? metricCondObj.key : 'BUILDER';
+```
+
+What that means in practice:
+
+<AccordionGroup>
+  <Accordion title="Two or more enabled conditions — a real factor">
+    Each participant is randomly assigned to one enabled condition. Their arm is recorded in `metric_condition`, and `full_condition` becomes `<style>-<metric key>` — e.g. `A-HIGH`. This is the 2×2 case.
+  </Accordion>
+  <Accordion title="Exactly one enabled condition — a constant, not a factor">
+    The single condition's range **still applies** to the numbers, so it is a useful way to give a whole study realistic-looking engagement counters. But it is not a factor: `metric_condition` is recorded as the internal `BUILDER` tag, and `full_condition` stays just the style key (`A` or `B`). Nothing varies between participants, so there is nothing to analyse.
+  </Accordion>
+  <Accordion title="Zero enabled conditions — base values only">
+    No range is applied at all. Every counter falls back to the post's base value (or `0`). `metric_condition` is `BUILDER`.
+  </Accordion>
+</AccordionGroup>
+
+The internal `BUILDER` tag never reaches your data file: the export replaces it with an empty cell, so `metric_condition` is simply blank for studies without a metric factor.
+
+<Note>
+A condition row that is **disabled** (toggle off) is kept in the study configuration but excluded from assignment. Turning an arm off mid-study does not delete the rows already collected under it — plan for that when you analyse.
+</Note>
+
+## Assignment is simple randomisation
+
+In builder studies, both factors are drawn independently with plain uniform randomisation at session start:
+
+```js
+const metricCondObj = enabledMetricConds[Math.floor(Math.random() * enabledMetricConds.length)];
+```
+
+There is **no block balancing and no quota** on the metric factor. Cell sizes will drift apart, especially in small samples. Check the cell counts on the **Dashboard** as you collect, and don't assume equal *n* per cell when you plan your analysis.
+
+<Note>
+**Preview sessions are not random.** In preview, the first enabled condition is always chosen, so re-opening the preview link will never show you the other arm. To inspect what each metric condition looks like, use the post preview in the **Posts** tab — with two or more conditions enabled it renders one button per condition so you can flip between them.
+</Note>
+
+<Warning>
+The Posts-tab preview does **not** apply the participant priority rule. It shows the **midpoint** of the condition's range (`(min + max) / 2`) whenever a range is set, even when the post has a pinned base value that would win at runtime. A post with `base_likes = 1200` in a 10–50 condition previews as **30** but is shown to participants as **1200**. Treat the preview as a layout check, not a stimulus check — verify the real numbers in the export.
+</Warning>
+
+## How `full_condition` combines the two factors
+
+`full_condition` is the **cell identifier** for your design — the style arm and the metric arm joined with a hyphen:
+
+```
+full_condition = `${style_condition}-${metric_condition}`
+```
+
+A study with an A/B manipulation labelled A and B, and two metric conditions keyed `HIGH` and `LOW`, produces four cells:
+
+| `style_condition` | `metric_condition` | `full_condition` |
+| --- | --- | --- |
+| `A` | `HIGH` | `A-HIGH` |
+| `A` | `LOW` | `A-LOW` |
+| `B` | `HIGH` | `B-HIGH` |
+| `B` | `LOW` | `B-LOW` |
+
+When the metric factor is not active (fewer than two enabled conditions), `full_condition` collapses to the style key alone — `A` or `B` — rather than gaining a meaningless suffix. This keeps the recorded format stable for studies that never had a metric factor.
+
+<Note>
+The condition **key** is not the same as the condition **label**. Keys are generated when the row is created (`C` plus a timestamp for rows you add; legacy studies carry `HIGH` / `LOW`) and are what appears in `metric_condition` and `full_condition`. Your typed label is what appears in the admin panel's condition badges. Renaming a condition changes the label, not the key — so your exports stay consistent, but you will need your labels to hand to interpret the keys.
+</Note>
+
+## `show_metrics` — whether participants see the counters at all
+
+**Show metric counters to participants (👍 likes, shares, reactions under posts)** is a **study-level** switch, on by default. When it is on, each post card renders the counter row: 👍 likes, 👎 dislikes, 🔄 shares, 🚩 flags, and — if the post has comments — a 💬 count.
+
+Three things to keep straight:
+
+<CardGroup cols={2}>
+  <Card title="It hides counters, not buttons">
+    The reaction **buttons** participants click are governed separately (study-level and per-part reaction settings, plus per-post toggles in the Posts tab). Turning metric counters off leaves the buttons in place: participants can still react, they just can't see how many others did.
+  </Card>
+  <Card title="The values still exist">
+    The numbers are computed server-side and written to the session payload whether or not they are displayed — and they still land in your export. Hiding the counters removes the *cue*, not the *data*.
+  </Card>
+</CardGroup>
+
+<Warning>
+Turning **Show metric counters** off while metric conditions are enabled makes the manipulation **invisible**. Participants are still assigned to `HIGH` or `LOW`, the numbers are still drawn and recorded, and the export still shows a clean-looking factor — but nobody ever saw the cue, so any difference between arms is noise. If you disable the counters, disable the metric factor too (or keep at most one enabled condition) so the design you report matches the design you ran.
+</Warning>
+
+### Turning counters off deliberately
+
+There are legitimate reasons to switch them off: a study about headline framing alone, where engagement counts are an unwanted confound, or a minimal-feed design where the counters would draw attention away from the text. In that case, leave a single metric condition (or none) and the study cleanly becomes a 1×2 rather than a 2×2.
+
+<Info>
+**A styling detail worth knowing.** The counters are rendered with one of two CSS classes. Conditions keyed `HIGH`, or whose **min** is above 100, render in an accent colour and bold; everything else renders muted grey. This means your high-social-proof arm may look *visually emphasised* as well as numerically larger — a small confound between the cue's magnitude and its salience. It is cosmetic and applies to the counters only, but mention it if a reviewer asks what exactly differed between arms.
+</Info>
+
+## What lands in your data
+
+The **Export** tab writes one row per participant. Three columns describe the assignment:
+
+<ResponseField name="full_condition" type="categorical">
+  The 2×2 cell — e.g. `A-HIGH`. Pinned to the front of the sheet. Collapses to the style key alone when there is no metric factor. This is the grouping variable you want for cell-level comparisons.
+</ResponseField>
+
+<ResponseField name="style_condition" type="categorical">
+  The A/B manipulation arm.
+</ResponseField>
+
+<ResponseField name="metric_condition" type="categorical">
+  The metric (social-proof) arm — your second factor. **Blank** when the study has fewer than two enabled metric conditions (the internal `BUILDER` tag is stripped on export).
+</ResponseField>
+
+Alongside these, the export records **what each participant actually saw** on every post:
+
+- `post_1_likes_shown`, `post_1_shares_shown`, `post_1_dislikes_shown`, `post_1_flags_shown` — and the same for each subsequent post
+
+These are your **manipulation check**. Because the numbers are drawn per session, this is the only place the realised values exist. Before you analyse:
+
+<Steps>
+  <Step title="Confirm the ranges separated">
+    Compare the mean of `post_N_likes_shown` across levels of `metric_condition`. They should be far apart and non-overlapping. If they aren't, either your ranges overlap or a base value is winning.
+  </Step>
+  <Step title="Hunt for pinned base values">
+    Look for a `post_N_*_shown` column that is **identical for every participant regardless of condition**. That is a base value overriding the range — that counter on that post carries no manipulation.
+  </Step>
+  <Step title="Check your cell counts">
+    Cross-tabulate `style_condition` × `metric_condition`. Assignment is unbalanced simple randomisation; see how far the cells have drifted before choosing your test.
+  </Step>
+</Steps>
+
+The **Dashboard** and the **Export** tab's recent-sessions table also show the condition on each session as a badge, using your typed labels in the form *style label / metric label*.
+
+## Reporting the design
+
+A study with an A/B split and two metric conditions is:
+
+> A 2 (post framing: manipulative vs. neutral) × 2 (social proof: high vs. low) between-subjects design. Participants were randomly assigned to one of four cells at session start. Engagement counters in the high-social-proof condition were drawn uniformly from 800–1300 per post; in the low condition, from 5–40.
+
+Substitute your own labels and ranges. State the ranges rather than a single number — the platform draws per post, so there is no single value to report. If any posts carried pinned base values that overrode the range, list them; those posts did not carry the manipulation.

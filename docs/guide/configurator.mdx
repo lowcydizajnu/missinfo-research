@@ -1,0 +1,190 @@
+---
+title: "Configurator"
+description: "Build the participant's journey: study screens, experiment parts, layouts, timers, interaction requirements and post questions."
+---
+
+The **🔧 Configurator** tab is where a study stops being a row in a database and becomes something a participant can walk through. It defines the sequence of screens, splits the main task into parts, and attaches the questions you will later analyse.
+
+Pick a study from the selector at the top of the panel first — without one you see *"Select a study from the list above to open the configurator."*
+
+<Note>
+The Configurator only serves studies in **builder mode**. Older studies show *"The configurator is available for studies in builder mode. This study uses the classic settings (Settings tab)."* — for those, everything lives in **⚙️ Settings**.
+</Note>
+
+## Its relationship to the Settings tab
+
+The Configurator is not a separate editor. Both tabs render **one and the same builder form**; a function called `relocateKonfigSections()` then *physically moves* the configuration sections out of the Settings pane and into the Configurator pane. The sections tagged for relocation are:
+
+| Section | What it does | Covered in |
+| --- | --- | --- |
+| 📄 Study screens | The participant's screen sequence | This page |
+| 🔬 Experiment parts | Parts, layouts, timers, requirements, questions | This page |
+| 🔀 Manipulation (A/B condition) | Between-subjects A/B split | [Manipulation](/guide/manipulation) |
+| 📊 Metric conditions (social proof) | Randomised like/share counts | [Social proof](/guide/social-proof) |
+| ⚙️ Conditional logic | "If → then" rules | [Conditional logic](/guide/conditional-logic) |
+
+Everything else — **📋 Basic information** (study name, slug, description, title shown to participants), the study language selector and automatic translation, the visual post style, analytics and eye tracking, research-panel integration and the custom study domain — stays behind in **⚙️ Settings**.
+
+<Tip>
+The practical consequence: **Settings answers "what is this study?", the Configurator answers "what happens to the participant?"** Because it is one form, editing in either tab writes to the same record, and switching between the two tabs does not re-render or discard what you just typed.
+</Tip>
+
+## Study screens
+
+Consent and debriefing carry an **Always** badge — they cannot be turned off, which is the platform enforcing the ethical floor of deception research rather than a UI limitation. The rest are optional.
+
+<AccordionGroup>
+<Accordion title="📋 Consent screen">
+Free text shown before anything else. Leave it empty to fill in later — the study still runs with a default.
+</Accordion>
+
+<Accordion title="🚫 Consent declined">
+The message a participant sees after refusing to take part.
+</Accordion>
+
+<Accordion title="📖 Instruction">
+Toggleable. When on, you get the instruction text plus **Show a preview of the reaction icons (👍 / 👎 / 🔄 / 🚩)** — useful when you want participants to recognise the affordances before the feed starts, and worth turning **off** when noticing the reaction buttons is itself part of what you are measuring.
+</Accordion>
+
+<Accordion title="👤 Demographics">
+A single dropdown, **Position in the study flow**:
+
+- **After consent (before the instruction) — default**
+- **At the end (before the debriefing)**
+- **Skip entirely**
+
+*At the end* is often preferred when you worry that demographic questions could prime behaviour in the main task. *Skip entirely* suits recruitment from platforms that supply demographics out-of-band (Prolific, Lucid).
+
+<Info>
+This dropdown controls only **where** the demographics screen appears. The questions themselves live in the **👤 Demographics** tab. They are study content stored in the database and shown to participants, so they stay in the study's own language — they are not affected by the admin panel's PL/EN switch.
+</Info>
+</Accordion>
+
+<Accordion title="💬 Participant comments">
+A master switch for the comment field under posts. With it on, participants can type under every post whose post editor has the comment field checked; with it off, the per-post setting stays inactive. Comments land in the export in the `post_N_comment` column.
+</Accordion>
+
+<Accordion title="👍👎 Multiple reactions on one post">
+By default reactions behave like radio buttons — a new one cancels the previous. Enabled, a participant can like, share and flag the same post simultaneously. **Like and dislike stay mutually exclusive.** A second click deselects. Every click is stored; undone reactions carry `is_undo=1` in the export, so the full interaction path stays visible.
+</Accordion>
+
+<Accordion title="🎉 Debriefing">
+Debriefing text, a **Show the list of posts marked true/false** toggle, and a **👁 Preview** button that opens the debriefing screen alone in a new tab — you can proofread it without walking the whole study.
+</Accordion>
+</AccordionGroup>
+
+## Experiment parts
+
+A study's main task is a list of **parts** (stored as `parts_json`). Each part has its own layout and its own rules, and you can chain several with transition screens between them — this is how you build within-subjects designs, or simply separate an exposure phase from a measurement phase.
+
+Use **+ Add part** to append one, **✕ Remove** to delete it. The first part cannot be removed.
+
+### Post layout
+
+Each part carries its own **Post layout** toggle:
+
+<CardGroup cols={2}>
+<Card title="📜 Feed" icon="scroll">
+Classic scrolling feed — all posts on one page. Higher ecological validity; participants control pace and can scroll back over what they saw.
+</Card>
+<Card title="📄 Pager" icon="file">
+One post per page. Better control over exposure order and attention; makes per-post timing cleaner to interpret.
+</Card>
+</CardGroup>
+
+### Transition screen
+
+From the second part onwards you can enable **Show a transition screen before this part**, with its own text and a **Header emoji** (defaults to 📱; clear the field to hide the emoji entirely).
+
+### Per-part behaviour
+
+- **Show reaction buttons (👍 / 👎 / 🔄 / 🚩)** — turn off to hide interactions in this part.
+- **Interaction with a post required** — any reaction on every post. Marked *legacy*; the structured requirements below take precedence over it.
+- **Allow navigating back**.
+- **⏱ Maximum time for this part** — seconds, `0` = no limit (accepted range 0–3600). When the time runs out the participant moves on to the next part automatically, **regardless of the state of the requirements**.
+
+<Warning>
+The timer overrides requirements. If you set both a hard time limit and a requirement, some participants will leave the part without satisfying it — decide in advance how you will treat those cases in analysis rather than discovering them in the data.
+</Warning>
+
+### 🎯 Interaction requirements
+
+A structural list of *action × count* pairs a participant must satisfy before **Next** unlocks. Available actions:
+
+- 👍 Likes
+- 👎 Dislikes
+- 👍👎 Like or Dislike (combined total)
+- 🔄 Shares
+- 🚩 Flags
+- 💬 Comments
+- ⭐ Any interaction — counts every reaction and comment together
+
+Counts run 0–100. A count of **0** is not "impossible", it is **optional**: the participant sees an ∞ prompt and can do as many as they like without it blocking **Next**. An empty requirement list means no structural constraint at all.
+
+<Warning>
+Forcing interaction buys you complete data at the cost of spontaneity: a participant who must like three posts is no longer telling you what they *would* have liked. Requirements are a good fit when the interaction is the task; a poor fit when the interaction is the measure.
+</Warning>
+
+## Questions attached to parts
+
+Questions belong to a **part**, not to the study as a whole, and each part decides how they reach the participant.
+
+**❓ Question placement** offers:
+
+- **after interaction (under the post)** — the default
+- **after interaction (modal)**
+- **together with the post**
+- **after the post**
+- **after all posts**
+
+The first four measure reactions in the moment (with the post still visible or just seen); *after all posts* keeps the feed uninterrupted and measures afterwards, at the price of memory decay. You can also set a **Question screen title** and a **Subtitle / description**.
+
+Each question added with **+ Add question** has a type and a **Required** checkbox:
+
+<Tabs>
+<Tab title="Open-ended">
+Free text.
+</Tab>
+<Tab title="Single choice">
+One option. Add options with **+ Option**.
+</Tab>
+<Tab title="Multiple choice">
+Several options. Add options with **+ Option**.
+</Tab>
+<Tab title="Likert scale">
+Configure **Scale points** (5–11), **Numbering from** (1 or 0), a **Min label**, a **Max label** and an optional **Description**.
+</Tab>
+</Tabs>
+
+<Warning>
+**Numbering from** changes what the stored numbers mean. The database records the number the participant actually clicked, so flipping a live question from 1 to 0 mid-collection reshuffles the apparent meaning of every answer already gathered. Set it before launch, or only on new questions.
+</Warning>
+
+## Saving and previewing
+
+A **fixed action bar sits at the bottom of the Configurator**, always in view no matter how far you scroll:
+
+<Steps>
+<Step title="💾 Save">
+Writes the whole builder — screens, parts and questions — immediately.
+</Step>
+<Step title="👁 Preview in a new tab">
+Saves first, then opens the participant view at `/study/<slug>?preview=1` in a new tab. Preview sessions are marked as previews, so they do not pollute your data.
+</Step>
+</Steps>
+
+Alongside the buttons sits a status line reading **Changes are saved automatically**, which flips to **Saved ✓** for a couple of seconds after each write.
+
+### Autosave
+
+You rarely need to press Save. Any edit in the Configurator schedules a silent save about **0.8 seconds** after you stop typing — short enough that your last change has landed before you reach the preview tab, long enough not to fire on every keystroke.
+
+Some actions bypass the debounce and hit the server straight away: **+ Add question** creates the question immediately, and deleting one with **✕** removes it immediately — there is no confirmation step.
+
+<Note>
+The Preview button auto-creates a single example post if the study has no active posts, so that preview always works. If you see *"Added an example post for the preview"*, replace it with real content in the **✏️ Posts** tab.
+</Note>
+
+<Warning>
+Conditional logic rules **do not fire in preview**. To check a screen-out or a part skip, you have to run the real flow.
+</Warning>

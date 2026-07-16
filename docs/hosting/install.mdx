@@ -1,0 +1,156 @@
+---
+title: "Install locally"
+description: "Run your own Misinfo Research instance on a laptop or VPS with Node, from clone to first admin sign-in."
+---
+
+Misinfo Research is self-hosted: you run your own copy, and you become its administrator. It is a single Node process with a SQLite database file — no external database, no message queue, no third-party service required. That makes it equally suitable for a laptop (to build and pilot a study) and for a small VPS (to actually collect data).
+
+This page covers the plain Node installation. If you would rather not install Node at all, see [Docker](/hosting/docker); if you want a hosted URL without managing a machine, see [Railway](/hosting/railway).
+
+## Before you start
+
+You need:
+
+- **Node.js 18 or newer** — the `engines` field in `package.json` requires `>=18.0.0`. Check with `node -v`.
+- **npm** — ships with Node.
+- **git** — to clone the repository.
+- **A writable disk** — the database and uploaded images are written to files in the project directory.
+
+<Note>
+The database driver (`better-sqlite3`) is a native module. On most systems npm downloads a prebuilt binary and installation is instant. If no prebuilt binary matches your platform, npm compiles it from source, which needs a C++ toolchain (`python3`, `make`, `g++` — the same tools the project's own Dockerfile installs for that case).
+</Note>
+
+## Install
+
+<Steps>
+  <Step title="Get the code">
+    ```bash
+    git clone https://github.com/lowcydizajnu/missinfo-research.git
+    cd missinfo-research
+    npm install
+    ```
+  </Step>
+
+  <Step title="Create your .env file">
+    ```bash
+    cp .env.example .env
+    ```
+
+    `.env.example` is a documented template. Copying it gives you a real `.env` with every variable listed and the optional ones already set to sensible defaults. `.env` is gitignored — never commit it.
+  </Step>
+
+  <Step title="Set the two required variables">
+    Open `.env` and fill in `JWT_SECRET` and `ADMIN_PASSWORD`.
+
+    Generate a strong secret:
+
+    ```bash
+    node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+    ```
+
+    Your `.env` should end up looking like this:
+
+    ```bash
+    JWT_SECRET=8f3c…a long random hex string…9b1
+    ADMIN_PASSWORD=your-strong-password
+    ```
+  </Step>
+
+  <Step title="Start the server">
+    ```bash
+    npm start
+    ```
+
+    Or, while developing, `npm run dev` — the same server under nodemon, which restarts on file changes.
+
+    You should see:
+
+    ```
+    Server running on http://localhost:3000
+    ```
+
+    On the very first start the server also creates the database, applies the schema, and prints a line confirming it seeded the `admin` account.
+  </Step>
+
+  <Step title="Sign in">
+    Open **http://localhost:3000/admin** and sign in on the **Admin Panel** screen:
+
+    - **Username:** `admin`
+    - **Password:** the value you put in `ADMIN_PASSWORD`
+
+    The panel opens in Polish by default. Use the language dropdown — **Polski / English** — on the login screen or in the top-right of the header to switch to English.
+  </Step>
+</Steps>
+
+<Check>
+Signed in, you land on the admin panel: a header with the study picker, **+ New**, **👥 Accounts** and **Sign out**, and the tab row **Dashboard · Posts · Demographics · Configurator · Export · Analyses**. That is a working instance.
+</Check>
+
+## The two required variables
+
+<Warning>
+**`JWT_SECRET` is mandatory.** The server has no fallback value and calls `process.exit(1)` on startup if the variable is missing — a predictable signing secret would let anyone forge an admin token, so the platform refuses to start insecure rather than start weak. If the process dies immediately with `FATAL: JWT_SECRET is not set`, that is why.
+
+**`ADMIN_PASSWORD` only seeds the first account.** It is read once, on the first start, when the `users` table is still empty: the server creates the `admin` user and stores a bcrypt hash of that password. From then on, sign-in checks the hash in the database. Changing `ADMIN_PASSWORD` later has **no effect** on your password — change passwords from the **👥 Accounts** screen inside the panel instead. If you start the server without `ADMIN_PASSWORD` set, no account is created and the server warns you in the console; set the variable and restart.
+</Warning>
+
+## All environment variables
+
+<ParamField path="JWT_SECRET" type="string" required>
+Secret used to sign admin login tokens. Required — the server exits if it is unset. Use a long random value.
+</ParamField>
+
+<ParamField path="ADMIN_PASSWORD" type="string" required>
+Password for the first admin account (username: `admin`), created automatically on first start. Used only to seed that one account.
+</ParamField>
+
+<ParamField path="ANTHROPIC_API_KEY" type="string">
+Optional. Enables AI-assisted translation of study content via the Anthropic API. The platform is fully functional without it — leave blank to disable.
+</ParamField>
+
+<ParamField path="PORT" type="number" default="3000">
+HTTP port the server listens on.
+</ParamField>
+
+<ParamField path="DATABASE_PATH" type="string" default="./data/research.db">
+Path to the SQLite database file. The directory is created automatically if it does not exist.
+</ParamField>
+
+<ParamField path="UPLOADS_PATH" type="string" default="./uploads">
+On-disk fallback path for post images. Created automatically. Images uploaded through the panel are stored in the database; this directory serves legacy files that predate that.
+</ParamField>
+
+## Where your data lives
+
+Everything — studies, posts, sessions, reactions, ratings, accounts — is in the single SQLite file at `DATABASE_PATH` (`./data/research.db` by default). That file *is* your instance.
+
+<Tip>
+Because the whole instance is one file, backing it up is a file copy, and moving an instance to another machine is a file move. See [Backup](/hosting/backup) before you start collecting real data — a pilot is a good moment to rehearse the restore.
+</Tip>
+
+## Sharing a study with participants
+
+Participants never sign in. A study created in the panel gets a slug, and its participant link is:
+
+```
+http://localhost:3000/study/<slug>
+```
+
+On `localhost` that link only works on your own machine — fine for building and previewing a study, not for recruitment. To collect real data, deploy the same code somewhere with a public URL.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Run with Docker" icon="box" href="/hosting/docker">
+    Same instance, no local Node installation, with persistent volumes.
+  </Card>
+  <Card title="Deploy to Railway" icon="cloud" href="/hosting/railway">
+    Get a public URL you can put in front of participants.
+  </Card>
+  <Card title="Configuration" icon="sliders" href="/hosting/configuration">
+    Every setting, in detail.
+  </Card>
+  <Card title="Build your first study" icon="flask" href="/quickstart">
+    Now that it runs — create a study, add posts, launch.
+  </Card>
+</CardGroup>

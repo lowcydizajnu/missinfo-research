@@ -1,0 +1,233 @@
+---
+title: "Panel recruitment & custom domains"
+description: "Capture an agency's respondent ID from the study link, send participants back to the panel after the debriefing, and host a study on its own subdomain."
+---
+
+Most experiments that need a real, quota-controlled sample buy it from a research agency or an online panel. That arrangement imposes a technical contract: the panel hands you a participant with an identifier glued onto the study URL, and expects you to hand that same participant back — with the identifier intact — the moment they finish, so the panel can credit them and close the task. Misinfo Research implements both halves of that contract per study, plus the cosmetic half that matters more than it should: serving the study from a hostname that looks like it belongs to your project rather than to your hosting provider.
+
+Everything on this page lives in the **⚙️ Settings** tab of the admin panel, in the section titled **🔗 Research panel integration**. Select a study from the picker at the top first. Changes autosave (*Changes are saved automatically*).
+
+<Note>
+The whole section is optional. Every field is empty (or at its default) on a new study, and an empty field means "behave exactly as a self-recruited study" — no capture, no redirect, no domain binding. Nothing here changes what participants see unless you fill it in.
+</Note>
+
+## The two halves of a panel handshake
+
+<Steps>
+  <Step title="The panel sends you a respondent">
+    The agency publishes your link to its members with the respondent's ID appended as a query parameter — `https://your-app.example/study/my-study?res_id=ABC123`. Your job is to record `ABC123` alongside the session, so that later you can tell the agency exactly which of *their* members produced which of *your* rows.
+  </Step>
+  <Step title="You send the respondent back">
+    When the participant finishes (or refuses consent), the browser navigates to a URL the agency gives you — the *end link* — with the respondent ID substituted back in. That request is what tells the panel "this person completed", and it is what triggers the incentive payment.
+  </Step>
+</Steps>
+
+Miss the first half and you cannot reconcile your data with the agency's. Miss the second half and your participants do not get paid, which is both an ethics problem and a fast route to a ruined sample.
+
+## Capturing the respondent ID
+
+### Choosing the parameter name
+
+**Name of the URL parameter carrying the respondent ID** — the query key the platform should read. The default is `res_id`. The agency dictates this value, and it varies: some panels use `pid`, others `respondent_id`, `RID`, and so on. Whatever the agency puts in its link, type the bare key here (no `?`, no `=`).
+
+The platform does not guess. The participant page forwards **every** query parameter of the landing URL to the server when the session starts, and the server picks out the one key this study is configured for. Everything else in the query string is ignored as noise, so extra tracking parameters from the panel do no harm.
+
+<Note>
+The single exception is `preview` — the app's own flag for opening an unpublished study in preview mode. It is never forwarded as a candidate respondent ID. Do not let an agency use `preview` as its parameter name.
+</Note>
+
+### What gets stored
+
+The captured value is written to `sessions.external_id` on the session row, once, at session start:
+
+- Non-string values are coerced to text.
+- The value is trimmed and **capped at 256 characters** — real panel IDs are UUID-shaped (~36 chars), so anything longer is treated as junk and cut.
+- An absent or empty parameter stores nothing (`NULL`), and the session proceeds normally.
+
+The value stays on the row forever, independent of any later edit to the study configuration.
+
+<Warning>
+Capture happens **at session start**, from the URL the participant actually landed on. If you change the parameter name after recruitment has begun, sessions already collected keep whatever they captured (or did not capture) at the time — the change is not retroactive, and there is no way to backfill an ID that was never in the URL. Agree the parameter name with the agency *before* the field goes live, and test one link end to end.
+</Warning>
+
+### Getting the IDs out
+
+The **📥 Export** tab includes an `external_id` column in the session-metadata block, next to `session_id` and `session_token`. Sessions with no captured ID export as an empty cell. This column is the file you hand back to the agency for reconciliation.
+
+## Sending participants back: the completion link
+
+**Completion link (redirect after the debriefing)** — the URL the participant is redirected to after finishing the study. Empty means no redirect: the participant simply reads the final screen and closes the tab, which is the correct setting for self-recruited samples.
+
+### Placeholders
+
+Two placeholders are substituted before navigation, each URL-encoded:
+
+| Placeholder | Value |
+| --- | --- |
+| `{ext_id}` | The respondent ID captured from the URL parameter (empty string if none was captured) |
+| `{session_id}` | The platform's own session token for this session |
+
+A typical agency end link therefore looks like:
+
+```text
+https://panel.example.org/complete?token={ext_id}
+```
+
+Include `{session_id}` as well when you want a key that ties the panel's record back to your data even if the panel's own ID is lost:
+
+```text
+https://panel.example.org/complete?token={ext_id}&ref={session_id}
+```
+
+<Warning>
+Only `http://` and `https://` links are honoured. A value that does not start with one of those is silently ignored and no redirect fires — a deliberate guard so that a mistyped URL can never turn into a `javascript:` or `data:` navigation. If your test link "does nothing", check that you pasted the scheme.
+</Warning>
+
+### Redirect delay
+
+**Redirect delay (seconds)** — how long the debriefing stays on screen before the automatic redirect fires. Default `4`, accepted range `0–600`.
+
+This is a methodological decision, not a cosmetic one. The debriefing is where you disclose which posts were false and why the manipulation existed; a 4-second window is enough to notice a confirmation, not enough to read a disclosure. Raise the delay when the debriefing carries material the participant genuinely needs to read, and pair it with a notice and button (below) so nobody is trapped waiting for a timer. Set `0` when the agency insists on owning the post-study screen — navigation then happens immediately.
+
+<Note>
+The delay is clamped to `0–600` seconds on the server as well as in the form, so a stray keystroke cannot strand a participant on the end screen indefinitely.
+</Note>
+
+### The sticky notice
+
+**Notice text in the sticky box above the debriefing** — optional custom text. Its presence changes the end screen in two ways:
+
+<Tabs>
+  <Tab title="Notice filled in">
+    A box pinned to the top of the debriefing card appears, containing your text and a **Back to panel →** button. The box stays visible while the participant scrolls through the debriefing, and the button fires the redirect immediately, ignoring the timer. This is the combination to use with a long delay: the participant reads at their own pace and leaves when ready.
+  </Tab>
+  <Tab title="Notice empty">
+    No box. A small notice appears at the bottom of the card instead, and only the timer fires the redirect.
+  </Tab>
+</Tabs>
+
+Write the notice in the participant's own words and be concrete about what happens next — for example: *"After reading the debriefing you will return to the Agency X panel — your credit will be granted automatically."* Vague reassurance is what makes people close the tab early, which is precisely the failure mode that costs them their incentive.
+
+<Warning>
+The small fallback notice shown when you leave the notice field empty is hard-coded **in Polish**. If your study runs in English, Czech, or Slovak, fill in the notice field so participants see text in their language rather than the Polish default.
+</Warning>
+
+<Tip>
+The **Back to panel →** button label comes from the participant-facing locale files and can be edited through **Translations and platform settings** (the cog in the header), so a Czech or Slovak clone shows a translated label.
+</Tip>
+
+The notice and delay only do anything when a completion link is set.
+
+### Testing it without walking the whole study
+
+In the **🔧 Configurator** tab, the study-screens section has a **👁 Preview** button next to the debriefing (*Opens the debriefing screen in a new tab, without going through the whole study*). It renders the debriefing exactly as participants get it, sticky box included — but it deliberately **does not** fire the automatic redirect, so you are not yanked off to the agency mid-check. The **Back to panel →** button still works, which is how you verify the end link resolves correctly.
+
+Preview sessions are flagged `is_preview = 1`, so this testing does not pollute your dataset.
+
+## Screen-outs: the consent-decline link
+
+Panels distinguish a *complete* from a *screen-out* — someone who arrived, declined, and should be returned without credit. They usually expect a different URL for it. The decline fields mirror the completion fields exactly.
+
+**Consent-decline link (when a participant does not agree to the study)** fires when the participant clicks the decline option on the consent screen. It supports the same `{ext_id}` and `{session_id}` placeholders and the same `http(s)`-only guard. Empty means the participant stays on the local "we understand your decision" screen.
+
+**Decline redirect delay (seconds)** — default `4`, `0` = immediate. Active only when a decline link is set.
+
+**Notice text in the sticky box on the decline screen** — same behaviour as the completion notice: filled in gives a sticky box with a **Back to panel →** button, empty gives a small message at the bottom.
+
+**Skip the decline screen — redirect immediately** — a checkbox. When ticked *and* a decline link is set, clicking the decline option navigates straight to the agency URL; the participant never sees the local decline screen, and the delay and sticky box are ignored. Use it when the panel has its own post-decline screen and the intermediate page is just noise. Unticked (the default) keeps the local screen followed by the timer-driven redirect.
+
+<Note>
+The decline is recorded on the session before the redirect fires either way, so declining participants still appear in your data as declines. The redirect is about closing the loop with the panel, not about discarding the record.
+</Note>
+
+<Warning>
+The checkbox is ignored when the decline link is empty. On its own it does not hide or shorten the decline screen.
+</Warning>
+
+## Field reference
+
+| Field (English label) | Study column | Default |
+| --- | --- | --- |
+| Name of the URL parameter carrying the respondent ID | `external_id_param_name` | `res_id` |
+| Completion link (redirect after the debriefing) | `completion_redirect_url` | empty — no redirect |
+| Redirect delay (seconds) | `completion_redirect_delay_seconds` | `4` (range 0–600) |
+| Notice text in the sticky box above the debriefing | `completion_redirect_notice` | empty — no sticky box |
+| Consent-decline link | `decline_redirect_url` | empty — no redirect |
+| Decline redirect delay (seconds) | `decline_redirect_delay_seconds` | `4` (range 0–600) |
+| Notice text in the sticky box on the decline screen | `decline_redirect_notice` | empty — no sticky box |
+| Skip the decline screen — redirect immediately | `decline_redirect_immediate` | off |
+| Custom study domain | `custom_domain` | empty — no binding |
+| (captured per session) | `sessions.external_id` | `NULL` |
+
+<Note>
+The full section above is available for studies built in the Configurator (builder mode). Older, non-builder studies expose only the two basic fields — the parameter name and the completion link — in their settings form.
+</Note>
+
+## Binding a study to its own domain
+
+By default a study lives at `/study/<slug>` on whatever host runs the app, and the bare host serves the admin panel. That is fine for a link you paste into a panel dashboard, and awkward everywhere else: a recruitment ad, a printed QR code, or an ethics submission reads better as `study.example.org` than as a platform URL with a path — and the bare host of your app should not greet a curious participant with an admin login.
+
+**Custom study domain** binds one hostname to this one study.
+
+### Set up DNS first
+
+Point a subdomain at the app with a **CNAME** record — `study.example.org` → your app's address — and make sure your hosting platform is configured to accept that hostname. Misinfo Research does not terminate TLS or issue certificates itself; the certificate for the subdomain is your hosting platform's job, exactly as for the app's own address.
+
+### Then fill in the field
+
+Enter the hostname **exactly**, with:
+
+- no `https://`
+- no trailing `/`
+- no wildcards
+
+```text
+study.example.org
+```
+
+The form normalizes what you paste — it strips a protocol prefix and any path, and lowercases the result — but a `www.` prefix is left alone deliberately, because only you know whether your CNAME is for the apex or the `www` form. What you save must match the hostname that actually reaches the app.
+
+### What the bound host serves
+
+Once bound, requests arriving on that hostname are handled as follows:
+
+- **`/`** serves this study directly, **query string preserved verbatim**. That is the point of the whole feature for panel work: `https://study.example.org/?res_id=ABC123` lands on the study *and* the respondent ID still flows into `external_id` exactly as it would on the long URL.
+- The study's own canonical path (`/study/<slug>`), the participant API, uploaded images, and the static assets the participant page needs remain reachable.
+- **Everything else returns 404** — the admin panel, every other study, shared dashboards. The bound host serves one study and nothing else.
+
+Your researcher-facing surfaces — the admin panel, the Configurator, exports — stay on the app's main address. They are simply not part of what this hostname exposes.
+
+<Warning>
+The binding only takes effect while the study is **active**. If the study is deactivated, the hostname stops resolving to it and falls through to the app's ordinary routing — where `/` is the admin panel. Deactivating a study on a public custom domain therefore points that domain at your admin login. Deactivate the study and remove the binding together, or leave the study active until you retire the domain.
+</Warning>
+
+<Warning>
+One hostname, one study. Nothing stops you from typing the same hostname into two studies, but the lookup returns a single study for a given host, so the second binding will not do what you expect. If you need two studies on branded URLs, use two subdomains.
+</Warning>
+
+<Note>
+Leaving the field empty changes nothing: the study stays reachable at `/study/<slug>` on the app's main address.
+</Note>
+
+## Launch checklist
+
+<Steps>
+  <Step title="Agree the parameter name with the agency">
+    Ask which query key carries the respondent ID and enter it in **Name of the URL parameter carrying the respondent ID**. Do not assume `res_id`.
+  </Step>
+  <Step title="Get both end links from the agency">
+    You need a completion URL *and* a screen-out URL — they are usually different. Paste them with `{ext_id}` (and optionally `{session_id}`) where the agency's documentation says the respondent ID goes.
+  </Step>
+  <Step title="Write the notices">
+    Tell the participant, in the study's language, what happens after the debriefing and after a decline. This is what stops people closing the tab before the redirect fires.
+  </Step>
+  <Step title="Set the delay against your debriefing">
+    Longer debriefing, longer delay — always with a notice, so the **Back to panel →** button is available to anyone who wants to leave sooner.
+  </Step>
+  <Step title="Bind the domain, if you are using one">
+    CNAME first, then the hostname in **Custom study domain**, then confirm the study is **active**.
+  </Step>
+  <Step title="Run one real link end to end">
+    Open the recruitment link with a test ID in the query string, complete the study, and confirm the redirect lands where it should. Then check the **📥 Export** tab: the `external_id` column must contain your test ID. If it is empty, the parameter name does not match the link — fix that before recruitment opens.
+  </Step>
+</Steps>
