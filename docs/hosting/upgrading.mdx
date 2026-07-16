@@ -1,232 +1,107 @@
 ---
-title: "Upgrading"
-description: "Move an instance to a newer version of the code: back up, pull, install, restart — schema migrations run themselves at startup."
+title: "Upgrading Misinfo Research to a Newer Version Safely"
+sidebarTitle: "Upgrading"
+description: "Step-by-step instructions for upgrading Misinfo Research on Node.js, Docker Compose, or Railway, including automatic schema migration on startup."
 ---
 
-Upgrading a Misinfo Research instance is deliberately boring: get the new code, install dependencies, restart the server. There is no migration command to remember and no maintenance mode to enter. The database schema brings itself up to date the moment the server boots.
-
-The one step that is genuinely on you is the backup. Everything else the platform handles; restoring a study you lost is not something it can do for you.
+Upgrading Misinfo Research is straightforward regardless of how you deployed it. The application runs any required database schema migrations automatically on startup, so you never need to write or execute SQL by hand. Follow the instructions below for your deployment method.
 
 ## Before you upgrade
 
-<Warning>
-**Back up the database file first.** Your entire instance — studies, posts, participants, reactions, ratings, credibility ratings, accounts, and the images stored as BLOBs — is the single SQLite file at `DATABASE_PATH` (`./data/research.db` by default). Migrations run forward only: there is no down-migration, and no automatic rollback if you decide to return to an older commit. The backup *is* your rollback.
+It is good practice to take a backup before upgrading, so you have a rollback point if something goes wrong. See the [Backup guide](/hosting/backup) for instructions.
 
-Do not simply `cp` the file out from under a running server. The database runs in WAL mode (`journal_mode = WAL`), so recent writes may still be sitting in the `research.db-wal` sidecar and a bare copy can be inconsistent. See [Backup](/hosting/backup) for the safe procedure.
-</Warning>
-
-Two smaller things worth checking:
-
-- **Upgrade when nobody is collecting data.** A restart drops in-flight requests. If participants are mid-study, a reaction or rating in transit at that exact moment can be lost. A quiet window — or at least not the morning your panel recruitment goes live — is the right time.
-- **Node 18 or newer.** `package.json` requires `>=18.0.0`. If the new code arrives at the same time as a Node upgrade on the host, see [the native module note](#the-native-module-caveat) below.
-
-## Upgrading
-
-<Tabs>
-
-<Tab title="Node">
-```bash
-git pull
-npm install
-npm start
-```
-
-`npm install` matters even when the release looks like a small change — a new version may add or bump a dependency, and a stale `node_modules` produces confusing "cannot find module" failures rather than an obvious error.
-
-If you run the server under a process manager (systemd, pm2, or similar), restart it there instead of running `npm start` by hand.
-</Tab>
-
-<Tab title="Docker">
-```bash
-git pull
-docker compose up -d --build
-```
-
-The `--build` flag is the important part: without it, Compose happily reuses the image it already has and you restart the *old* code while believing you upgraded.
-
-Your data is untouched. The `misinfo-data` and `misinfo-uploads` volumes are independent of the image — Compose replaces the container, not the volumes.
-</Tab>
-
-<Tab title="Railway">
-Push to the branch Railway is watching, and it redeploys on its own:
-
-```bash
-git push
-```
-
-Railway builds with Nixpacks (`railway.json` sets `"builder": "NIXPACKS"`) and starts the app with `node server.js`. Your environment variables and the volume mounted at `/app/data` carry over — the deploy replaces the application, not the disk.
-
-<Warning>
-Confirm the volume at `/app/data` is actually mounted **before** you rely on a Railway instance for real data. Without it the container filesystem is ephemeral and every redeploy starts from an empty database. See [Railway](/hosting/railway).
-</Warning>
-</Tab>
-
-</Tabs>
-
-That is the whole procedure. Watch the console after the restart — the server prints:
-
-```
-Server running on http://localhost:3000
-```
-
-Then sign in and confirm your studies are still listed in the study picker in the header.
-
-## What happens at startup
-
-Understanding this is what lets you skip the migration step with a clear conscience.
-
-`server.js` requires `db/database.js` while booting, and that module does all the schema work as a side effect of being loaded. In order:
+## Node.js upgrade
 
 <Steps>
+  <Step title="Pull the latest code">
+    From inside your project directory, fetch and apply the latest commits:
 
-<Step title="The core schema is created if absent">
-The base tables — `studies`, `posts`, `sessions`, `reactions`, `ratings` — are declared with `CREATE TABLE IF NOT EXISTS`. On an existing database this does nothing at all.
-</Step>
+    ```bash
+    git pull
+    ```
+  </Step>
 
-<Step title="Migrations run">
-A long list of `ALTER TABLE … ADD COLUMN` and `CREATE TABLE IF NOT EXISTS` statements is applied through one small helper. Every column added since the first release — conditional logic, post questions, eye-tracking, the post library, multi-user accounts, panel-recruitment endlinks, dashboard and export profiles — arrives here.
-</Step>
+  <Step title="Install updated dependencies">
+    Dependencies may have been added, removed, or upgraded in the new version. Run `npm install` to synchronise your local `node_modules` with the updated `package.json`:
 
-<Step title="Backfills run">
-A handful of one-time data migrations bring older rows in line with newer columns. Each is written to be safely re-runnable (details below).
-</Step>
+    ```bash
+    npm install
+    ```
+  </Step>
 
-<Step title="The server starts listening">
-Only after the module finishes. If a migration were to fail hard, you would see it at boot rather than mid-study.
-</Step>
+  <Step title="Restart the server">
+    ```bash
+    npm start
+    ```
 
+    On startup the application automatically detects any pending schema migrations and applies them to the database before accepting requests. You will see migration activity in the server logs if changes were made.
+  </Step>
 </Steps>
 
-### The migration pattern
-
-The entire mechanism is these two lines in `db/database.js`:
-
-```js
-const migrate = (sql) => { try { db.exec(sql); } catch (_) {} };
-migrate('ALTER TABLE studies ADD COLUMN hide_topic_badges BOOLEAN DEFAULT 0');
-```
-
-SQLite throws if you add a column that already exists. `migrate()` catches that and moves on. So the statement is a no-op on an instance that already has the column, and an upgrade on one that does not — which is what makes running the whole list on **every single boot** harmless.
-
-There is no version table and no "which migrations have run" bookkeeping. The list is simply replayed each time, and each statement either does its work or is quietly ignored because it has nothing left to do. Restarting your server ten times in a row runs the migrations ten times and changes the database exactly once.
-
 <Note>
-**Every new column has a default.** `ALTER TABLE studies ADD COLUMN show_avatars INTEGER DEFAULT 1` gives existing studies the value `1` — the pre-feature behaviour. This is a consistent design rule across the codebase: a study created before a feature existed keeps behaving exactly as it did before the upgrade, and you opt into new behaviour by changing the setting yourself. Upgrading does not silently change how your running study looks to participants.
+  If you are running the server as a background service (e.g. via `systemd` or `pm2`), reload or restart the service instead of running `npm start` directly. For example: `pm2 restart misinfo` or `systemctl restart misinfo`.
 </Note>
 
-### The backfills
+## Docker Compose upgrade
 
-Three blocks do more than add columns. All three are guarded so that re-running them is safe:
+<Steps>
+  <Step title="Pull the latest image">
+    Fetch the updated container image (and any updated images for other services):
 
-| Backfill | Runs when | What it does |
-|---|---|---|
-| Admin seed | Only when the `users` table is completely empty | Creates the `admin` account from `ADMIN_PASSWORD` and assigns every unowned study to it. On an upgrade, users already exist — so it is skipped, and `ADMIN_PASSWORD` is ignored entirely. |
-| `metric_conditions_json` | Only for studies where the column is `NULL` | Derives the HIGH/LOW metric conditions from the older `high_metrics_*` / `low_metrics_*` columns, so studies predating the JSON format keep their social-proof settings. |
-| Image BLOB migration | Every boot; skips any post that already has a BLOB | Reads image files still sitting in `UPLOADS_PATH` into the database. Prints `[image-migration] Loaded N image(s) from disk into DB BLOBs` when it actually moves something, and stays silent otherwise. |
+    ```bash
+    docker compose pull
+    ```
+  </Step>
 
-### What startup will *not* do
+  <Step title="Recreate the containers">
+    Start new containers from the updated images. Running containers are replaced with zero manual cleanup:
 
-<Check>
-**Restarting never overwrites your post content.** An earlier version of the code carried a startup block that rewrote source names, headlines and body text on posts matching `(topic, order_index)` — it was framed as idempotent, but it was only idempotent for untouched seed studies. For any researcher who had edited those fields, every restart silently restored the prefab content. That block has been removed. Editing a seeded post and restarting the server now keeps your edit.
-</Check>
+    ```bash
+    docker compose up -d
+    ```
 
-If you ever do want the revised seed content applied to old studies, that is a deliberate, manual act: `node update_seed_posts.js`, run by hand against the target environment. Nothing runs it for you.
-
-## Migrations are forward-only
-
-There is no down-migration path, by design. This has one practical consequence, and it is the reason for the backup:
-
-**Rolling the code back does not roll the schema back.** Columns and tables added by a newer version stay in the database after you check out an older commit — nothing removes them. If you need to genuinely return to an earlier state, restore your backup of the database file alongside the older code. Checking out the old commit on its own leaves you with old code on a newer schema, which is not a combination anyone tested.
+    Docker Compose replaces only the containers whose images have changed, leaving your named volumes (`misinfo-data` and `misinfo-uploads`) untouched.
+  </Step>
+</Steps>
 
 <Tip>
-The cheap insurance is a dated copy of `research.db` taken immediately before each upgrade. It costs a few megabytes and turns "we need to go back" from a research incident into a file copy.
+  You can combine both steps into a single command: `docker compose pull && docker compose up -d`. This is convenient to run from a scheduled job or a deployment script.
 </Tip>
 
-## What survives an upgrade
+## Railway upgrade
 
-Things people reasonably worry about, and where they actually live:
+Railway redeploys your service automatically whenever changes are pushed to the connected GitHub repository.
 
-<AccordionGroup>
+<Steps>
+  <Step title="Push your changes to GitHub">
+    If you are working from a fork or a local checkout, push the latest commits to the branch Railway is tracking:
 
-<Accordion title="Post images and avatars">
-Safe. They are stored as BLOBs (`image_blob_a`, `image_blob_b`, `avatar_blob`) in the `posts` row that owns them — a deliberate choice, precisely because many hosts have an ephemeral filesystem where images written to disk disappear on redeploy. As long as the database survives, the images do. `UPLOADS_PATH` only serves legacy files that have not yet been pulled into the database.
-</Accordion>
+    ```bash
+    git push
+    ```
 
-<Accordion title="Platform translation edits">
-Safe. Overrides made in the panel are stored as rows in the `locale_overrides` table, not written back to the JSON files in `public/locales/`. That is exactly why the table exists: file edits inside a container are wiped by the next redeploy, and database rows are not.
-</Accordion>
+    Railway detects the push event via a webhook and immediately queues a new build and deploy.
+  </Step>
 
-<Accordion title="Accounts and passwords">
-Safe, and unaffected by your `.env`. Passwords are bcrypt hashes in the `users` table. `ADMIN_PASSWORD` is read only when seeding the very first account into an empty `users` table, so changing it before an upgrade does nothing. Manage passwords from the **👥 Accounts** button in the panel header.
-</Accordion>
+  <Step title="Monitor the deploy">
+    Open the Railway dashboard and navigate to your service. The **Deployments** tab shows the build log in real time. The new version goes live as soon as the deploy completes successfully.
+  </Step>
+</Steps>
 
-<Accordion title="Your admin sign-in">
-As long as `JWT_SECRET` is unchanged, tokens issued before the restart stay valid (they carry a 24-hour expiry) — you will not be signed out by the upgrade itself. If you *change* `JWT_SECRET`, every existing token becomes invalid and everyone signs in again. Participants are unaffected either way; they never authenticate.
-</Accordion>
+<Note>
+  Railway's deploy process does not affect your persistent volumes. The database and uploads on `/app/data` and `/app/uploads` are preserved across all redeploys.
+</Note>
 
-<Accordion title="Study configuration and in-progress data">
-Safe. Studies, sessions, reactions, ratings and post-question responses are all rows in the same database file. New columns arrive with defaults that preserve existing behaviour.
-</Accordion>
+## Automatic schema migrations
 
-</AccordionGroup>
+Misinfo Research manages its own database schema. Every time the application starts, it checks whether the database is up to date and applies any pending migrations automatically. You do not need to:
 
-## The native module caveat
+- Run any SQL commands manually
+- Use a separate migration tool
+- Reset or recreate the database
 
-`better-sqlite3` is a native module: it is compiled against a specific Node ABI. Two situations bring this up during an upgrade:
+This applies to all deployment methods: Node.js, Docker Compose, and Railway.
 
-- **You upgraded Node to a new major version.** The existing compiled binary no longer matches. Reinstall so it is rebuilt:
-
-  ```bash
-  rm -rf node_modules
-  npm install
-  ```
-
-- **The Docker image is being rebuilt.** Nothing to do — the build stage installs `python3`, `make` and `g++` for exactly this case, and compiles from source when no prebuilt binary matches the platform.
-
-## If something goes wrong
-
-<AccordionGroup>
-
-<Accordion title="The server exits with FATAL: JWT_SECRET is not set">
-Not a migration problem. The server refuses to start without a token-signing secret rather than run with a forgeable one. The variable is missing from the environment the new process actually sees — a common cause is a fresh checkout in a new directory with no `.env` in it.
-</Accordion>
-
-<Accordion title="Cannot find module '…' after pulling">
-`npm install` was skipped, or was run before the `git pull`. Run it again after pulling, then restart.
-</Accordion>
-
-<Accordion title="A new feature does not appear in the panel">
-Force-reload the browser (Cmd/Ctrl + Shift + R). The admin panel is a static page and your browser may still be holding the previous version of the JavaScript. If it persists, confirm the running process is really the new code — with Docker, that usually means `--build` was omitted.
-</Accordion>
-
-<Accordion title="The database looks empty after an upgrade">
-The server is looking at a different file, not at a wiped one. Check `DATABASE_PATH`, and on a container host check that the volume is mounted where the app expects it (`/app/data`). An unmounted volume means the app creates a fresh, empty `research.db` inside the ephemeral container filesystem — which is also why it would then re-seed the `admin` account and print `[accounts] Seeded admin user "admin"` in the logs. That log line after an upgrade is a red flag worth chasing: your real database is elsewhere.
-</Accordion>
-
-<Accordion title="I need to go back to the previous version">
-Restore the database backup you took before the upgrade, then check out the previous commit. Restoring code alone is not enough — the schema does not roll back with it.
-</Accordion>
-
-</AccordionGroup>
-
-## Related
-
-<CardGroup cols={2}>
-
-<Card title="Backup" icon="database" href="/hosting/backup">
-Copying a live SQLite database safely, and what is worth keeping.
-</Card>
-
-<Card title="Configuration" icon="sliders" href="/hosting/configuration">
-Every environment variable, including the ones that must not change across an upgrade.
-</Card>
-
-<Card title="Docker" icon="box" href="/hosting/docker">
-Volumes, rebuilds and everyday container commands.
-</Card>
-
-<Card title="Data model" icon="table" href="/api/data-model">
-The tables the migrations build, and what each column means.
-</Card>
-
-</CardGroup>
+<Warning>
+  Automatic migrations modify the database schema. Although migrations are designed to be safe and reversible, always take a backup before upgrading a production instance so you can restore the previous state if an unexpected issue occurs.
+</Warning>

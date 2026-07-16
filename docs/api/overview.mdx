@@ -1,274 +1,82 @@
 ---
-title: "API overview"
-description: "The two HTTP surfaces of Misinfo Research — the authenticated researcher API and the unauthenticated participant runtime — and the conventions both share."
+title: "Misinfo Research API Overview"
+sidebarTitle: "Overview"
+description: "Learn how the Misinfo Research REST API is organized, what content types it accepts, and how errors are reported consistently across all endpoints."
 ---
 
-Everything the admin panel and the participant study page do, they do over the same HTTP API that is documented here. There is no hidden internal channel: the **🔧 Configurator** saves a study by calling the same endpoint your script would call, and a participant's click on a post is one `POST` to a public endpoint. If you want to script study creation, pull data on a schedule, or audit exactly what gets recorded, this is the surface you work against.
-
-This page covers the shape of the API as a whole — the two surfaces, how requests and responses are formed, and what the status codes mean. Authentication is covered in depth in [Authentication](/api/authentication); individual endpoints in [Studies](/api/studies) and [Participant runtime](/api/participant).
-
-<Note>
-This section is written for developers. Nothing on this page is required to run a study — the admin panel does all of it for you.
-</Note>
-
-## Two surfaces
-
-The server mounts exactly two routers, and the mount path tells you which rules apply:
-
-```js
-app.use('/api', require('./routes/participant'));
-app.use('/api/admin', require('./routes/admin'));
-```
-
-<CardGroup cols={2}>
-<Card title="/api/admin/* — researcher API">
-Authenticated. Every endpoint requires a `Bearer` token from `POST /api/admin/login`, and each one is scoped to the studies the calling account may reach. This is what the admin panel talks to.
-</Card>
-<Card title="/api/* — participant runtime">
-Unauthenticated by design. This is what a participant's browser calls. Access is controlled by an opaque per-session token, not by a login.
-</Card>
-</CardGroup>
-
-The split is not cosmetic — it reflects a methodological requirement. Participants must be able to complete a study from a recruitment link without creating an account, so the runtime cannot sit behind a login. The researcher API therefore carries all of the platform's authorisation logic, and the participant runtime carries none.
-
-### Why the participant runtime is safe without a login
-
-A public surface is only defensible if it cannot be used to read anything. This one can't:
-
-- `POST /api/session/start` is the only endpoint that creates state. It accepts a `study_id` and returns a freshly minted `session_token` (a UUID v4) along with the study's configuration and this participant's assigned posts.
-- Every other participant endpoint requires that `session_token` in the JSON body and does nothing but write to **that one session's** row. `POST /api/reaction`, `POST /api/rating`, `POST /api/session/complete` and the rest all begin by looking the token up, and return `401 {"error": "Invalid session"}` if it doesn't resolve.
-- No participant endpoint reads back another session's data, lists sessions, or exposes any aggregate. Holding a valid token gets you the ability to write your own responses and nothing else.
-
-A study must also be reachable before a session can start: `POST /api/session/start` only finds studies with `is_active = 1` (or `builder_mode = 1` when the request carries the preview flag). An unpublished study returns `404 {"error": "Study not found"}`.
+The Misinfo Research API is a REST API that lets you programmatically manage misinformation studies, configure posts, and collect participant data from your self-hosted instance. All requests are made directly to your host with no base-path prefix — every endpoint lives at the root of your domain.
 
 ## Base URL
 
-The API lives on the same origin as the platform itself. There is no separate API host, no version prefix, and no content negotiation:
-
 ```
-https://<your-host>/api/admin/...    # researcher API
-https://<your-host>/api/...          # participant runtime
+https://your-host
 ```
 
-For a local install that is `http://localhost:3000` by default (`PORT` overrides it). For a Railway or Docker deployment it is whatever hostname you deployed to.
+Replace `your-host` with the domain or IP address of your self-hosted Misinfo Research instance. All paths in this reference (e.g. `/api/admin/studies`) are appended directly to this base URL.
 
-<Warning>
-If a study is bound to a **custom domain**, that hostname deliberately serves *only* that one study. `/api/*` and `/uploads/*` stay reachable there so the participant runtime works, but every researcher-facing path — including the admin panel — returns `404` on a custom domain. Always call `/api/admin/*` against your default host, never against a study's custom domain.
-</Warning>
+## API Groups
 
-## Request conventions
+The API is divided into two groups with different authentication requirements.
 
-The server parses JSON and URL-encoded bodies (`express.json()` and `express.urlencoded()`). In practice:
+**Admin API** — endpoints under `/api/admin/` that let researchers and administrators manage studies, posts, and export data. All admin endpoints require a valid JWT Bearer token in the `Authorization` header. See [Authentication](/api/authentication) for details.
 
-<Steps>
-<Step title="Send JSON">
-Use `Content-Type: application/json` for every endpoint that takes a body. Both surfaces expect a JSON object.
-</Step>
-<Step title="Authenticate the admin surface with a header">
-`Authorization: Bearer <token>`. The token comes from `POST /api/admin/login` and is valid for **24 hours**.
-</Step>
-<Step title="Authenticate the participant surface with a body field">
-`session_token` goes in the JSON body, not a header. There is no `Authorization` header on the participant runtime.
-</Step>
-<Step title="Use multipart only for images">
-Image uploads (`POST /api/admin/posts/:id/image/:variant`, `POST /api/admin/posts/:id/avatar`) take `multipart/form-data`. Limits: **5 MB**, and only `image/jpeg`, `image/png`, or `image/webp` are accepted. Anything else fails with `400`.
-</Step>
-</Steps>
+**Participant API** — endpoints under `/api/session/`, `/api/reaction`, and `/api/rating` that power the participant-facing experiment flow. These endpoints require **no authentication**. They are designed to be called directly from your front-end or survey integration.
 
-Identifiers in paths are the integer primary keys you get back from list endpoints. Where an endpoint takes filters, they are query parameters — for example `?include_preview=1` on the export endpoints, or `?lang=en` to pick an export language.
+## Content Types
 
-### Destructive operations ask for confirmation
+| Scenario | Request `Content-Type` |
+|---|---|
+| All admin and participant endpoints (except image upload) | `application/json` |
+| Image upload (`POST /api/admin/posts/:id/image`) | `multipart/form-data` |
 
-Deleting a study is irreversible and cascades to its posts, sessions, and responses. The endpoint therefore refuses to act on the path alone — it requires an explicit confirmation field in the body:
+All responses are returned as `application/json` unless the endpoint returns a file download (export endpoints return `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` or `text/csv`).
 
-```bash
-curl -X DELETE https://your-host/api/admin/studies/7 \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"confirm": "DELETE"}'
-```
+## Error Format
 
-Without it you get `400 {"error": "Confirmation required: send {confirm: \"DELETE\"}"}`. This is a guard against a mistyped path or a stray script, not a security measure.
-
-## Response conventions
-
-Successful responses are JSON. There is no envelope — you get the resource itself, or `{"ok": true}` for endpoints that only mutate:
+Every error response uses a consistent JSON envelope:
 
 ```json
-{ "ok": true }
+{ "error": "Human-readable description of what went wrong" }
 ```
 
-Three families of endpoint break the JSON rule, and they do so deliberately because they return files rather than data:
+### HTTP Status Codes
 
-| Endpoint | Returns |
-| --- | --- |
-| `GET /api/admin/export/:studyId` | An `.xlsx` workbook (`Content-Disposition: attachment`) |
-| `GET /api/admin/export/:studyId/csv`, `GET /api/admin/gaze-csv/:studyId` | CSV text |
-| `GET /uploads/:studyId/:filename`, `GET /api/admin/post-library/:id/image` | Image bytes, streamed from the SQLite BLOB |
-
-## Error shape
-
-Every JSON error in both routers uses the same single-key object:
-
-```json
-{ "error": "Not found" }
-```
-
-There is no error code, no field-level detail array, and no stack trace. Branch on the **HTTP status**; treat `error` as a human-readable message for logs or a UI.
+| Code | Meaning |
+|---|---|
+| `200` | Success |
+| `400` | Bad request — missing or invalid fields in the request body |
+| `401` | Unauthorized — missing, invalid, or expired token or session token |
+| `403` | Forbidden — authenticated but insufficient role (e.g. researcher accessing admin-only operation) |
+| `404` | Not found — study inactive, wrong slug, or cross-user access attempt |
+| `409` | Conflict — duplicate resource (e.g. duplicate username) |
 
 <Note>
-Many `error` strings from the researcher API are in **Polish** (for example `"Wymagane konto administratora."` — *administrator account required*), because they are server-side strings that predate the panel's English translation and are not part of the UI locale files. Do not parse or match on the message text; it is not a stable contract. The status code is.
+A `404` can also be returned for security reasons when a study exists but the authenticated user does not have permission to access it. This prevents enumeration of other users' studies.
 </Note>
 
-## Status codes
+## Endpoint Reference
 
-These are the codes the routers actually emit:
+The table below lists every endpoint in the API with its authentication requirement and a short description.
 
-<AccordionGroup>
-<Accordion title="200 — success">
-The default for any handler that calls `res.json()`. Note that creation endpoints also return `200`, not `201` — `POST /api/admin/studies` responds with the new study, and `POST /api/admin/users` with `{"id": <newId>}`.
-</Accordion>
-
-<Accordion title="400 — bad request">
-Validation failure. The most common status after `404`. Covers missing required fields (`{"error": "Name required"}`, `{"error": "study_id required"}`), rejected uploads (`{"error": "No file uploaded"}`), a missing `confirm: "DELETE"`, and domain rules such as a password under 8 characters or an attempt to demote the last active administrator.
-
-On the participant runtime, `400` means the study is unrunnable rather than the request is malformed: `{"error": "No conditions enabled in study settings"}` or `{"error": "No active posts in study"}`.
-</Accordion>
-
-<Accordion title="401 — not authenticated">
-On `/api/admin/*`: no `Authorization: Bearer` header, or a token that is malformed, expired, or signed with a different secret. Also returned for wrong credentials at login (`{"error": "Nieprawidłowy login lub hasło."}`), and when a read-only dashboard **share token** is presented to a normal admin endpoint — those tokens carry a `scope` claim and are rejected outright.
-
-On `/api/*`: a `session_token` that doesn't resolve to a session row — `{"error": "Invalid session"}`.
-</Accordion>
-
-<Accordion title="403 — authenticated, but not allowed">
-You are a valid user; this specific action is not yours to take. Three cases:
-
-- **Admin-only endpoints** called by a researcher — user management (`POST/PATCH/DELETE /api/admin/users`) and writing UI locale overrides.
-- **Owner-only endpoints** on a study you merely collaborate on — deleting the study, and managing its collaborators. A collaborator can edit a study fully but cannot delete it or change who else has access.
-- A **share token** used on `GET /api/admin/public/dashboard/:token` whose scope isn't `dashboard-readonly`.
-</Accordion>
-
-<Accordion title="404 — not found, or not yours">
-Returned both when a row genuinely doesn't exist and when it exists but belongs to another researcher. See below — this conflation is intentional.
-</Accordion>
-
-<Accordion title="409 — conflict">
-Emitted by exactly one endpoint: `POST /api/admin/users` when the username is already taken (`{"error": "Taki login już istnieje."}`).
-</Accordion>
-
-<Accordion title="429 — too many login attempts">
-Only `POST /api/admin/login` is rate limited. See below.
-</Accordion>
-
-<Accordion title="500 — server error">
-Unexpected failures, surfaced as `{"error": "<message>"}` from the caught exception. These cluster in the endpoints that do heavy work: workbook generation, CSV export, statistical analyses, and AI translation. A `500` is a bug or a misconfiguration (a missing `ANTHROPIC_API_KEY`, for instance), not an expected outcome — check the server log.
-</Accordion>
-</AccordionGroup>
-
-## Cross-tenant access returns 404, not 403
-
-This is the one status-code decision worth understanding, because it will look like a bug the first time you hit it.
-
-Studies are owned. A researcher reaches a study when they own it, when they are listed as a collaborator on it, or when they are an administrator (admins see everything). When a researcher asks for a study that exists but belongs to someone else, the API does **not** say "forbidden" — it says **`404 {"error": "Not found"}`**, the same answer it gives for a study id that was never created.
-
-That is deliberate. A `403` would be an oracle: it confirms *this id exists, you just can't have it*. Anyone with a valid researcher account could then walk `/api/admin/studies/1`, `/2`, `/3`… and learn how many studies the installation holds, when they were created, and — by watching ids appear — that a colleague started a new one. On a shared institutional install, that leaks research activity to every account holder. Returning `404` makes the id space **non-enumerable**: an outsider cannot distinguish "doesn't exist" from "isn't yours", so probing yields nothing.
-
-The rule applies transitively. Child resources — posts, demographic questions, post questions, sessions — resolve to their parent study first and are checked against it, so `PATCH /api/admin/posts/941` on someone else's post is a `404`, not a `403`.
-
-<Tip>
-Debugging a `404` on the researcher API? Check ownership before you check the id. The two most common causes are a token issued to the wrong account and a study owned by a colleague who hasn't added you as a collaborator.
-</Tip>
-
-`403` is reserved for the cases where hiding existence would be pointless because you can already see the resource: you are a collaborator on the study (so you know it exists) but you're attempting an owner-only operation. There, the distinction between "gone" and "not permitted" is genuinely useful, so the API draws it.
-
-## Rate limiting
-
-Exactly one endpoint is rate limited: **`POST /api/admin/login`**, at **20 attempts per IP per 15-minute window**. Exceeding it returns `429` with `express-rate-limit`'s default message body — note this is the one error response that does *not* use the `{ error }` envelope. The limiter sends standard `RateLimit-*` headers so a client can back off before being cut off.
-
-Two related properties of the login endpoint are worth knowing if you are scripting against it:
-
-- **No user enumeration.** A failed login returns the same generic message whether the username exists or not. The server also compares against a dummy bcrypt hash when the username is unknown, so a failure costs the same amount of time either way — the response can't be timed to discover valid usernames.
-- **Correct client identification behind a proxy.** The server trusts exactly one proxy hop (`app.set('trust proxy', 1)`), so on Railway, Render, or any PaaS the limiter keys on the real client IP from `X-Forwarded-For` rather than the proxy's. Trusting a single hop — rather than blanket-trusting the header — stops a client from spoofing its way around the limit.
-
-<Warning>
-No other endpoint is throttled, including the participant runtime. If you expose an installation to open recruitment, put a rate limit or a WAF in front of `/api/session/start` at the reverse proxy — the platform itself will happily create sessions as fast as they are requested.
-</Warning>
-
-## Unauthenticated endpoints under /api/admin
-
-Two endpoints sit under the `/api/admin` prefix but intentionally have **no** `auth` middleware. Neither is an oversight, but both are worth knowing about:
-
-<ParamField path="GET /api/admin/public/dashboard/:token" type="share token in path">
-Backs the public read-only dashboard share page at `/share/dashboard/:token`. The token is a signed JWT carrying `study_id` and `scope: "dashboard-readonly"`, generated by `POST /api/admin/studies/:studyId/share-link` (default 30 days, max 365). It returns the same widget JSON as the authenticated dashboard, but never includes preview sessions.
-
-Because the token is stateless, **regenerating a share link does not revoke the old one** — the previous token stays valid until it expires. Treat a share URL as a bearer credential.
-</ParamField>
-
-<ParamField path="GET /api/admin/post-library/:id/image" type="library post id in path">
-Serves an image BLOB from the shared post library. Post library images are non-sensitive stimulus material shared across the installation, so they are served like any other static asset.
-</ParamField>
-
-## A minimal round trip
-
-Log in, then list the studies the account can reach:
-
-<CodeGroup>
-```bash cURL
-TOKEN=$(curl -s -X POST https://your-host/api/admin/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"researcher","password":"..."}' | jq -r .token)
-
-curl -s https://your-host/api/admin/studies \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-```js Node
-const login = await fetch('https://your-host/api/admin/login', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ username: 'researcher', password: '...' }),
-});
-const { token, role, username } = await login.json();
-
-const studies = await fetch('https://your-host/api/admin/studies', {
-  headers: { Authorization: `Bearer ${token}` },
-}).then((r) => r.json());
-```
-
-```python Python
-import requests
-
-base = "https://your-host"
-token = requests.post(f"{base}/api/admin/login", json={
-    "username": "researcher", "password": "...",
-}).json()["token"]
-
-studies = requests.get(f"{base}/api/admin/studies", headers={
-    "Authorization": f"Bearer {token}",
-}).json()
-```
-</CodeGroup>
-
-`POST /api/admin/login` returns `{ token, role, username }`. The list endpoint returns only the studies that account owns or collaborates on (administrators get all of them), each carrying a `shared_with_me` flag so you can tell owned studies from shared ones, and a `completed_count` of finished sessions.
-
-<Check>
-If that call returns your studies, your token and base URL are correct, and every other `/api/admin/*` endpoint will accept the same header for the next 24 hours.
-</Check>
-
-## Where to go next
-
-<CardGroup cols={2}>
-<Card title="Authentication" href="/api/authentication">
-Tokens, roles, ownership, collaborators, and share links in detail.
-</Card>
-<Card title="Studies" href="/api/studies">
-Creating, configuring, duplicating, and exporting studies.
-</Card>
-<Card title="Participant runtime" href="/api/participant">
-The endpoints a participant's browser calls, and what each one records.
-</Card>
-<Card title="Data model" href="/api/data-model">
-The tables behind the API and how sessions relate to responses.
-</Card>
-</CardGroup>
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `POST` | `/api/admin/login` | None | Exchange credentials for a JWT token |
+| `GET` | `/api/admin/studies` | Bearer JWT | List studies visible to the authenticated user |
+| `POST` | `/api/admin/studies` | Bearer JWT | Create a new study |
+| `PATCH` | `/api/admin/studies/:id` | Bearer JWT | Update study settings |
+| `DELETE` | `/api/admin/studies/:id` | Bearer JWT | Delete a study and all its data |
+| `POST` | `/api/admin/studies/:id/duplicate` | Bearer JWT | Copy a study with all posts but no sessions |
+| `GET` | `/api/admin/studies/:id/posts` | Bearer JWT | List posts belonging to a study |
+| `POST` | `/api/admin/posts` | Bearer JWT | Create a new post in a study |
+| `PATCH` | `/api/admin/posts/:id` | Bearer JWT | Update post fields |
+| `PATCH` | `/api/admin/posts/:id/reorder` | Bearer JWT | Move a post up or down in its study |
+| `POST` | `/api/admin/posts/:id/image` | Bearer JWT | Upload a post image (multipart) |
+| `DELETE` | `/api/admin/posts/:id/image` | Bearer JWT | Remove the image from a post |
+| `GET` | `/api/admin/dashboard/:studyId` | Bearer JWT | Retrieve aggregated dashboard statistics |
+| `GET` | `/api/admin/export/:studyId` | Bearer JWT | Download session data as XLSX or CSV |
+| `POST` | `/api/session/start` | None | Start a participant session and receive the study bootstrap |
+| `POST` | `/api/session/consent` | None | Record participant consent decision |
+| `POST` | `/api/session/demographics` | None | Submit participant demographic responses |
+| `POST` | `/api/reaction` | None | Record a participant reaction to a post |
+| `POST` | `/api/rating` | None | Record a credibility rating for a post (classic studies) |
+| `POST` | `/api/session/complete` | None | Mark a session complete and receive debrief content |

@@ -1,122 +1,74 @@
 ---
-title: "What is Misinfo Research"
-description: "An open-source, self-hosted platform for running social-media misinformation experiments — build a feed, randomise conditions, collect and export data."
+title: "Misinfo Research: run misinformation experiments online"
+sidebarTitle: "Introduction"
+description: "A self-hosted platform for building simulated social-media feeds, assigning participants to conditions, and exporting analysis-ready data for research."
 ---
 
-Misinfo Research is a self-hosted platform for running **social-media misinformation experiments**. You compose a simulated feed of posts in a browser admin panel, decide what varies between participants, and share a public link. Participants take part anonymously; every reaction, answer, timing and (optionally) gaze sample is stored in your own database and exports analysis-ready.
+Misinfo Research is an open-source, self-hosted platform designed for psychologists and social scientists who study how people engage with online misinformation. You build realistic simulated social-media feeds, assign participants to between-subjects experimental conditions, collect reactions and demographic data, and export everything as analysis-ready Excel or CSV files — all without writing a single line of code. Because the platform runs on your own server, your participants' data never leaves your infrastructure.
 
-It is a single Node process with a SQLite database, released under the MIT licence. There is no hosted service and no vendor account — you run your own instance and become its administrator.
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Build and launch your first study in about 15 minutes with a step-by-step walkthrough.
+  </Card>
+  <Card title="Core Concepts" icon="diagram-project" href="/concepts">
+    Understand studies, parts, posts, conditions, and sessions before you start designing.
+  </Card>
+  <Card title="Self-Hosting" icon="server" href="/hosting/install">
+    Install Misinfo Research on your own server or local machine with a single Node.js process.
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/overview">
+    Automate study creation, session ingestion, and data retrieval via the REST API.
+  </Card>
+</CardGroup>
 
-## Who it is for
+## How a study works end-to-end
 
-The platform is built for psychologists and social scientists studying how people respond to true and false content in a feed-like environment. The typical questions it is designed to answer:
-
-- Does manipulative framing change how people react to false posts?
-- Does visible **social proof** (likes, shares) shift credibility judgements?
-- Do those effects differ by age, education, or any demographic you measure?
-
-You do not need to write code to build or run a study. Code only enters the picture if you self-host the instance yourself or call the API directly.
-
-## What an experiment looks like end-to-end
+From setting up a study to downloading your data, the typical research workflow follows these five stages. Each stage is covered in depth in its own guide, but the overview below helps you see how everything connects before you dive in.
 
 <Steps>
   <Step title="Create a study">
-    Click **+ New** in the panel header. You get an empty study — no posts are pre-seeded, so what participants see is entirely yours.
+    Log in to the admin panel at `/admin` and click **+ New**. Misinfo Research creates a blank study immediately and drops you on the **Settings** tab. Give the study an internal name, set a short URL slug, and choose your participant-facing title.
   </Step>
-  <Step title="Build the feed and the flow">
-    In the **Configurator** tab you write the consent, instruction and debriefing text, add one or more **experiment parts**, and choose each part's post layout. In the **Posts** tab you write the posts themselves — source, headline, content, image, comments, engagement numbers, and whether each post is true or false.
+  <Step title="Add posts">
+    Navigate to the **Posts** tab and add the simulated social-media items your participants will see. Each post carries a headline, body text, an optional image, engagement counters (likes, shares, comments), and a ground-truth label that only you can see. You can also supply A/B content variants for between-subjects headline or copy manipulations.
   </Step>
-  <Step title="Decide what varies">
-    Add an A/B **Manipulation**, **Metric conditions (social proof)**, or both. Participants are randomly assigned at session start.
+  <Step title="Set conditions">
+    Open the **Configurator** tab to define how the study flow works — consent text, instructions, demographics placement, and one or more experiment *parts*. Each part can show posts in a scrolling feed or a pager layout, enforce reaction requirements, and impose a time limit. Misinfo Research automatically assigns each incoming session to one of up to four conditions (A/B style × social-proof metric level), giving you a clean 2 × 2 factorial design.
   </Step>
-  <Step title="Ask your questions">
-    Add demographic questions in the **Demographics** tab and per-post questions (Likert, single/multiple choice, open-ended) in the Configurator.
+  <Step title="Share the participant link">
+    Click **Activate** to make the study live, then copy the participant URL from the **Dashboard** tab. The link takes the form `https://your-host/study/<slug>`. Distribute it via your panel, email list, or recruitment system. Each participant who opens the link starts a new session and is assigned to a condition automatically.
   </Step>
-  <Step title="Preview, then activate">
-    Walk the study yourself while the header mode is set to **🧪 Preview (not counted)**, so your test runs stay out of the dashboard and export. Then activate the study.
-  </Step>
-  <Step title="Collect">
-    Share the participant link `/study/<slug>`. Participants need no account and no login.
-  </Step>
-  <Step title="Watch and analyse">
-    Follow incoming sessions in the **Dashboard**, run quick tests in **Analyses**, and download the full dataset from **Export**.
+  <Step title="Export your data">
+    Once data collection is complete, open the **Export** tab and download an Excel workbook. The file contains separate sheets for raw reactions, session summaries, and a 2 × 2 design breakdown — ready to open in R, Python, SPSS, or Excel.
   </Step>
 </Steps>
-
-The participant's path through a study — each screen optional per study — runs: consent → instruction → demographics → the post feed with reactions and per-post questions → transition screens between parts → debriefing.
-
-<Note>
-  Where demographics sit in that order is a design decision, so it is configurable. Asking them **at the end (before the debriefing)** avoids priming participants before the main task; **skipping** them entirely makes sense when you recruit from a panel that already supplies demographics.
-</Note>
 
 ## Key capabilities
 
 <AccordionGroup>
-  <Accordion title="Builder-mode studies">
-    Studies created with **+ New** are edited in the **Configurator** — screens, parts, questions and conditions in one place, saved automatically. Older studies created before the builder existed use the classic **Settings** tab instead; the Configurator tells you when a study is in that mode.
+  <Accordion title="Study Builder">
+    The modern **Builder** mode lets you construct every aspect of your study through a guided **Configurator** tab without touching configuration files. You control consent text, instruction screens, the position of the demographics questionnaire (after consent, at the end, or skipped entirely), and each experiment part. Studies created with Builder mode are fully editable after creation and support conditional logic rules, post questions, and multi-part sequences. Legacy *classic* studies created before Builder mode was introduced continue to work, but new research should use Builder mode.
   </Accordion>
-
-  <Accordion title="A/B manipulation">
-    An optional between-subjects split into two conditions. Every post carries an A variant and a B variant (headline, content, image, or several elements at once), and each participant is randomly shown one of them throughout — for example manipulative vs neutral framing. It is a single binary split by design; for a second factor, use metric conditions.
+  <Accordion title="A/B Manipulation">
+    Every post can carry two content variants — **Variant A** and **Variant B** — covering the headline, body text, or both. The `style_condition` field on each session records which arm a participant was assigned to, so you can compare credibility ratings, sharing intentions, or any other outcome measure between the two content versions. Assignment is random and balanced across incoming sessions.
   </Accordion>
-
-  <Accordion title="Social-proof metrics">
-    **Metric conditions** are a second between-subjects factor: the likes / shares / reactions shown under posts are drawn from a per-condition range — e.g. high vs low social proof. Combined with the A/B split, this gives you a 2×2 design. A base value entered on an individual post takes priority over the condition's range, and metric counters can be hidden from participants entirely.
+  <Accordion title="Social-Proof Conditions">
+    Alongside A/B content manipulation, Misinfo Research supports a **metric condition** that controls the engagement counters displayed beneath each post. You configure a *HIGH* and a *LOW* (or neutral) variant of the counters, letting you test whether visible social proof — likes, shares, comment counts — influences how participants judge a post's accuracy. Combined with the A/B style condition, this gives you a full 2 × 2 between-subjects factorial design out of the box.
   </Accordion>
-
-  <Accordion title="Conditional logic">
-    Deterministic *if → then* rules on top of random assignment: **skip a part**, **end the study**, **go to a part** or **hide a question**, triggered by a demographic answer, an answer to a post question, a reaction, or the assigned condition. Rules are checked at defined moments (after demographics, after a part, after a reaction) and validated when you save. They do not fire in preview.
-
-    <Warning>
-      Ending a study based on a participant's own answer changes who ends up in your sample. Use screen-out rules deliberately and document them.
-    </Warning>
+  <Accordion title="Conditional Logic">
+    Builder-mode studies support logic rules that change what participants see based on their responses. You can skip parts, show custom transition screens, or redirect participants to different post sets depending on demographic answers or prior reactions. Logic rules are evaluated in production sessions only; they are intentionally bypassed in preview mode so you can test your study flow without triggering unexpected branches.
   </Accordion>
-
-  <Accordion title="Eye tracking">
-    Optional webcam gaze tracking via WebGazer.js. Participants are asked to consent to camera use and can decline with no effect on the study. The camera image is never stored or transmitted — only gaze coordinates, which land in the `Eye_tracking` sheet of the Excel export and in a separate gaze CSV.
+  <Accordion title="Dashboard & In-App Analyses">
+    The **Dashboard** tab shows a live widget grid with session counts, completion rates, condition breakdowns, and response distributions. Widgets auto-refresh and support date-range filters. For quick exploratory analysis you can run **t-tests**, **one-way ANOVA**, **chi-squared tests**, **Pearson/Spearman correlations**, **linear regression**, and **Cronbach's alpha** directly inside the admin panel — no external software required for an initial look at your data.
   </Accordion>
-
-  <Accordion title="Panel recruitment">
-    For studies fielded through a recruiting agency: capture the respondent ID from a URL parameter (default `res_id`, stored as `external_id`), then redirect participants on completion — and on consent decline, which panels usually route to a different URL. Both completion and decline links accept `{ext_id}` and `{session_id}` placeholders, with a configurable delay and an optional notice box.
+  <Accordion title="Data Export">
+    The **Export** tab produces an Excel workbook (.xlsx) or a flat CSV file. The Excel workbook contains multiple sheets: a *Reactions* sheet with one row per post-participant interaction, a *Sessions* sheet with one row per completed session, and a *Design* sheet with the full 2 × 2 condition breakdown. All exports exclude preview sessions by default. You can also retrieve data programmatically through the REST API.
   </Accordion>
-
-  <Accordion title="Export">
-    Download a multi-sheet Excel workbook (raw reactions, session summaries, condition design, demographic and post questions, eye tracking, a coding key for demographic variables) or a CSV for quick import into R / SPSS / Python. A column builder lets you preview, rename, reorder and hide columns before exporting, and save the arrangement as a reusable profile — hiding a column never deletes data from the database.
-  </Accordion>
-
-  <Accordion title="Dashboard and in-app analyses">
-    The **Dashboard** is a configurable grid of widgets (KPIs, bar charts, histograms, boxplots, crosstabs, scatter plots, correlation heatmaps, time series, text responses), shareable as a public read-only link. The **Analyses** tab runs descriptive statistics, Welch's t-test, one-way ANOVA with Tukey HSD, correlations, a correlation matrix, chi² with Cramér's V, linear regression and Cronbach's alpha, and lets you save an analysis to re-run later.
-
-    <Warning>
-      The built-in statistics are meant for quick exploration. Before publication, export the data and re-run the analysis in R, SPSS, JASP or Python — the panel says the same thing next to every result.
-    </Warning>
-  </Accordion>
-
-  <Accordion title="Multi-user accounts">
-    The panel is multi-user and **invite-only** — there is no public sign-up. An **administrator** sees and manages every study and all accounts; a **researcher** sees only their own studies, plus any a colleague explicitly assigns them. Ownership is checked on the server for every study endpoint, so one researcher can never reach another's data.
+  <Accordion title="Multi-user Accounts">
+    Misinfo Research supports two account roles. **Admin** accounts have full access to every study on the installation, all session data, and user management. **Researcher** accounts can create and manage their own studies and view data only for those studies. This makes it straightforward to run a shared lab installation where multiple team members work on separate projects without interfering with each other's data.
   </Accordion>
 </AccordionGroup>
 
-## A note on language
-
-The admin panel is in Polish by default and switches to English from the header (and on the login screen). This documentation uses the English labels throughout.
-
-Your **study content** — consent text, post copy, demographic questions and their answer options — is separate: it lives in the database, stays in the study's own language, and is never touched by the panel's UI language. Studies have their own base language and translation overlay, with optional AI-assisted translation when the instance is configured with an Anthropic API key.
-
-## Where to go next
-
-<CardGroup cols={3}>
-  <Card title="Quickstart" icon="rocket" href="/quickstart">
-    Build and launch your first study, from empty panel to participant link.
-  </Card>
-  <Card title="Concepts" icon="diagram-project" href="/concepts">
-    Studies, parts, posts, conditions and sessions — how the pieces fit together.
-  </Card>
-  <Card title="Self-hosting" icon="server" href="/hosting/install">
-    Run your own instance with Node, Docker or Railway.
-  </Card>
-</CardGroup>
-
-## Licence
-
-Misinfo Research is released under the **MIT License**. The source is on [GitHub](https://github.com/lowcydizajnu/missinfo-research) — you are free to run, modify and adapt it for your own research, and the platform is fully functional without any optional API key.
+<Note>
+  The admin panel opens in **Polish** by default. To switch to English, click the language selector in the top-right corner of any admin page. Your preference is saved for the current browser session.
+</Note>

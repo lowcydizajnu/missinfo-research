@@ -1,258 +1,208 @@
 ---
-title: "Core concepts"
-description: "The domain model behind Misinfo Research: studies, parts, posts, conditions, sessions and the data a participant leaves behind."
+title: "Core concepts: studies, posts, conditions and sessions"
+sidebarTitle: "Concepts"
+description: "A plain-language guide to the domain model behind Misinfo Research — studies, parts, posts, conditions, sessions, and how they fit together."
 ---
 
-Misinfo Research is built around a small set of objects that map directly onto how a between-subjects experiment is normally described in a methods section. This page explains what each object is, how they relate, and what the platform records — so that when you later read an export column or a dashboard number, you know exactly which piece of the model it came from.
+Every experiment you run in Misinfo Research is built from a small set of interlocking objects: a **Study** that defines the experiment as a whole, one or more **Parts** that structure the participant experience, **Posts** that make up the simulated social-media feed, **Conditions** that control what each participant sees, and **Sessions** that record what each participant did. Understanding how these objects relate to one another will help you design cleaner studies, avoid common data-quality pitfalls, and make sense of your exports.
 
-Everything on this page corresponds to a real table or field in the SQLite database. The names in `code font` are the actual column names you will meet again in the export.
+---
 
 ## Study
 
-A **study** is the top-level unit: one experiment, one participant link, one dataset. It owns its posts, its demographic questions, its texts (consent, instruction, debrief) and its sessions. Deleting a study deletes all of it.
+A **Study** is the top-level container for an experiment. Everything else — parts, posts, conditions, sessions — belongs to exactly one study.
 
-A study carries two names:
+Each study has two separate name fields that serve different audiences:
 
-- **Name (admin)** — what you see in the study picker in the admin panel.
-- **Title shown to participants** (`participant_title`) — what participants see on the consent screen. If empty, the admin name is used.
+- **Internal name** — visible only inside the admin panel, used to identify the study in lists, exports, and the browser tab. Choose something descriptive for your team.
+- **Participant title** — displayed to participants at the top of every page they see. Keep it neutral to avoid demand characteristics.
 
-Every study is private to the account that created it. An owner can grant other researchers full edit access to one specific study via the **Accounts** button in the header.
+### Slug and participant URL
 
-### Builder mode vs. classic mode
-
-There are two kinds of study, and the difference matters because they behave differently at runtime.
-
-<Tabs>
-<Tab title="Builder studies">
-Created with the **+ New** button in the header. This is the current model and the one all new work should use.
-
-- The experiment is composed of **parts**, each with its own post layout and transition screen.
-- Posts are assigned to parts; **every active post is shown**, in the order you set.
-- There is **no separate credibility-rating phase**. You measure with **post questions** that you define yourself.
-- Edited in the **Configurator** tab (and in the **Settings** tab, which shows the same builder view for these studies).
-- Supports **conditional logic** ("if → then" rules).
-</Tab>
-<Tab title="Classic studies">
-Older studies created before the builder existed. They remain fully supported and are edited in the **Settings** tab.
-
-- One feed for all posts, followed by a dedicated rating phase in which every post is re-shown without popularity metrics and rated 1–7 for credibility.
-- **Posts per session** draws a random subset of the active posts for each participant.
-- Condition assignment uses permuted block randomisation (see below).
-- The **Configurator** tab is not available: it reports that "The configurator is available for studies in builder mode. This study uses the classic settings (Settings tab)."
-</Tab>
-</Tabs>
-
-<Note>
-The rest of this page describes builder studies unless a section explicitly says "classic". The underlying session, reaction and demographic model is identical in both.
-</Note>
-
-### Slug and the participant URL
-
-Each study has a **Slug (study URL)** — a short, unique, URL-safe identifier. It produces the link you give participants:
+Every study has a **slug** — a short, URL-safe identifier you choose when you create the study. The slug determines the participant link:
 
 ```
 https://your-host/study/<slug>
 ```
 
-The link only works while the study is **Active**. An inactive study returns a "not found" page — which is also how you close recruitment.
+The slug must be unique across your installation. Once you begin distributing the link, treat the slug as permanent; changing it breaks all previously shared URLs.
 
-Two variants exist:
+### Active vs inactive
 
-- `https://your-host/study/<slug>?preview=1` — opens a builder study **even when it is inactive**, and marks the resulting session as a preview. This is what the **Preview in a new tab** button uses.
-- If you set a **Custom study domain**, the root of that hostname serves this one study directly (`https://study.example.org/`), and nothing else — no admin panel, no other studies — is reachable on that host.
+A study can be **Active** (accepting real participant sessions) or **Inactive** (accessible only via preview). You activate and deactivate a study from the Settings tab at any time. Deactivating pauses data collection without deleting any data.
 
-<Warning>
-Changing the slug changes the participant URL. Do not change it after you have published the link.
-</Warning>
+### Builder mode vs classic mode
+
+Misinfo Research supports two study creation modes. All studies created via the **+ New** button use Builder mode. Older studies created before Builder mode was introduced are *classic* studies. The distinction affects how posts are assigned to conditions and how randomization works.
+
+<Tabs>
+  <Tab title="Builder">
+    Builder-mode studies use the **Configurator** tab as the central editing interface. You define consent text, instruction screens, demographics placement, and one or more experiment parts through a structured form. Conditional logic rules, post questions, and multi-part sequences are all managed in the Configurator.
+
+    Condition assignment in Builder studies is **uniformly random**: each incoming session is independently and randomly assigned to one of the available conditions with equal probability.
+  </Tab>
+  <Tab title="Classic">
+    Classic studies were created before the Configurator existed. Their structure is defined through a combination of study-level settings and post-level flags rather than through a unified interface. Some features available in Builder mode — such as conditional logic rules and post questions — are not available in classic studies.
+
+    Classic studies use **permuted block randomization**: participants are assigned to conditions in balanced blocks, ensuring that condition counts stay approximately equal throughout recruitment rather than converging only in expectation.
+  </Tab>
+</Tabs>
+
+<Note>
+  All new research should use Builder mode. Classic studies continue to function and collect data normally, but they will not receive new feature updates.
+</Note>
+
+---
 
 ## Parts
 
-A builder study is a sequence of **parts** (**🔬 Experiment parts** in the Configurator). A part is a block of the experiment with its own settings:
+A **Part** is a single block of the participant experience within a study. A study must have at least one part, and most single-experiment studies have exactly one. You can chain multiple parts to create multi-phase designs — for example, a pre-exposure attitudes measure, a news feed task, and a post-exposure recall phase.
 
-| Setting | What it does |
-| --- | --- |
-| Post layout | **📜 Feed** (all posts on one scrollable page) or **📄 Pager** (one post per page) |
-| Show a transition screen before this part | An interstitial screen with your own text and optional emoji |
-| Interaction requirements | Structured requirements, e.g. "at least 3 👍 Likes" — the Next button unlocks when they are met |
-| Interaction with a post required | The older, simpler rule: any reaction on every post |
-| Allow navigating back | Whether the participant may return to a previous post (Pager) |
-| Maximum time for this part | Seconds; `0` = no limit. When time runs out the participant advances automatically |
-| Show reaction buttons | Hides 👍 / 👎 / 🔄 / 🚩 for this part |
-| Question placement | Where this part's post questions appear (see below) |
+Each part has the following configurable settings:
 
-Parts are what make within-study designs possible: for example part 1 = a feed where participants react, part 2 = a pager showing the same posts again with questions attached. A post can be assigned to several parts at once — in the post editor you tick every part it should appear in.
+| Setting | Options | What it controls |
+|---|---|---|
+| **Post layout** | Feed / Pager | **Feed** shows all posts in a scrolling timeline. **Pager** shows one post at a time and requires an explicit next action to advance. |
+| **Interaction requirements** | None / Must react to all / Must react to at least N | Whether participants are required to react to posts before they can proceed to the next part. |
+| **Maximum time** | Off / N minutes | If set, the part automatically advances after the time limit expires, even if the participant has not interacted with all posts. |
+| **Show reaction buttons** | On / Off | Whether like, dislike, share, and flag buttons are visible beneath each post. |
+| **Allow navigating back** | On / Off | In Pager layout, whether participants can return to a previously seen post. |
+| **Transition screen** | Optional text | A screen shown between this part and the next, used to give instructions or signal a phase change. |
+
+---
 
 ## Posts
 
-A **post** is one simulated social-media item. Its content fields are the source name and handle, an optional avatar, a "time ago" string, a topic, an emoji, a headline, body content, an optional image, and base counts for likes, shares, dislikes and flags.
+A **Post** is a simulated social-media item that appears inside a part's feed or pager. Posts are created at the study level and then assigned to parts.
 
-Two fields carry experimental meaning:
+### Content fields
 
-<ParamField path="is_true" type="boolean">
-**True post** — your ground truth for whether the claim is accurate. Participants never see it; it is what lets you compute discrimination between true and false content. It can optionally be revealed on the debrief screen as a TRUE/FALSE list.
-</ParamField>
+Each post carries the following content fields:
 
-<ParamField path="manipulation_techniques" type="list">
-**Manipulation techniques** — free labels you attach to a post (e.g. urgency, false expert, conspiracy). Purely descriptive metadata for your own coding and analysis.
-</ParamField>
+- **Source name** — the display name of the outlet or account (e.g., *Breaking News Daily*)
+- **Handle** — the @username shown beneath the source name (e.g., *@breakingnewsdaily*)
+- **Time ago** — a relative timestamp string displayed on the post (e.g., *"3 hours ago"*)
+- **Headline** — the bold title line of the post
+- **Content** — the body text of the post
+- **Image** — an optional image (JPEG or PNG, max 5 MB) shown inside the post card
+- **Engagement counters** — like count, share count, and comment count displayed on the post
 
-### A/B variants
+### Ground-truth label (`is_true`)
 
-Every post stores **two content variants**: Headline A / Content A and Headline B / Content B (with an optional separate image for each). A participant in condition A sees variant A of every post; a participant in condition B sees variant B.
+Every post has an `is_true` field — a boolean flag you set when authoring the post. This is the **ground-truth accuracy label**: you mark posts as true or false based on external fact-checking, and Misinfo Research uses this label to compute participant accuracy scores (how often a participant's credibility rating agreed with the objective truth).
 
-This is a strict binary. The posts table only has `_a` and `_b` fields, and the backend caps assignment at two arms for exactly that reason — if a study were somehow saved with three or more conditions, arms beyond the second would show variant A content, so they are not assignable.
+The `is_true` label is **never displayed to participants** in any form. It is purely an administrative record used in analyses and exports.
 
-<Tip>
-For a post you want held constant across conditions (a true post used as a control, say), put identical text in both variants.
-</Tip>
+<Warning>
+  Do not change the `is_true` label on any post after real participant data has been collected. The label is used to derive accuracy scores for sessions that have already been recorded. Retroactively flipping a label changes the meaning of those scores and can corrupt your dataset.
+</Warning>
 
-## Conditions and random assignment
+### A/B content variants
 
-The platform models a **2×2 between-subjects design** out of two independent factors. Every session stores its assignment in three columns.
+Each post can carry two versions of its content for between-subjects headline or copy manipulations:
 
-<ResponseField name="style_condition" type="text">
-The arm of the A/B manipulation — which content variant the participant saw. In the Configurator this is **🔀 Manipulation (A/B condition)**; you name the two arms yourself (e.g. "Manipulative" / "Neutral").
-</ResponseField>
+- `headline_a` / `headline_b` — two alternative headline strings
+- `content_a` / `content_b` — two alternative body text strings
 
-<ResponseField name="metric_condition" type="text">
-The arm of the social-proof factor — **📊 Metric conditions (social proof)**. Each condition defines a min–max range from which the visible like/share/reaction counts are drawn (classically: high vs. low social proof).
-</ResponseField>
+Participants assigned to the **A style condition** see the `_a` variants; those assigned to the **B style condition** see the `_b` variants. If you do not need A/B content manipulation, simply fill in only the `_a` fields and leave the `_b` fields blank (both conditions will then see the same content).
 
-<ResponseField name="full_condition" type="text">
-The combination, e.g. `A-HIGH`. This is the grouping variable you will most often use in analyses.
-</ResponseField>
+---
 
-<Info>
-A metric condition only counts as a real factor when **two or more** arms are enabled. With zero or one enabled arm, a builder study records `metric_condition` as `BUILDER` and `full_condition` as just the style key — the single arm still supplies its range to the numbers, but there is nothing to compare it against.
-</Info>
+## Conditions
 
-### How participants are assigned
+Misinfo Research implements a **2 × 2 between-subjects factorial design** using two independent condition dimensions.
 
-The two modes randomise differently, and it is worth knowing which you have:
+### Style condition (A/B manipulation)
 
-- **Builder studies** draw each factor independently and uniformly at random per session. Over a realistic sample this balances out, but cell sizes are not guaranteed to be equal.
-- **Classic studies** use **permuted block randomisation**. All style × metric combinations are shuffled into blocks (block size 4, or the number of conditions if larger) and handed out in order; the queue is stored on the study and refilled when it empties. If you change which conditions are enabled mid-study, entries that no longer correspond to a valid condition are dropped from the queue. This keeps the cells close to equal even in a small sample.
+The `style_condition` field on a session records which content variant the participant saw. It takes the value **A** or **B** and determines which headline and body text variant is rendered for every post in the study. This is your primary manipulation for testing whether different framings, headlines, or copy styles affect credibility judgments.
 
-### The numbers participants actually see
+### Metric condition (social proof)
 
-Metric counts are resolved per session, per post, and the values that were **actually displayed** are stored on every reaction row (`likes_shown`, `shares_shown`, `dislikes_shown`, `flags_shown`). You never have to reconstruct them afterwards.
+The `metric_condition` field controls the engagement counters displayed beneath each post. You configure a **HIGH** and a **LOW** variant of the counter values (for example, *10,000 likes* vs. *12 likes*). This lets you test whether visible social proof — the apparent popularity of a post — influences how participants rate its accuracy or their willingness to share it.
 
-In a builder study a base value pinned on the post wins over the condition's range; if no base value is set, the number is drawn from the range; if there is neither, it is 0. Classic studies additionally allow a per-post override for a specific metric condition, which takes priority over the range.
+### Full condition and the 2 × 2 design
+
+Combining the two condition dimensions produces four experimental arms:
+
+| | **Metric: HIGH** | **Metric: LOW** |
+|---|---|---|
+| **Style: A** | A-HIGH | A-LOW |
+| **Style: B** | B-HIGH | B-LOW |
+
+The `full_condition` field on each session stores the combined label (e.g., `A-HIGH`). This is the field you will most commonly use when grouping sessions for analysis.
+
+### Random assignment
+
+In **Builder-mode** studies, each incoming session is assigned to one of the four conditions independently and uniformly at random. Over a large enough sample the cells will be approximately equal in size, but there is no guarantee of exact balance at any given moment during recruitment.
+
+In **classic** studies, assignment uses **permuted block randomization**, which enforces approximate balance in every block of four consecutive sessions, so cell sizes stay close to equal throughout data collection.
+
+---
 
 ## Session
 
-A **session** is one participant's run through the study — the row everything else hangs off. It is created the moment the participant's browser loads the study link, identified by a random `session_token` (a UUID), and it carries:
+A **Session** represents one participant's complete run through a study — from opening the participant link to reaching the completion screen (or dropping out).
 
-- `study_id`, `started_at`, `completed`, `completed_at`
-- the assigned `style_condition`, `metric_condition`, `full_condition`
-- `consented` — whether they agreed on the consent screen
-- `is_preview` — see below
-- the four standard demographic fields, plus any custom answers
-- `external_id` — the respondent ID captured from the recruitment URL, when panel integration is configured
+### When a session is created
 
-<Warning>
-A session row exists **before** consent, because the condition has to be assigned in order to render the study. Sessions with `consented = 0` are people who opened the link and declined or left. Count starts from `started_at`, not from consent.
-</Warning>
+A session record is created the moment a participant's browser opens the participant URL — **before** the participant reads the consent text, before they click anything. This means your session count on the Dashboard includes participants who opened the link and immediately closed it. Completion rate is calculated against this "sessions started" denominator.
 
-## What a session records
+### Condition assignment
 
-<AccordionGroup>
-<Accordion title="Reactions">
-One row per reaction, with `action` being `like`, `dislike`, `share` or `flag`. Each row also stores `dwell_ms` (viewing time), the four `*_shown` metric values, and an optional `comment`.
+The session's condition is assigned at creation time, in the same instant the session record is written to the database. Assignment happens before the participant sees any content, and it does not change.
 
-By default reactions behave like radio buttons: a new reaction on the same post replaces the previous one. With **👍👎 Multiple reactions on one post** enabled, a participant can stack non-opposing reactions (like + share + flag) on the same post; like and dislike remain mutually exclusive; clicking the same reaction again deselects it. Deselections are not deleted — they are written as a row with `is_undo = 1`, so the reaction log preserves the full path rather than just the final state.
+### Fields stored on a session
 
-A comment typed under a post without any reaction is stored on its own row with the pseudo-action `comment`, so text is never lost.
-</Accordion>
+| Field | What it records |
+|---|---|
+| `style_condition` | A or B content variant arm |
+| `metric_condition` | HIGH or LOW engagement-counter arm |
+| `full_condition` | Combined label, e.g. `A-HIGH` |
+| `consented` | Whether the participant clicked the consent button |
+| `is_preview` | `1` if the session was started from a preview link; `0` for real participants |
+| `demographics` | JSON object with all demographic questionnaire responses |
+| `external_id` | Optional identifier passed in the URL by a panel or recruitment system |
 
-<Accordion title="Post views (dwell)">
-Reaction rows only carry dwell time for posts that were reacted to. A separate `post_views` record — one per (session, post) — accumulates viewing time for **every** post the participant saw, including ones they scrolled straight past. It also brackets the viewing window with `first_seen_at` / `last_seen_at`. The export prefers the reaction's dwell time when there is one and falls back to this.
-</Accordion>
+### What gets recorded within a session
 
-<Accordion title="Ratings (classic studies)">
-`belief_1_7` — the 1–7 credibility rating collected in the classic rating phase, where posts are re-shown without popularity metrics. The question text and the two anchor labels are editable (**⭐ Credibility scale** in Settings). An optional comment can be stored alongside it.
+During the session, Misinfo Research records granular interaction data:
 
-Builder studies do not use this scale; they measure with post questions instead.
-</Accordion>
+- **Reactions** — each like, dislike, share, or flag action on a post, with a timestamp
+- **Post views and dwell time** — when each post entered the viewport and how long it remained visible (used for optional eye-tracking and attention analyses)
+- **Post questions** — responses to any post-level questions configured in the Configurator (Builder mode only)
+- **Ratings** — credibility or sharing-intention slider values (classic studies)
+- **Demographics** — responses to the demographics questionnaire, stored as a JSON object on the session record
 
-<Accordion title="Post questions">
-Your own questions attached to posts, defined per study: **Open-ended**, **Single choice**, **Multiple choice** or **Likert scale**. Where they appear is a per-part setting (**❓ Question placement**): together with the post, after the post, after interaction (under the post), after interaction (modal), or after all posts.
+---
 
-The last mode is different in kind: one screen of questions covers a whole part rather than a single post, so those responses are stored against the part, not against any one post.
-</Accordion>
+## Preview vs production sessions
 
-<Accordion title="Demographics">
-Defined in the **Demographics** tab. Each question has a **Field key**, a label, a type (**Radio**, **Multiselect**, **Text**, **Number**) and, for freeform types, optional min/max bounds.
-
-Every study starts with four seeded questions whose field keys are `age`, `residence`, `education` and `gender`. Those four are written to dedicated columns on the session; any question with a different field key is stored as a custom answer. In the export, the four standard fields also get numeric code columns (`age_code`, `gender_code`, …) — the **Coding key for demographic variables** sheet documents the mapping.
-</Accordion>
-</AccordionGroup>
-
-<Note>
-Demographic questions and their answer options are **study content**, stored in the database and shown to participants. They stay in the study's own language and are *not* affected by the admin panel's language switch — that switch only translates the researcher-facing interface. Translating study content is a separate workflow.
-</Note>
-
-## How a participant moves through the study
-
-<Steps>
-<Step title="Consent">
-Always shown. The session already exists and a condition is already assigned. Agreeing records `consented = 1`; declining records `consented = 0` and shows the **🚫 Consent declined** screen (or redirects to a panel's screen-out URL if one is configured).
-</Step>
-<Step title="Instruction">
-Optional (**📖 Instruction**). Can include a preview of the reaction icons — useful to switch off in studies that disable reactions.
-</Step>
-<Step title="Demographics">
-Optional, and its **position in the study flow** is a choice with methodological consequences:
-
-- **After consent (before the instruction)** — the default.
-- **At the end (before the debriefing)** — preferred when you are worried that answering demographic questions might prime behaviour in the main task.
-- **Skip entirely** — for recruitment platforms that supply demographics out of band.
-</Step>
-<Step title="Parts">
-Each part optionally opens with a transition screen, then shows its posts in the chosen layout. The participant reacts, comments and answers post questions according to the part's settings; the Next button unlocks when the part's requirements are met (or when its time limit expires).
-</Step>
-<Step title="Debrief">
-Marks the session `completed = 1` with a `completed_at` timestamp and shows the debrief text, optionally followed by the list of posts marked true/false. If demographics were deferred to the end, they are collected just before this screen. If a completion URL is configured, the participant is redirected back to the recruiting panel afterwards.
-</Step>
-</Steps>
-
-Two things run alongside this flow rather than inside it: **conditional logic** rules can skip a part or end the study early based on a demographic answer, a post-question answer, a reaction or the assigned condition; and optional **eye tracking** inserts a camera-consent and calibration step.
-
-## Preview vs. production sessions
-
-Every session is flagged `is_preview = 0` or `1`. This is the mechanism that keeps your own testing out of your dataset.
-
-A session is marked as preview when **either**:
-
-- the URL carried `?preview=1` (the **Preview in a new tab** button), **or**
-- you are logged into the admin panel with the session-mode switch in the header set to **🧪 Preview (not counted)** — even if you opened the normal, live participant link.
-
-The header switch (its tooltip reads "How your own sessions in this study are counted") also offers **📊 Production (counted)** for when you deliberately want a real end-to-end test on the live link.
-
-Preview sessions behave differently in three ways worth remembering:
+When you use the **Preview** button in the admin panel, Misinfo Research opens the study URL with `?preview=1` appended. Sessions started this way behave differently from real participant sessions in three important ways.
 
 <CardGroup cols={3}>
-<Card title="Fixed conditions">
-A preview session always gets the **first** arm of each factor, so previews are deterministic — you are not sampling your own design.
-</Card>
-<Card title="Logic never fires">
-Conditional-logic rules are skipped in preview, so a screen-out rule cannot cut your walkthrough short.
-</Card>
-<Card title="Hidden from results">
-The dashboard counts only production sessions. The export excludes previews unless you tick the option to include them.
-</Card>
+  <Card title="Fixed Condition" icon="lock" href="/guide/preview-and-launch">
+    Preview sessions are always assigned to the **first condition arm** (A-HIGH), regardless of the randomization settings. This makes your preview experience deterministic — you see the same content every time you preview, which makes testing layouts and logic easier.
+  </Card>
+  <Card title="Logic Skipped" icon="forward" href="/guide/preview-and-launch">
+    Conditional logic rules configured in the Configurator **do not fire** during preview sessions. You will see every part of the study in sequence, which lets you inspect all screens without accidentally triggering a skip or redirect branch.
+  </Card>
+  <Card title="Hidden from Results" icon="eye-slash" href="/guide/preview-and-launch">
+    Preview sessions are tagged `is_preview = 1` and are **excluded from the Dashboard, in-app analyses, and all data exports** by default. Running as many preview sessions as you need will not contaminate your real participant data.
+  </Card>
 </CardGroup>
 
-The Export tab shows how many preview sessions exist and offers **🗑 Delete preview sessions**, which removes them together with their reactions, ratings and answers, leaving production data untouched.
+<Tip>
+  To experience the study exactly as a participant would — with real condition assignment, live logic rules, and a session that counts toward your data — open the participant URL in a private/incognito browser window where you are not logged in to the admin panel.
+</Tip>
+
+---
 
 ## Completion and drop-out
 
-- **Started** — a session row exists (`started_at`). The link was opened.
-- **Completed** — `completed = 1` and `completed_at` is set. The participant reached the end of the study.
-- **Drop-out** — started but never completed. The dashboard reports it as a percentage; the aggregate view across studies has a **Drop-out** column.
+A session is **started** the moment the participant link is opened. A session is **completed** when the participant reaches the study's final completion screen.
 
-<Warning>
-The raw-data export includes **completed sessions only**. Partial data from drop-outs stays in the database but does not appear in the export sheets — so completion rate is a number you read on the dashboard, not something you can reconstruct from the exported rows. If a large share of participants stops at a particular point, that is a design signal worth chasing before you analyse anything.
-</Warning>
+Any session that was started but never completed is counted as a **drop-out**. The Dashboard shows drop-out rate alongside completion rate, and you can inspect the drop-out breakdown by condition to check for differential attrition — a common validity concern in between-subjects designs.
 
-Preview sessions that were never finished are doubly excluded: they will not appear in the export even with preview sessions included, because they are not complete.
+<Note>
+  The **raw data export** (both Excel and CSV formats) includes **only completed sessions** by default. Drop-outs are visible on the Dashboard and in the session list, but their partial reaction data is not included in standard exports. If you need to analyse partial data or drop-out patterns, contact your platform administrator for access to the full session log.
+</Note>

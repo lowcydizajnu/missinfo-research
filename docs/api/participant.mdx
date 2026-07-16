@@ -1,380 +1,447 @@
 ---
-title: "Participant API"
-description: "The unauthenticated endpoints the participant app uses to start sessions, record reactions, ratings, answers and gaze data."
+title: "Participant API — Misinfo Research"
+sidebarTitle: "Participant API"
+description: "Drive the full participant experiment flow — from session creation through consent, demographics, per-post reactions, and session completion."
 ---
 
-Everything a participant does in a study is written through a small set of unauthenticated `POST` endpoints under `/api`. They are mounted in `server.js` as `app.use('/api', require('./routes/participant'))` and implemented in `routes/participant.js`.
+The Participant API powers the experiment interface that study participants interact with. None of these endpoints require authentication — they are designed to be called directly from your front-end application or embedded survey tool. Each participant is identified by a `session_token` UUID that you receive when you start a session and must include in all subsequent calls.
 
-These endpoints are already called for you by the participant app bundled with the platform (`public/js/participant.js`). You only need this page if you are building your own participant front-end, driving the study from an external tool, or debugging why a session did not record what you expected.
+## Typical Call Sequence
+
+A complete participant journey follows this order:
+
+```
+POST /api/session/start
+        ↓
+POST /api/session/consent
+        ↓
+POST /api/session/demographics      (if the study collects demographics)
+        ↓
+POST /api/reaction  (once per interaction)   ← repeated
+POST /api/rating    (once per post, classic) ← repeated
+        ↓
+POST /api/session/complete
+```
 
 <Note>
-There are no API keys here. The endpoints are deliberately open, because a participant clicking a recruitment link has no account. The only thing standing between a request and a database write is the **session token** — a UUID handed out by `/api/session/start` and required on every subsequent call. Researcher-facing endpoints live under `/api/admin` and *are* authenticated; see the Studies API page.
+The `session_token` returned by `/api/session/start` must be included in every subsequent request. Store it in memory for the duration of the participant's session.
 </Note>
 
-## How a session works
+---
 
-<Steps>
-  <Step title="The participant opens the study link">
-    `GET /study/:slug` returns the participant SPA with `window.STUDY_CONFIG` injected into the HTML.
-  </Step>
-  <Step title="The front-end starts a session">
-    `POST /api/session/start` creates a row in `sessions`, assigns the experimental condition, and returns the whole study payload (posts, questions, texts, locale) plus a `session_token`.
-  </Step>
-  <Step title="Everything else carries the token">
-    Consent, demographics, reactions, ratings, question answers, dwell time and gaze all pass `session_token` in the JSON body. A request with a token that doesn't exist gets `401 {"error":"Invalid session"}`.
-  </Step>
-  <Step title="The session is closed">
-    `POST /api/session/complete` sets `completed = 1` and stamps `completed_at`. Only completed sessions are what the Export tab treats as finished data.
-  </Step>
-</Steps>
+## Start a Session
 
-Requests and responses are JSON (`Content-Type: application/json`). Successful writes return `{ "ok": true }`.
-
-## The study page: `GET /study/:slug`
-
-Before any API call happens, the server has to hand the browser a page that knows which study it is. `GET /study/:slug` reads the study by slug, reads `public/index.html` from disk, and injects a script tag just before `</head>`:
-
-```html
-<script>window.STUDY_CONFIG = { ... };</script>
+```http
+POST /api/session/start
 ```
 
-The injected object contains exactly these fields:
+Creates a new participant session and returns the full study bootstrap — everything your front-end needs to render the experiment without any further admin API calls. The experimental condition (style, metric, etc.) is assigned at this point, **before** the participant has consented. This is intentional: it prevents selection bias from participants opting out after seeing their assigned condition.
 
-```json
-{
-  "id": 3,
-  "name": "Study name (internal)",
-  "slug": "my-study",
-  "institution": "",
-  "contact_email": "",
-  "consent_text": null,
-  "instruction_text": null,
-  "debrief_text": null,
-  "builder_mode": 1,
-  "is_preview": 0
-}
-```
+### Request Body
 
-This is a bootstrap, not the study payload. Its job is to give the front-end a `study_id` to send to `/api/session/start` — which is where the real content comes from.
-
-Two lookup modes:
-
-| URL | Study must be | Purpose |
-| --- | --- | --- |
-| `/study/my-study` | `is_active = 1` | The live link participants get |
-| `/study/my-study?preview=1` | `builder_mode = 1` | Preview an unactivated study |
-
-If no study matches, the server replies `404` with a short Polish message (`Badanie nie zostało znalezione lub jest nieaktywne.`).
-
-<Info>
-**Custom domains.** If a study has `custom_domain` set and is active, requests arriving on that hostname get the root path `/` internally rewritten to `/study/<slug>`, preserving the query string. On such a host only `/api/*`, `/uploads/*`, the bound study's own `/study/<slug>`, static assets and the MediaPipe path stay reachable — everything else (admin panel, other studies) returns 404.
-</Info>
-
-## Start a session
-
-<ParamField body="study_id" type="integer" required>
-  The numeric study id — the SPA reads it from `window.STUDY_CONFIG.id`.
+<ParamField body="study_id" type="number" required>
+  The integer ID of the study the participant is joining.
 </ParamField>
 
 <ParamField body="preview" type="boolean">
-  `true` unlocks studies that are in builder mode but not yet activated, and tags the session `is_preview = 1`.
+  When `true`, creates a preview session that is excluded from analysis data. Use this to test your study configuration before launching. Defaults to `false`.
 </ParamField>
 
 <ParamField body="url_params" type="object">
-  Every query parameter from the participant's URL, forwarded verbatim as key/value pairs. The server picks out the one key this study is configured for (`external_id_param_name`, default `res_id`) and stores it as `external_id`, trimmed to 256 characters. Unknown keys are ignored.
+  An arbitrary key-value object of URL query parameters captured from the participant's landing URL. Use this to pass panel integration identifiers (e.g. Prolific `PROLIFIC_PID`, MTurk `workerId`) into the session record so you can later match session data to your panel respondents.
+
+  ```json
+  { "PROLIFIC_PID": "abc123", "STUDY_ID": "xyz" }
+  ```
 </ParamField>
 
-```json POST /api/session/start
-{
-  "study_id": 3,
-  "preview": false,
-  "url_params": { "res_id": "8f2c1b04-..." }
-}
-```
+### Response
 
-The response is large — it is the entire study, resolved for this participant's condition. The top-level shape:
+The response is a full session bootstrap object. See [Data Model — Session](/api/data-model#session) for the complete schema. Key fields include:
 
 <ResponseField name="session_token" type="string">
-  A UUID v4. Store it; every later call needs it.
+  UUID identifying this participant's session. Include this in every subsequent API call.
+</ResponseField>
+
+<ResponseField name="is_preview" type="boolean">
+  `true` if this is a preview session, `false` for a real session.
 </ResponseField>
 
 <ResponseField name="style_condition" type="string">
-  The assigned content-manipulation arm (e.g. `A` or `B`).
+  The visual style condition assigned to this participant.
 </ResponseField>
 
 <ResponseField name="metric_condition" type="string">
-  The assigned social-proof arm, or the literal `BUILDER` when the study has fewer than two enabled metric conditions.
+  The engagement-metric display condition assigned to this participant.
 </ResponseField>
 
 <ResponseField name="full_condition" type="string">
-  The combined cell — `"A-HIGH"` style. When `metric_condition` is `BUILDER`, this is just the style condition on its own.
-</ResponseField>
-
-<ResponseField name="external_id" type="string | null">
-  The captured panel respondent ID, or `null`. The front-end substitutes it into `{ext_id}` in the completion redirect URL.
-</ResponseField>
-
-<ResponseField name="is_preview" type="integer">
-  `1` or `0`. The bundled runtime uses this to suppress conditional-logic rules in preview.
-</ResponseField>
-
-<ResponseField name="posts" type="array">
-  The feed, already resolved: each post carries the headline/content/image for the assigned condition, the metric numbers to display (`likes_shown`, `dislikes_shown`, `shares_shown`, `flags_shown`), the per-post interaction toggles (`show_like`, `show_dislike`, `show_share`, `show_flag`, `show_comment`, `show_avatar`), `post_order`, `is_true`, `manipulation_techniques` and — in builder studies — `part_id` / `part_ids`.
-</ResponseField>
-
-<ResponseField name="demographic_questions" type="array">
-  Rows from `demographic_questions` (`id`, `field_key`, `label`, `input_type`, `options` as a JSON *string*, `required`, `order_index`, `min_value`, `max_value`). If the study has none, defaults are seeded on the spot and returned.
-</ResponseField>
-
-<ResponseField name="post_questions" type="array">
-  Rows from `post_questions` (`id`, `label`, `question_type`, `options_json` as a JSON *string*, `required`, `order_index`, `part_id`).
+  Combined condition string combining style and metric conditions.
 </ResponseField>
 
 <ResponseField name="parts" type="array">
-  Builder studies only — the parsed `parts_json` structure.
+  Array of study part objects defining multi-part experiment structure.
 </ResponseField>
 
-<ResponseField name="logic" type="object | null">
-  The study's conditional-logic rules, for the client-side engine served at `/lib/logic.js`.
+<ResponseField name="posts" type="array">
+  Ordered array of post objects to display to this participant. See [Data Model — Post](/api/data-model#post).
 </ResponseField>
 
-<ResponseField name="language / locale / study_translations" type="string / object / object">
-  The study's language, the merged interface locale (file baseline + database overrides), and the per-study translation overlay.
+<ResponseField name="demographic_questions" type="array">
+  Array of demographic question configurations for this study.
+</ResponseField>
+
+<ResponseField name="post_questions" type="array">
+  Array of per-post question configurations.
 </ResponseField>
 
 <ResponseField name="study" type="object">
-  Participant-facing settings and texts: `participant_title`, `consent_text`, `instruction_text`, `debrief_text`, the `show_*` display flags, `layout_type`, the completion/decline redirect fields, `eyetracking_enabled`, `clarity_enabled`, and the action/Likert labels.
+  Study display settings object. See [Data Model — Study](/api/data-model#study-display-object).
 </ResponseField>
 
-Errors: `404 {"error":"Study not found"}` when no study matches the id (and mode); `400 {"error":"No conditions enabled in study settings"}` or `400 {"error":"No active posts in study"}` for legacy (non-builder) studies that are misconfigured.
+<ResponseField name="locale" type="object">
+  Locale strings for all participant-facing UI labels in the study's configured language.
+</ResponseField>
 
-### How the condition is assigned
+<ResponseField name="language" type="string">
+  BCP 47 language code of the study (e.g. `"en"`, `"de"`).
+</ResponseField>
 
-This matters methodologically, and it differs between the two study engines.
+<CodeGroup>
+```bash Request
+curl -X POST https://your-host/api/session/start \
+  -H "Content-Type: application/json" \
+  -d '{
+    "study_id": 2,
+    "url_params": { "PROLIFIC_PID": "abc123" }
+  }'
+```
 
-<Tabs>
-  <Tab title="Builder studies">
-    The style arm is drawn **uniformly at random** from the first two conditions of the primary manipulation. Posts store only `_a` / `_b` content, so the list is hard-capped at two arms — a legacy study saved with three or more would otherwise record arm C while showing variant A content. The metric (social-proof) arm is drawn at random from the enabled entries in `metric_conditions_json`.
-
-    In preview (`is_preview`), both draws are deterministic: the **first** option is always used, so a researcher checking the study doesn't get a coin flip each time.
-  </Tab>
-  <Tab title="Legacy studies">
-    All style × metric combinations are enumerated and assigned by **permuted block randomisation**. The queue lives per-study in `condition_queue_json`, is refilled with a fresh shuffled block when empty (block size = `max(4, number of conditions)`), and stale entries are filtered out whenever the enabled conditions change. This keeps cell sizes close to balanced as data comes in, rather than merely balanced in expectation.
-  </Tab>
-</Tabs>
+```json Response (abbreviated)
+{
+  "session_token": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+  "is_preview": false,
+  "style_condition": "B",
+  "metric_condition": "shown",
+  "full_condition": "B_shown",
+  "language": "en",
+  "posts": [...],
+  "study": { "participant_title": "Social Media Study", ... },
+  "locale": { "like": "Like", "share": "Share", ... }
+}
+```
+</CodeGroup>
 
 <Warning>
-The token is the only credential. Anyone holding a valid `session_token` can write reactions and answers to that session. The design assumption is that a session token is worth exactly one participant's data — treat tokens as sensitive when you log or forward them.
+A `404` response indicates the study does not exist or is not currently active (`is_active: false`). Ensure the study is activated in the admin dashboard before directing participants to it.
 </Warning>
 
-### Preview sessions and the admin cookie
+---
 
-`/api/session/start` also looks for a `missinfo_admin_mode` cookie, which the admin panel sets after login. When its value is `preview`, sessions started from that browser are silently tagged `is_preview = 1` **even on the live study URL** — so a researcher's own walkthrough never pollutes the production dataset. The toggle is in the panel header, labelled **🧪 Preview (not counted)** / **📊 Production (counted)**.
+## Record Consent
 
-Tagging and access are separate: an admin in preview-cookie mode opening the live URL still needs the study to be active.
-
-## Consent
-
-```json POST /api/session/consent
-{ "session_token": "…", "consented": true }
+```http
+POST /api/session/consent
 ```
 
-Writes `sessions.consented`. A declining participant is recorded with `consented: false` — the bundled app does this before showing the decline screen or firing `decline_redirect_url`.
+Records whether the participant consented to take part in the study. You must call this endpoint after presenting your consent form, regardless of the participant's decision. If `consented` is `false`, the session is marked as withdrawn and the participant should be directed to an exit page.
 
-## Demographics
+### Request Body
 
-```json POST /api/session/demographics
-{
-  "session_token": "…",
-  "age": "34",
-  "gender": "kobieta",
-  "education": "wyższe",
-  "residence": "miasto",
-  "media_use": "codziennie"
-}
+<ParamField body="session_token" type="string" required>
+  The UUID returned by `/api/session/start`.
+</ParamField>
+
+<ParamField body="consented" type="boolean" required>
+  `true` if the participant agreed to participate; `false` if they declined.
+</ParamField>
+
+### Response
+
+<ResponseField name="ok" type="boolean">
+  `true` on success.
+</ResponseField>
+
+<CodeGroup>
+```bash Request
+curl -X POST https://your-host/api/session/consent \
+  -H "Content-Type: application/json" \
+  -d '{"session_token": "f47ac10b-...", "consented": true}'
 ```
 
-The four legacy keys — `age`, `residence`, `education`, `gender` — are written to their own columns on `sessions`. **Every other key** is collected into `demographics_extra_json`. Keys must match the `field_key` of the study's demographic questions.
-
-<Note>
-Demographic questions and their options are study *content*, stored in the database and shown to participants in the study's own language. They are not part of the admin UI translation — so send the values your study actually defines, not translated ones.
-</Note>
-
-Multi-select answers are sent as a single comma-joined string by the bundled app, so they land in one export column.
-
-## Reactions
-
-```json POST /api/reaction
-{
-  "session_token": "…",
-  "post_id": 12,
-  "post_order": 3,
-  "action": "like",
-  "dwell_ms": 4200,
-  "likes_shown": 128,
-  "dislikes_shown": 4,
-  "shares_shown": 31,
-  "flags_shown": 0,
-  "comment": "not sure about this one",
-  "is_undo": false
-}
+```json Response
+{ "ok": true }
 ```
+</CodeGroup>
+
+---
+
+## Submit Demographics
+
+```http
+POST /api/session/demographics
+```
+
+Submits the participant's demographic responses. All fields are optional — only include the fields for which your study collected responses. Additional custom question responses can be passed in the `extra` object.
+
+### Request Body
+
+<ParamField body="session_token" type="string" required>
+  The UUID returned by `/api/session/start`.
+</ParamField>
+
+<ParamField body="age" type="string">
+  Participant's age or age range as a string (e.g. `"25-34"`).
+</ParamField>
+
+<ParamField body="residence" type="string">
+  Participant's country or region of residence.
+</ParamField>
+
+<ParamField body="education" type="string">
+  Participant's highest level of education.
+</ParamField>
+
+<ParamField body="gender" type="string">
+  Participant's self-reported gender.
+</ParamField>
+
+<ParamField body="extra" type="object">
+  Key-value map of responses to any additional custom demographic questions configured for this study.
+</ParamField>
+
+### Response
+
+<ResponseField name="ok" type="boolean">
+  `true` on success.
+</ResponseField>
+
+---
+
+## Record a Reaction
+
+```http
+POST /api/reaction
+```
+
+Records a single participant interaction with a post. Call this endpoint once for each discrete action the participant takes — liking, sharing, flagging, and so on. If the participant undoes an action (e.g. un-liking a post), send the same action again with `is_undo: true`.
+
+### Request Body
+
+<ParamField body="session_token" type="string" required>
+  The UUID returned by `/api/session/start`.
+</ParamField>
+
+<ParamField body="post_id" type="number" required>
+  The integer ID of the post being reacted to.
+</ParamField>
+
+<ParamField body="post_order" type="number" required>
+  The position (1-based index) of the post in the participant's feed at the time of the reaction.
+</ParamField>
 
 <ParamField body="action" type="string" required>
-  `like`, `dislike`, `share`, `flag`, or the pseudo-action `comment`.
+  The type of interaction. One of:
+
+  - `"like"` — participant clicked the like button
+  - `"dislike"` — participant clicked the dislike button
+  - `"share"` — participant clicked the share button
+  - `"flag"` — participant flagged the post as misinformation
+  - `"comment"` — participant submitted a comment on the post
+</ParamField>
+
+<ParamField body="dwell_ms" type="number" required>
+  Time in milliseconds the participant spent viewing this post before taking the action. Used for attention analysis.
+</ParamField>
+
+<ParamField body="likes_shown" type="number" required>
+  The like count displayed to the participant at the moment of the reaction (base count + accumulated session reactions).
+</ParamField>
+
+<ParamField body="shares_shown" type="number" required>
+  The share count displayed to the participant at the moment of the reaction.
+</ParamField>
+
+<ParamField body="dislikes_shown" type="number" required>
+  The dislike count displayed to the participant at the moment of the reaction.
+</ParamField>
+
+<ParamField body="flags_shown" type="number" required>
+  The flag count displayed to the participant at the moment of the reaction.
+</ParamField>
+
+<ParamField body="comment" type="string">
+  The text of the comment. Required when `action` is `"comment"`.
 </ParamField>
 
 <ParamField body="is_undo" type="boolean">
-  `true` when the participant clicked an already-active reaction to turn it off. Stored as an `is_undo = 1` row rather than a deletion, so the audit trail keeps the transition.
+  When `true`, marks this reaction as the reversal of a previously recorded action of the same type (e.g. un-liking). Defaults to `false`.
 </ParamField>
 
-Deduplication depends on the study's `allow_multi_reactions` setting, which the server reads for itself:
+### Response
 
-- **Single-react (default)** — a new reaction wipes every prior row for that `(session, post)`. One post, one reaction.
-- **Multi-react** — only rows with the *same* action are replaced, so `like + share + flag` can stack. Like and dislike stay mutually exclusive: a positive like/dislike click makes the server delete the opposite and insert an `is_undo = 1` row for it, keeping the export's active-state resolver from reading both as on at once.
-- **`action: "comment"`** — a pseudo-action emitted by the comment box so a participant who types but never clicks a reaction still has their comment persisted. It dedupes only against itself and never clobbers a real reaction row.
+<ResponseField name="ok" type="boolean">
+  `true` on success.
+</ResponseField>
+
+<CodeGroup>
+```bash Like a post
+curl -X POST https://your-host/api/reaction \
+  -H "Content-Type: application/json" \
+  -d '{
+    "session_token": "f47ac10b-...",
+    "post_id": 10,
+    "post_order": 1,
+    "action": "like",
+    "dwell_ms": 4320,
+    "likes_shown": 142,
+    "shares_shown": 37,
+    "dislikes_shown": 5,
+    "flags_shown": 2
+  }'
+```
+
+```bash Undo a like
+curl -X POST https://your-host/api/reaction \
+  -H "Content-Type: application/json" \
+  -d '{
+    "session_token": "f47ac10b-...",
+    "post_id": 10,
+    "post_order": 1,
+    "action": "like",
+    "dwell_ms": 1100,
+    "likes_shown": 143,
+    "shares_shown": 37,
+    "dislikes_shown": 5,
+    "flags_shown": 2,
+    "is_undo": true
+  }'
+```
+
+```bash Submit a comment
+curl -X POST https://your-host/api/reaction \
+  -H "Content-Type: application/json" \
+  -d '{
+    "session_token": "f47ac10b-...",
+    "post_id": 10,
+    "post_order": 1,
+    "action": "comment",
+    "dwell_ms": 18700,
+    "likes_shown": 142,
+    "shares_shown": 37,
+    "dislikes_shown": 5,
+    "flags_shown": 2,
+    "comment": "This seems like misinformation."
+  }'
+```
+</CodeGroup>
 
 <Tip>
-If you omit any of `likes_shown` / `dislikes_shown` / `shares_shown` / `flags_shown`, the server carries the values forward from the most recent prior row for the same `(session, post)` rather than storing zeros. Send them anyway when you can — the fallback exists because the comment path historically didn't, which wrote zeros into the metric columns.
+Record `dwell_ms` from the moment the post first enters the participant's viewport (or becomes the active post in a single-post view) to the moment the action is taken. This gives you a meaningful attention signal per post per interaction.
 </Tip>
 
-## Ratings
+---
 
-```json POST /api/rating
-{ "session_token": "…", "post_id": 12, "post_order": 3, "belief_1_7": 5, "comment": "" }
+## Submit a Credibility Rating
+
+```http
+POST /api/rating
 ```
 
-Replaces any existing rating for that `(session, post)` — one rating per post per session.
+Records a participant's credibility rating for a post on a 1–7 scale. This endpoint is used in **classic study designs** where participants rate how believable or accurate they find each post. It is not used in reaction-only study designs.
 
-## Post questions
+### Request Body
 
-```json POST /api/post-question-response
-{
-  "session_token": "…",
-  "post_id": 12,
-  "post_order": 3,
-  "question_id": 7,
-  "response_text": "It felt exaggerated",
-  "response_values": [4]
-}
+<ParamField body="session_token" type="string" required>
+  The UUID returned by `/api/session/start`.
+</ParamField>
+
+<ParamField body="post_id" type="number" required>
+  The integer ID of the post being rated.
+</ParamField>
+
+<ParamField body="post_order" type="number" required>
+  The position (1-based index) of the post in the participant's feed.
+</ParamField>
+
+<ParamField body="belief_1_7" type="number" required>
+  Integer rating from `1` (definitely false) to `7` (definitely true).
+</ParamField>
+
+<ParamField body="comment" type="string">
+  Optional free-text comment the participant provided alongside their rating.
+</ParamField>
+
+### Response
+
+<ResponseField name="ok" type="boolean">
+  `true` on success.
+</ResponseField>
+
+<CodeGroup>
+```bash Request
+curl -X POST https://your-host/api/rating \
+  -H "Content-Type: application/json" \
+  -d '{
+    "session_token": "f47ac10b-...",
+    "post_id": 10,
+    "post_order": 1,
+    "belief_1_7": 2,
+    "comment": "I doubt this is accurate."
+  }'
 ```
 
-Two scopes are supported through one endpoint:
+```json Response
+{ "ok": true }
+```
+</CodeGroup>
 
-- **Post-scoped** — send `post_id` and `post_order`, leave `part_id` unset.
-- **Part-scoped** — send `part_id`; the server then stores `post_id = 0` and `post_order = NULL`. These come from the *after all posts* display mode, where one questions screen covers a whole part.
+---
 
-The `post_id NOT NULL` column is kept for backwards compatibility; `part_id` is the canonical marker. When querying the database directly, `WHERE part_id IS NOT NULL` selects part-scoped answers.
+## Complete a Session
 
-Unlike reactions and ratings, this endpoint **inserts every time** — it does not deduplicate. Posting the same question twice produces two rows.
-
-## Dwell time without a reaction
-
-```json POST /api/post-view
-{ "session_token": "…", "post_id": 12, "post_order": 3, "dwell_ms": 3100 }
+```http
+POST /api/session/complete
 ```
 
-Records viewing time for posts the participant looked at but never reacted to. It is an upsert on `(session_id, post_id)`: the first call sets `first_seen_at`, later calls **add** to `dwell_ms` and bump `last_seen_at`. That means you can safely call it every time a post leaves the viewport without double-counting on re-entry.
+Marks the participant's session as complete and returns the debrief content to display. Call this after the participant has responded to all posts and any end-of-study questions.
 
-Requests with no `post_id` or a non-positive `dwell_ms` return `{ "ok": true, "skipped": true }` and write nothing. The bundled app sends this via `navigator.sendBeacon` where available, so it survives page unload.
+### Request Body
 
-<Note>
-The export prefers `reactions.dwell_ms` and falls back to `post_views.dwell_ms` only when no reaction exists for that post.
-</Note>
+<ParamField body="session_token" type="string" required>
+  The UUID returned by `/api/session/start`.
+</ParamField>
 
-## Paged layout
+### Response
 
-```json POST /api/paged-response
-{
-  "session_token": "…",
-  "post_id": 12,
-  "post_order": 3,
-  "belief_1_7": 5,
-  "comment": "",
-  "action": "like",
-  "dwell_ms": 4200,
-  "likes_shown": 128, "dislikes_shown": 4, "shares_shown": 31, "flags_shown": 0
-}
+<ResponseField name="ok" type="boolean">
+  `true` on success.
+</ResponseField>
+
+<ResponseField name="debrief_text" type="string">
+  The study's debrief text to show the participant. May contain Markdown formatting.
+</ResponseField>
+
+<ResponseField name="contact_email" type="string">
+  Contact email address for the study's research team, to display on the debrief screen.
+</ResponseField>
+
+<CodeGroup>
+```bash Request
+curl -X POST https://your-host/api/session/complete \
+  -H "Content-Type: application/json" \
+  -d '{"session_token": "f47ac10b-..."}'
 ```
 
-A convenience endpoint for the paged layout: it writes the reaction (only if `action` is present) and the rating in one call, replacing any prior rows for that `(session, post)`. It always uses single-react semantics.
-
-## Conditional-logic events
-
-```json POST /api/session/logic-event
-{ "session_token": "…", "skipped_part_id": "part_2" }
-```
-
-```json POST /api/session/logic-event
-{ "session_token": "…", "end_rule_id": "rule_5" }
-```
-
-Records what the client-side logic engine did. `skipped_part_id` is appended to `sessions.logic_skipped_parts_json` (deduplicated); `end_rule_id` is written to `sessions.logic_end_rule_id`. This is what lets the export tell **"skipped by a rule"** apart from **"never reached"** — a distinction you need when reporting attrition.
-
-## Eye tracking
-
-<AccordionGroup>
-  <Accordion title="POST /api/session/eyetracking-consent">
-    ```json
-    {
-      "session_token": "…",
-      "eyetracking_consent": true,
-      "calibration_error": 42.7,
-      "n_recalibrations": 1
-    }
-    ```
-    Writes camera consent plus calibration quality onto the session. Store this alongside the gaze data — calibration error is the obvious covariate/exclusion criterion.
-  </Accordion>
-
-  <Accordion title="POST /api/gaze">
-    ```json
-    {
-      "session_token": "…",
-      "points": [
-        {
-          "post_id": 12, "post_order": 3, "screen_name": "feed",
-          "t": 18240, "x": 512, "y": 340,
-          "vw": 1440, "vh": 900, "scroll_y": 1200, "aoi": "headline"
-        }
-      ]
-    }
-    ```
-    Batch insert of gaze samples, wrapped in a single transaction. `t`, `x` and `y` are required per point (`t` is milliseconds since session start in the bundled client); everything else is optional and stored as `NULL` when absent.
-
-    This endpoint is deliberately forgiving: a request with no token or an empty/absent `points` array returns `{ "ok": true }` without touching the database, and insert failures are swallowed rather than surfaced. Gaze data is treated as non-critical — a failed batch must never break the participant's run.
-  </Accordion>
-
-  <Accordion title="POST /api/session/feed-snapshot">
-    ```json
-    {
-      "session_token": "…",
-      "snapshot": [{ "post_id": 12, "post_order": 3, "height": 480 }]
-    }
-    ```
-    Stores the rendered feed layout as JSON on `sessions.feed_snapshot`. The heatmap viewer needs it to map gaze coordinates back onto posts, since card heights vary per participant.
-  </Accordion>
-</AccordionGroup>
-
-## Complete the session
-
-```json POST /api/session/complete
-{ "session_token": "…" }
-```
-
-Sets `completed = 1` and `completed_at = CURRENT_TIMESTAMP`, then returns the debrief so the front-end can render the final screen:
-
-```json
+```json Response
 {
   "ok": true,
-  "debrief_text": "…",
-  "contact_email": "…"
+  "debrief_text": "Thank you for participating. This study examined...",
+  "contact_email": "pi@university.edu"
 }
 ```
+</CodeGroup>
 
-<Warning>
-An unfinished session still exists in the database with everything it recorded up to the drop-off point — it simply has `completed = 0`. Preview sessions that were never finished do not appear in the export even with **Include preview sessions** enabled.
-</Warning>
-
-## Images
-
-Post images and avatars are referenced in the session payload as `/uploads/<study_id>/<filename>`. That path is served by `server.js`, which looks the filename up against the study's posts and streams the image BLOB from SQLite (falling back to disk for files not yet migrated). No authentication, and no separate media server to run.
+<Note>
+After calling `/api/session/complete`, the `session_token` is no longer valid for recording reactions or ratings. Any further reaction or rating submissions with this token will return `401`.
+</Note>

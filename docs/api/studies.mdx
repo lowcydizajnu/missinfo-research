@@ -1,646 +1,528 @@
 ---
-title: "Studies API"
-description: "Admin HTTP endpoints for studies, posts, demographic questions, collaborators, users, dashboards and locales."
+title: "Studies & Posts API — Misinfo Research"
+sidebarTitle: "Studies API"
+description: "Create and manage studies, configure posts, upload images, reorder content, and export session data using the admin API endpoints."
 ---
 
-Everything the admin panel does, it does over this API. The panel is a vanilla-JS client talking to `/api/admin` — so anything you can click in **Dashboard**, **Posts**, **Demographics**, **Configurator** or **Settings**, you can also script. This page documents the study endpoints and their children, as implemented in `routes/admin.js`.
+The Studies and Posts API gives you full programmatic control over the content and configuration of your misinformation experiments. All endpoints in this section require a valid JWT Bearer token — see [Authentication](/api/authentication) for how to obtain one.
 
-Use it when you want to seed studies programmatically, batch-import posts, or wire the platform into a lab pipeline. For day-to-day work the panel is faster.
-
-## Base URL and authentication
-
-The router is mounted at `/api/admin` (see `server.js`). Every endpoint below is relative to that prefix.
-
-All endpoints except `POST /login` and `GET /public/dashboard/:token` require a bearer token:
-
-```
-Authorization: Bearer <token>
-```
-
-### POST /login
-
-<ParamField body="username" type="string" required>
-  Account login.
-</ParamField>
-
-<ParamField body="password" type="string" required>
-  Account password (bcrypt-checked server-side).
-</ParamField>
-
-```bash
-curl -X POST https://your-host/api/admin/login \
-  -H 'Content-Type: application/json' \
-  -d '{"username": "anna", "password": "your-password"}'
-```
-
-```json
-{ "token": "eyJhbGciOi...", "role": "researcher", "username": "anna" }
-```
-
-The token is a JWT valid for **24 hours**. Login is rate-limited to **20 attempts per 15 minutes** per IP.
-
-<Note>
-There is no self-registration endpoint. Accounts are invite-only — an admin creates them via `POST /users` (the **Accounts** button in the panel header).
-</Note>
-
-## Roles and ownership guards
-
-Two roles exist: `admin` and `researcher`. Three access levels are enforced in the route file:
-
-| Level | Who passes | Used for |
-| --- | --- | --- |
-| `auth` | any valid token | most read/write endpoints |
-| edit-level (`ownedStudy`) | admin, study owner, or a collaborator on that study | reading and editing a study and its children |
-| owner-level (`ownerOfStudy`) | admin or study owner only | deleting a study, managing its collaborators |
-| `requireAdmin` | admin only | creating/editing/deleting users, writing locales |
-
-<Warning>
-**404 vs 403 is deliberate.** When you request a study you have no access to, edit-level guards return `404 Not Found`, not `403` — so study ids can't be enumerated by probing. Owner-level guards return `403` instead, because the caller already legitimately knows the study exists.
-</Warning>
-
-Child records (posts, demographic questions, post questions) resolve their parent `study_id` first and then apply the same edit-level guard, so a post id from someone else's study also returns `404`.
-
-<Note>
-Dashboard **share tokens** carry a `scope` claim and are explicitly rejected by the admin auth middleware. A read-only share link can never be used to write.
-</Note>
+---
 
 ## Studies
 
-### GET /studies
+### List Studies
 
-Lists studies the caller can reach: admins get all, researchers get studies they own **or** collaborate on.
-
-```bash
-curl https://your-host/api/admin/studies \
-  -H "Authorization: Bearer $TOKEN"
+```http
+GET /api/admin/studies
 ```
 
-Each row is the full `studies` table row plus two computed fields:
+Returns an array of study objects visible to the authenticated user. Admins see all studies on the instance; researchers see only studies they own or collaborate on.
 
-<ResponseField name="completed_count" type="integer">
-  Number of sessions with `completed = 1` for this study.
-</ResponseField>
+<CodeGroup>
+```bash Request
+curl https://your-host/api/admin/studies \
+  -H "Authorization: Bearer <token>"
+```
 
-<ResponseField name="shared_with_me" type="integer">
-  `0` if the caller owns the study, `1` if they reach it as a collaborator.
-</ResponseField>
+```json Response
+[
+  {
+    "id": 1,
+    "name": "Vaccine Misinformation Study",
+    "slug": "vaccine-misinfo",
+    "is_active": true,
+    "language": "en",
+    "created_at": "2024-03-01T10:00:00Z"
+  }
+]
+```
+</CodeGroup>
 
-Null text fields are resolved to platform defaults before being returned (consent, instruction, debrief and both transition texts), so you always get the text a participant would actually see. When the study's `language` is not `pl`, translated fields from `translations_json` are overlaid on top.
+---
 
-### POST /studies
+### Create a Study
 
-Creates a study. Only `name` is required; the slug is derived from `slug` or, failing that, from `name`, and de-duplicated automatically (`my-study`, `my-study-2`, …).
+```http
+POST /api/admin/studies
+```
+
+Creates a new study. The slug is used in participant-facing URLs; if omitted, one is generated automatically from the study name.
+
+#### Request Body
 
 <ParamField body="name" type="string" required>
-  Study name.
+  Human-readable name for the study, shown in the admin dashboard.
 </ParamField>
 
 <ParamField body="slug" type="string">
-  Preferred URL slug. Slugified and made unique.
+  URL-safe identifier used in participant links (e.g. `vaccine-misinfo`). Must be unique across the instance. Auto-generated from `name` if omitted.
 </ParamField>
 
-<ParamField body="description" type="string" />
-<ParamField body="institution" type="string" />
-<ParamField body="contact_email" type="string" />
+#### Response
 
-```bash
+<ResponseField name="id" type="number">
+  Unique integer ID of the newly created study.
+</ResponseField>
+
+<ResponseField name="slug" type="string">
+  The slug assigned to the study, either as supplied or auto-generated.
+</ResponseField>
+
+<CodeGroup>
+```bash Request
 curl -X POST https://your-host/api/admin/studies \
-  -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' \
-  -d '{"name": "Framing and trust", "institution": "University of X"}'
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Climate Denial Study", "slug": "climate-denial"}'
 ```
 
-Returns the created study row. The caller becomes `owner_id`.
-
-<Note>
-This endpoint creates an **empty** study — no posts are seeded. The panel's **+ New** button does not use it; it calls `POST /studies/builder` instead.
-</Note>
-
-### POST /studies/builder
-
-Creates the blank study the **Configurator** expects: `builder_mode = 1`, `is_active = 0` (not yet collecting), condition A enabled, `posts_per_session = 5`, and a single `STANDARD` metric condition. This is what **+ New** in the panel header calls.
-
-```bash
-curl -X POST https://your-host/api/admin/studies/builder \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-<Tip>
-`is_active = 0` means the study is created switched off. Nothing is collected until you activate it — a useful default when you're still drafting.
-</Tip>
-
-### PATCH /studies/:id
-
-Edit-level guard. Only fields on the allowlist are written; anything else in the body is ignored. The allowlisted fields are:
-
-| Group | Fields |
-| --- | --- |
-| Identity | `name`, `slug`, `description`, `institution`, `contact_email`, `is_active`, `language`, `participant_title` |
-| Design | `posts_per_session`, `enable_condition_a`, `enable_condition_b`, `enable_metrics_high`, `enable_metrics_low`, `metric_conditions_json`, `show_metrics`, `high_metrics_min`, `high_metrics_max`, `low_metrics_min`, `low_metrics_max` |
-| Feed appearance | `layout_type`, `show_reactions`, `enable_comments`, `allow_multi_reactions`, `show_avatars`, `hide_topic_badges`, `label_style_a`, `label_style_b` |
-| Flow | `show_instructions`, `show_transition_feed`, `show_transition_rating`, `show_debrief`, `show_debrief_posts`, `show_instruction_actions`, `show_demographics`, `demographics_position` |
-| Participant text | `consent_text`, `instruction_text`, `transition_feed_text`, `transition_rating_text`, `debrief_text`, `comment_placeholder`, `label_likert_question`, `label_likert_min`, `label_likert_max`, `label_action_like`, `label_action_dislike`, `label_action_share`, `label_action_flag` |
-| Tracking | `clarity_enabled`, `clarity_project_id`, `eyetracking_enabled` |
-| Panel recruitment | `external_id_param_name`, `completion_redirect_url`, `completion_redirect_delay_seconds`, `completion_redirect_notice`, `decline_redirect_url`, `decline_redirect_delay_seconds`, `decline_redirect_notice`, `decline_redirect_immediate` |
-| Hosting | `custom_domain` |
-
-```bash
-curl -X PATCH https://your-host/api/admin/studies/12 \
-  -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' \
-  -d '{"is_active": 1, "posts_per_session": 8}'
-```
-
-Returns the updated study with defaults and the translation overlay applied.
-
-`clarity_project_id` is validated: it must be alphanumeric, or `400` is returned. An empty string clears it.
-
-<Info>
-**How language affects writes.** If the study's `language` is anything other than `pl`, the translatable text fields (`participant_title`, `consent_text`, `instruction_text`, `debrief_text`, both transition texts, the Likert and action labels, `comment_placeholder`) are written into `translations_json[lang]` instead of the base columns. The Polish source is never overwritten. This is what makes the duplicate-per-language workflow safe.
-</Info>
-
-### PATCH /studies/:id/builder
-
-The Configurator's save endpoint. Edit-level guard, its own allowlist. It overlaps with `PATCH /studies/:id` on identity, flow and text fields, and adds the builder-specific ones:
-
-| Field | Purpose |
-| --- | --- |
-| `parts_json` | Ordered study parts (feed segments, questions, transitions) |
-| `logic_json` | Conditional-logic rules |
-| `no_consent_text` | Text shown when consent is declined |
-| `post_questions_display_mode` | How post questions are presented |
-| `manipulation_json` | The between-subjects manipulation |
-| `manipulation_field`, `manipulation_variants` | Legacy manipulation fields |
-
-Two validations run before anything is persisted:
-
-<AccordionGroup>
-<Accordion title="manipulation_json is normalized to one A/B manipulation">
-Post content stores exactly two variants per field (`headline_a`/`headline_b`, `content_a`/`content_b`, image A/B). So the server keeps at most **one** manipulation, on a field in `headline | content | image | mixed` (defaulting to `headline`), with exactly **two** conditions relabelled `A` and `B`. Extra manipulations and any C/D arms are dropped.
-
-This is not a limitation you can work around by posting more arms — arms without content would silently render as variant A, producing a study whose conditions are identical. The server refuses to store that rather than let it run.
-</Accordion>
-
-<Accordion title="logic_json is validated before saving">
-Rules are checked by the shared engine in `lib/logic.js` against the study's real part ids, post-question ids and demographic `field_key`s. Dangling references, duplicate ids and malformed rules are rejected with `400`:
-
-```json
+```json Response
 {
-  "error": "Nieprawidłowe reguły logiki warunkowej:\n• ...",
-  "logic_errors": ["..."],
-  "logic_warnings": ["..."]
+  "id": 2,
+  "slug": "climate-denial",
+  "name": "Climate Denial Study",
+  "is_active": false
 }
 ```
+</CodeGroup>
 
-Invalid JSON in `logic_json` also returns `400`.
-</Accordion>
-</AccordionGroup>
+---
 
-Returns the updated study row.
+### Update a Study
 
-### POST /studies/:id/duplicate
-
-Edit-level guard. Copies every column of the `studies` table except `id` and `created_at` — so builder mode, parts, manipulation, language, translations, all `show_*` flags and tracking settings come along — and gives the copy a fresh unique slug and a `(kopia N)` name.
-
-```bash
-curl -X POST https://your-host/api/admin/studies/12/duplicate \
-  -H "Authorization: Bearer $TOKEN"
+```http
+PATCH /api/admin/studies/:id
 ```
 
-<Tip>
-This is the backbone of the multilingual workflow: duplicate the study, set `language` on the copy, translate. Each language is its own study with its own participant link and its own data.
-</Tip>
+Partially updates a study. Send only the fields you want to change; all other fields remain unchanged.
 
-### DELETE /studies/:id
+#### Path Parameters
 
-**Owner-level guard** — a collaborator cannot delete a study. Requires an explicit confirmation in the body:
+<ParamField path="id" type="number" required>
+  The integer ID of the study to update.
+</ParamField>
 
-```bash
-curl -X DELETE https://your-host/api/admin/studies/12 \
-  -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' \
-  -d '{"confirm": "DELETE"}'
+#### Request Body
+
+<ParamField body="name" type="string">
+  Updated display name for the study.
+</ParamField>
+
+<ParamField body="slug" type="string">
+  Updated URL slug. Must remain unique across the instance.
+</ParamField>
+
+<ParamField body="participant_title" type="string">
+  Title shown to participants at the top of the study interface.
+</ParamField>
+
+<ParamField body="description" type="string">
+  Internal description visible only in the admin dashboard.
+</ParamField>
+
+<ParamField body="language" type="string">
+  BCP 47 language code (e.g. `"en"`, `"de"`, `"fr"`) controlling the study's locale strings.
+</ParamField>
+
+<ParamField body="contact_email" type="string">
+  Contact email shown to participants on the debrief screen.
+</ParamField>
+
+<ParamField body="institution" type="string">
+  Institution name shown in participant-facing text.
+</ParamField>
+
+<ParamField body="is_active" type="boolean">
+  When `false`, the study is closed to new participants. Accessing a study with `is_active: false` via the participant API returns `404`.
+</ParamField>
+
+<ParamField body="show_metrics" type="boolean">
+  Whether engagement metrics (likes, shares, etc.) are shown to participants.
+</ParamField>
+
+#### Response
+
+<ResponseField name="ok" type="boolean">
+  `true` on success.
+</ResponseField>
+
+<CodeGroup>
+```bash Request
+curl -X PATCH https://your-host/api/admin/studies/2 \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"is_active": true, "contact_email": "pi@university.edu"}'
 ```
 
-Without `{"confirm": "DELETE"}` the request fails with `400`. On success the study row is deleted and its uploads directory removed.
+```json Response
+{ "ok": true }
+```
+</CodeGroup>
+
+---
+
+### Delete a Study
+
+```http
+DELETE /api/admin/studies/:id
+```
+
+Permanently deletes a study. This also deletes all posts, participant sessions, reactions, ratings, and any other data associated with the study.
 
 <Warning>
-This deletes collected data along with the study. There is no undo and no trash. Export first.
+Deletion is **irreversible**. All posts, sessions, and collected data are removed permanently. Export your data first using `GET /api/admin/export/:studyId` if you need to preserve it.
 </Warning>
 
-## Collaborators
+#### Path Parameters
 
-Sharing **one** study with another researcher grants them full edit rights on that study and nothing else. All three endpoints use the **owner-level** guard — only the owner or an admin can see or change who a study is shared with.
-
-### GET /studies/:studyId/collaborators
-
-Returns `id`, `username`, `email` and `added_at` per collaborator, oldest first.
-
-### POST /studies/:studyId/collaborators
-
-<ParamField body="username" type="string" required>
-  Login of the researcher to add.
+<ParamField path="id" type="number" required>
+  The integer ID of the study to delete.
 </ParamField>
 
-```bash
-curl -X POST https://your-host/api/admin/studies/12/collaborators \
-  -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' \
-  -d '{"username": "marek"}'
+#### Response
+
+<ResponseField name="ok" type="boolean">
+  `true` on success.
+</ResponseField>
+
+---
+
+### Duplicate a Study
+
+```http
+POST /api/admin/studies/:id/duplicate
 ```
 
-Rejected cases: unknown login (`404`), deactivated account (`400`), the study's own owner (`400`), and admins (`400` — they already reach every study). Adding someone twice is a no-op.
+Creates a copy of the study with all its posts. The duplicate has no participant sessions. Use this to create variants of an existing study without starting from scratch.
 
-### DELETE /studies/:studyId/collaborators/:userId
+#### Path Parameters
 
-Removes the share. Returns `{ "ok": true }`.
-
-## Users
-
-Backing the **Accounts** button in the panel header.
-
-### GET /users
-
-Response depends on the caller's role — this is intentional, not a quirk:
-
-<Tabs>
-<Tab title="Admin">
-The full roster for management: `id`, `username`, `email`, `role`, `is_active`, `created_at`, `last_login`, and `study_count` (studies owned).
-</Tab>
-<Tab title="Researcher">
-A minimal, login-only list — just `id` and `username`, and only for **active researchers other than themselves**. No emails, roles, activity or study counts leak. It exists solely so a researcher can pick someone to add as a collaborator on a study they own.
-</Tab>
-</Tabs>
-
-### POST /users
-
-Admin only.
-
-<ParamField body="username" type="string" required>
-  Must be unique — `409` if taken.
+<ParamField path="id" type="number" required>
+  The integer ID of the study to duplicate.
 </ParamField>
 
-<ParamField body="password" type="string" required>
-  Minimum 8 characters (`400` otherwise). Stored as a bcrypt hash.
-</ParamField>
+#### Response
 
-<ParamField body="email" type="string" />
+<ResponseField name="id" type="number">
+  Integer ID of the newly created duplicate study.
+</ResponseField>
 
-<ParamField body="role" type="string" default="researcher">
-  `admin` or `researcher`. Anything other than `admin` becomes `researcher`.
-</ParamField>
+<ResponseField name="slug" type="string">
+  Auto-generated slug for the duplicate (derived from the original slug with a suffix).
+</ResponseField>
 
-Returns `{ "id": <new id> }`.
-
-### PATCH /users/:id
-
-Admin only. Accepts `email`, `role`, `is_active` and `password` (min 8 chars). Returns `{ "ok": true }`.
-
-<Warning>
-**Lockout guard.** The last active admin cannot be demoted to researcher or deactivated — the request returns `400`. The same protection applies to `DELETE /users/:id`.
-</Warning>
-
-### DELETE /users/:id
-
-Admin only. You cannot delete your own account (`400`), nor the last active admin (`400`).
-
-Studies owned by the deleted user are **reassigned to the acting admin** rather than orphaned or destroyed. The response reports how many moved:
-
-```json
-{ "ok": true, "reassignedStudies": 3 }
+<CodeGroup>
+```bash Request
+curl -X POST https://your-host/api/admin/studies/2/duplicate \
+  -H "Authorization: Bearer <token>"
 ```
 
-### GET /users/:id/collaborations
+```json Response
+{ "id": 3, "slug": "climate-denial-copy" }
+```
+</CodeGroup>
 
-Returns a flat array of study ids the user collaborates on — used to pre-check boxes in the Accounts UI. An admin sees every collaboration; a researcher sees only those on studies **they own**, so the list matches exactly what they're allowed to change.
+---
 
 ## Posts
 
-The content of the feed — backing the **Posts** tab.
+### List Posts for a Study
 
-### GET /studies/:id/posts
-
-Edit-level guard. Returns all posts for the study ordered by `order_index`. In a non-Polish study, translated post fields (`headline_a/b`, `content_a/b`, `time_ago`, `post_comment`, `post_comment_author`, and per-comment author/text inside `builder_comments_json`) are overlaid from `translations_json`, so you read what the participant would see.
-
-### POST /posts
-
-Creates a post. The `study_id` goes **in the body**, and the edit-level guard is applied to it.
-
-<ParamField body="study_id" type="integer" required />
-<ParamField body="topic" type="string" default="nauka" />
-<ParamField body="emoji" type="string" default="📝" />
-<ParamField body="source_name" type="string" />
-<ParamField body="source_handle" type="string" />
-<ParamField body="time_ago" type="string" default="teraz" />
-<ParamField body="headline_a" type="string">Headline shown in condition A.</ParamField>
-<ParamField body="content_a" type="string">Body shown in condition A.</ParamField>
-<ParamField body="headline_b" type="string">Headline shown in condition B.</ParamField>
-<ParamField body="content_b" type="string">Body shown in condition B.</ParamField>
-<ParamField body="is_true" type="boolean">Ground truth for the item — drives the true/false belief breakdowns on the dashboard.</ParamField>
-<ParamField body="manipulation_techniques" type="array">Array of technique labels; stored as JSON.</ParamField>
-<ParamField body="base_likes" type="integer" default="0" />
-<ParamField body="base_shares" type="integer" default="0" />
-<ParamField body="base_dislikes" type="integer" default="0" />
-<ParamField body="base_flags" type="integer" default="0" />
-
-The post is appended at the end (`MAX(order_index) + 1`). Returns the created row.
-
-```bash
-curl -X POST https://your-host/api/admin/posts \
-  -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' \
-  -d '{
-        "study_id": 12,
-        "source_name": "Health Daily",
-        "headline_a": "Neutral headline",
-        "headline_b": "Emotive headline",
-        "is_true": false,
-        "base_likes": 40
-      }'
+```http
+GET /api/admin/studies/:id/posts
 ```
 
-### PATCH /posts/:id
+Returns an ordered array of post objects belonging to the specified study.
 
-Allowlisted fields: `topic`, `hide_topic`, `emoji`, `source_name`, `source_handle`, `time_ago`, `headline_a`, `content_a`, `headline_b`, `content_b`, `is_true`, `manipulation_techniques`, `base_likes`, `base_shares`, `base_dislikes`, `base_flags`, `is_active`, `post_comment`, `post_comment_author`, `metrics_override_json`, `post_comments_json`, `builder_comments_json`, `show_avatar`, `show_like`, `show_dislike`, `show_share`, `show_flag`, `show_comment`, `part_id`, `part_ids_json`.
+#### Path Parameters
 
-Two behaviours worth knowing:
-
-- **`part_ids_json` drives `part_id`.** When you send `part_ids_json`, the server derives `part_id` from its first element so legacy readers still get a sensible primary part. An empty array sets both to `NULL`.
-- **Translation routing.** In a non-Polish study, visible text goes to the overlay while structural fields (`is_active`, `base_likes`, `part_id`, `manipulation_techniques`, the `show_*` toggles) stay on the row. `topic` is **not** translatable — it's a locale key.
-
-### PATCH /posts/:id/reorder
-
-<ParamField body="direction" type="string" required>
-  `up` or `down`. Swaps `order_index` with the adjacent post. A no-op at the ends.
+<ParamField path="id" type="number" required>
+  The integer ID of the study whose posts you want to retrieve.
 </ParamField>
 
-### DELETE /posts/:id
-
-Deletes the post and cascade-deletes its reactions and ratings across the study's sessions.
-
-### Post images and avatars
-
-Uploads are `multipart/form-data` with the file under the field name `image`. Files are stored as **SQLite BLOBs**, not on disk.
-
-<Warning>
-Accepted types: `image/jpeg`, `image/png`, `image/webp`. Maximum size: **5 MB**. Anything else returns `400`.
-</Warning>
-
-| Method | Path | Purpose |
-| --- | --- | --- |
-| `POST` | `/posts/:id/image/:variant` | Upload the image for variant `a` or `b` |
-| `POST` | `/posts/:id/image` | Legacy single-image upload (no variant) |
-| `DELETE` | `/posts/:id/image/:variant` | Clear one variant's image |
-| `DELETE` | `/posts/:id/image` | Legacy single-image clear |
-| `POST` | `/posts/:id/avatar` | Upload the source avatar |
-| `DELETE` | `/posts/:id/avatar` | Clear the avatar |
-
-```bash
-curl -X POST https://your-host/api/admin/posts/88/image/a \
-  -H "Authorization: Bearer $TOKEN" \
-  -F 'image=@./headline-a.png'
+<CodeGroup>
+```bash Request
+curl https://your-host/api/admin/studies/2/posts \
+  -H "Authorization: Bearer <token>"
 ```
 
-```json
-{
-  "col": "image_path_a",
-  "filename": "88_a_m4k2n1.png",
-  "image_url": "/uploads/12/88_a_m4k2n1.png?t=1730000000000"
-}
+```json Response
+[
+  {
+    "id": 10,
+    "headline_a": "Scientists confirm vaccines cause autism",
+    "is_true": false,
+    "is_active": true,
+    "post_order": 1
+  }
+]
+```
+</CodeGroup>
+
+---
+
+### Create a Post
+
+```http
+POST /api/admin/posts
 ```
 
-Each upload gets a fresh timestamped filename so browser and CDN caches always fetch the new bytes; the underlying BLOB column is reused, so no orphan blobs accumulate.
+Creates a new post and appends it to the specified study. Posts support an A/B variant system: `headline_a`/`content_a` and `headline_b`/`content_b` allow you to randomize which version a participant sees.
 
-### Post library
+#### Request Body
 
-A reusable catalogue of posts, copied on add.
+<ParamField body="study_id" type="number" required>
+  ID of the study this post belongs to.
+</ParamField>
 
-| Method | Path | Body | Purpose |
-| --- | --- | --- | --- |
-| `POST` | `/studies/:studyId/posts/from-library` | `{ library_post_id }` | Copy a library post (content + images) into the study, appended last |
-| `POST` | `/posts/:id/to-library` | `{ name, category, description }` | Promote a study post into the library |
+<ParamField body="source_name" type="string">
+  Display name of the post's simulated source (e.g. `"The Daily News"`).
+</ParamField>
 
-Both return `{ "id": <new id> }`. Copies are independent — editing the study post afterwards does not touch the library entry, and vice versa. `name` defaults to `"Post z badania"` if omitted.
+<ParamField body="source_handle" type="string">
+  Social-media-style handle for the source (e.g. `"@dailynews"`).
+</ParamField>
 
-## Demographic questions
+<ParamField body="time_ago" type="string">
+  Relative timestamp string displayed on the post (e.g. `"2 hours ago"`).
+</ParamField>
 
-Backing the **Demographics** tab.
+<ParamField body="topic" type="string">
+  Topic label associated with the post (e.g. `"vaccines"`).
+</ParamField>
 
-<Info>
-Demographic questions and their options are **study content**, not UI. They live in the database, are shown to participants, and stay in the study's own language. They are not part of the admin panel's interface translation — switching the panel to English does not translate them.
-</Info>
+<ParamField body="emoji" type="string">
+  Single emoji displayed alongside the topic label.
+</ParamField>
 
-### GET /studies/:studyId/demographic-questions
+<ParamField body="hide_topic" type="boolean">
+  When `true`, the topic label and emoji are hidden from participants.
+</ParamField>
 
-Returns the study's questions ordered by `order_index`, with the translation overlay applied for non-Polish studies.
+<ParamField body="headline_a" type="string">
+  Headline text for variant A of the post.
+</ParamField>
+
+<ParamField body="content_a" type="string">
+  Body text for variant A of the post.
+</ParamField>
+
+<ParamField body="headline_b" type="string">
+  Headline text for variant B of the post. If omitted, variant A is always shown.
+</ParamField>
+
+<ParamField body="content_b" type="string">
+  Body text for variant B of the post.
+</ParamField>
+
+<ParamField body="is_true" type="boolean">
+  Ground-truth label indicating whether the post content is accurate. Used in analysis; not shown to participants.
+</ParamField>
+
+<ParamField body="is_active" type="boolean">
+  When `false`, the post is excluded from participant sessions.
+</ParamField>
+
+<ParamField body="base_likes" type="number">
+  Starting like count displayed to participants before any session interactions are added.
+</ParamField>
+
+<ParamField body="base_shares" type="number">
+  Starting share count displayed to participants.
+</ParamField>
+
+<ParamField body="base_dislikes" type="number">
+  Starting dislike count displayed to participants.
+</ParamField>
+
+<ParamField body="base_flags" type="number">
+  Starting flag count displayed to participants.
+</ParamField>
+
+<ParamField body="part_id" type="number">
+  ID of the study part this post belongs to, for multi-part studies.
+</ParamField>
+
+#### Response
+
+<ResponseField name="id" type="number">
+  Integer ID of the newly created post.
+</ResponseField>
+
+---
+
+### Update a Post
+
+```http
+PATCH /api/admin/posts/:id
+```
+
+Partially updates a post. Send only the fields you want to change.
+
+#### Path Parameters
+
+<ParamField path="id" type="number" required>
+  Integer ID of the post to update.
+</ParamField>
+
+#### Request Body
+
+All fields from the `POST /api/admin/posts` body are accepted as optional partial updates.
+
+#### Response
+
+<ResponseField name="ok" type="boolean">
+  `true` on success.
+</ResponseField>
+
+---
+
+### Reorder a Post
+
+```http
+PATCH /api/admin/posts/:id/reorder
+```
+
+Moves a post one position up or down within its study's post list.
+
+#### Path Parameters
+
+<ParamField path="id" type="number" required>
+  Integer ID of the post to reorder.
+</ParamField>
+
+#### Request Body
+
+<ParamField body="direction" type="string" required>
+  Either `"up"` to move the post earlier in the list, or `"down"` to move it later.
+</ParamField>
+
+#### Response
+
+<ResponseField name="ok" type="boolean">
+  `true` on success.
+</ResponseField>
+
+---
+
+### Upload a Post Image
+
+```http
+POST /api/admin/posts/:id/image
+```
+
+Attaches an image to a post. The request must be sent as `multipart/form-data`.
+
+#### Path Parameters
+
+<ParamField path="id" type="number" required>
+  Integer ID of the post to attach an image to.
+</ParamField>
+
+#### Request Body (multipart/form-data)
+
+<ParamField body="image" type="file" required>
+  The image file to upload. Accepted formats: `jpg`, `png`, `webp`. Maximum file size: **5 MB**.
+</ParamField>
+
+#### Response
+
+<ResponseField name="url" type="string">
+  Absolute URL of the uploaded image as served by your host. Store this URL if you need to reference the image externally.
+</ResponseField>
+
+<CodeGroup>
+```bash Request
+curl -X POST https://your-host/api/admin/posts/10/image \
+  -H "Authorization: Bearer <token>" \
+  -F "image=@/path/to/image.png"
+```
+
+```json Response
+{ "url": "https://your-host/uploads/posts/10/image.png" }
+```
+</CodeGroup>
 
 <Note>
-**This endpoint seeds on first read.** If the study has zero demographic questions, the platform's default set is inserted before the response is built. Reading the list for a brand-new study therefore creates rows.
+Uploading a new image replaces any previously uploaded image for the same post. The old file is removed from storage.
 </Note>
 
-### POST /studies/:studyId/demographic-questions
+---
 
-<ParamField body="field_key" type="string" required>
-  Stable machine key. It's what conditional logic references and what appears as the export column.
+### Delete a Post Image
+
+```http
+DELETE /api/admin/posts/:id/image
+```
+
+Removes the image from a post. The post itself is not deleted.
+
+#### Path Parameters
+
+<ParamField path="id" type="number" required>
+  Integer ID of the post whose image you want to remove.
 </ParamField>
 
-<ParamField body="label" type="string" required>
-  The question as the participant reads it, in the study's language.
+#### Response
+
+<ResponseField name="ok" type="boolean">
+  `true` on success.
+</ResponseField>
+
+---
+
+## Dashboard & Export
+
+### Get Dashboard Stats
+
+```http
+GET /api/admin/dashboard/:studyId
+```
+
+Returns aggregated statistics for the specified study, including session counts, completion rates, and per-post engagement summaries.
+
+#### Path Parameters
+
+<ParamField path="studyId" type="number" required>
+  Integer ID of the study to retrieve statistics for.
 </ParamField>
 
-<ParamField body="input_type" type="string" default="radio" />
+---
 
-<ParamField body="options" type="string" default="[]">
-  JSON string of options.
+### Export Session Data
+
+```http
+GET /api/admin/export/:studyId
+```
+
+Downloads all session and reaction data for a study as a spreadsheet or CSV file.
+
+#### Path Parameters
+
+<ParamField path="studyId" type="number" required>
+  Integer ID of the study to export.
 </ParamField>
 
-<ParamField body="required" type="boolean" default="true" />
-<ParamField body="order_index" type="integer">Defaults to last.</ParamField>
-<ParamField body="is_active" type="boolean" default="true" />
+#### Query Parameters
 
-Missing `field_key` or `label` returns `400`.
-
-### PUT /demographic-questions/:id
-
-Note this is a **PUT**, unlike the PATCH used elsewhere. Accepts `field_key`, `label`, `input_type`, `options`, `required`, `order_index`, `is_active`, `min_value`, `max_value`.
-
-<ParamField body="min_value" type="number">
-  Lower bound for freeform input — character count when `input_type` is `text`, numeric minimum when it's `number`. Send `null` to clear.
+<ParamField query="format" type="string">
+  Export format. Use `xlsx` (default) for an Excel workbook or `csv` for a plain comma-separated file. If omitted, defaults to `xlsx`.
 </ParamField>
 
-<ParamField body="max_value" type="number">
-  Upper bound, same semantics. Send `null` to clear.
-</ParamField>
+<CodeGroup>
+```bash XLSX (default)
+curl "https://your-host/api/admin/export/2" \
+  -H "Authorization: Bearer <token>" \
+  --output study-2-data.xlsx
+```
 
-In non-Polish studies `label` and the option labels route to the overlay; structural fields stay on the row. The response is the row **with the overlay applied**, so it reflects what you just saved in the active language.
-
-### DELETE /demographic-questions/:id
-
-Returns `{ "ok": true }`.
-
-### POST /demographic-questions/:id/reorder
-
-<ParamField body="direction" type="string" required>
-  `up` or `down`. Swaps with the adjacent question.
-</ParamField>
-
-## Post questions
-
-Questions attached to the feed or to a part, configured in the **Configurator**.
-
-| Method | Path | Notes |
-| --- | --- | --- |
-| `GET` | `/studies/:id/post-questions` | Active questions only (`is_active = 1`), ordered; overlay applied |
-| `POST` | `/studies/:id/post-questions` | Body: `label`, `question_type` (default `open`), `options_json` (default `[]`), `required` (default true), `order_index`, `part_id` |
-| `PATCH` | `/post-questions/:id` | Fields: `label`, `question_type`, `options_json`, `required`, `order_index`, `is_active` |
-| `DELETE` | `/post-questions/:id` | Returns `{ "ok": true }` |
-
-`label` and `options_json` route to the translation overlay in non-Polish studies; `question_type`, `required`, `order_index` and `is_active` always stay on the row.
-
-## Dashboard
-
-Backing the **Dashboard** tab.
-
-### GET /dashboard/aggregate
-
-The cross-study landing view. Scoped to the caller: a researcher gets only studies they own or collaborate on; an admin gets everything. **Production sessions only** (`is_preview = 0`).
-
-<ParamField query="date_from" type="string">`YYYY-MM-DD`. Ignored if malformed.</ParamField>
-<ParamField query="date_to" type="string">`YYYY-MM-DD`. Ignored if malformed.</ParamField>
-
-<ResponseField name="totalStudies" type="integer" />
-<ResponseField name="total" type="integer">Sessions started in range.</ResponseField>
-<ResponseField name="completed" type="integer" />
-<ResponseField name="dropout_rate" type="number">Percentage, two decimals.</ResponseField>
-<ResponseField name="avg_duration_min" type="number">Mean completion time in minutes, or `null`.</ResponseField>
-<ResponseField name="timeseries" type="array">Completed sessions per day, last 30 days.</ResponseField>
-<ResponseField name="perStudy" type="array">Per-study `id`, `name`, `slug`, `total`, `completed`, `dropout_rate`.</ResponseField>
+```bash CSV
+curl "https://your-host/api/admin/export/2?format=csv" \
+  -H "Authorization: Bearer <token>" \
+  --output study-2-data.csv
+```
+</CodeGroup>
 
 <Tip>
-The total counts by `started_at` while completions count by `completed_at`. That's what makes the drop-out rate honest — abandoned sessions have a `NULL` completed_at and would otherwise vanish from a date-filtered total, collapsing drop-out to 0%.
+Use `format=csv` when you want to pipe data directly into a data analysis tool. Use `format=xlsx` (the default) when you need formatted column headers, multiple worksheets, or compatibility with Excel.
 </Tip>
-
-### GET /dashboard/:studyId
-
-Edit-level guard.
-
-<ParamField query="include_preview" type="string">
-  `1` or `true` includes preview sessions. Omitted, only production sessions count.
-</ParamField>
-<ParamField query="date_from" type="string">`YYYY-MM-DD`.</ParamField>
-<ParamField query="date_to" type="string">`YYYY-MM-DD`.</ParamField>
-
-```bash
-curl "https://your-host/api/admin/dashboard/12?date_from=2026-01-01" \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-Selected response fields:
-
-<ResponseField name="total_sessions" type="integer" />
-<ResponseField name="completed_sessions" type="integer" />
-<ResponseField name="dropout_rate" type="number" />
-<ResponseField name="conditions_completion" type="object">Completed count keyed by full condition.</ResponseField>
-<ResponseField name="conditions_mean_belief_false" type="object">Mean belief on false items, keyed by condition.</ResponseField>
-<ResponseField name="conditions_mean_belief_true" type="object">Mean belief on true items, keyed by condition.</ResponseField>
-<ResponseField name="recent_sessions" type="array" />
-<ResponseField name="eyetracking_stats" type="object" />
-<ResponseField name="demographic_questions" type="array" />
-<ResponseField name="preview_count" type="integer">Completed preview sessions.</ResponseField>
-<ResponseField name="preview_count_incomplete" type="integer">In-progress preview rows.</ResponseField>
-<ResponseField name="include_preview" type="boolean">Echo of the query flag.</ResponseField>
-<ResponseField name="date_from" type="string" />
-<ResponseField name="date_to" type="string" />
-<ResponseField name="cross_filters" type="object">Echoed so the UI can render active filter chips.</ResponseField>
-<ResponseField name="widgets" type="array">Rendered widget output.</ResponseField>
-<ResponseField name="widgets_is_default" type="boolean">True when no custom arrangement is saved.</ResponseField>
-<ResponseField name="widget_columns" type="array">Typed column metadata (`key`, `header`, `type`, `group`) for variable pickers.</ResponseField>
-<ResponseField name="profiles" type="object">Named saved arrangements.</ResponseField>
-
-<Note>
-Column headers you rename in **Export** cascade here — `widget_columns` carries the renamed labels, so a variable is called the same thing in the dashboard, in the picker and in **Analyses**.
-</Note>
-
-### Dashboard configuration
-
-| Method | Path | Body | Purpose |
-| --- | --- | --- | --- |
-| `PUT` | `/dashboard/:studyId/config` | `{ widgets: [...] }` | Save the widget arrangement. Widgets without an `id` get one assigned |
-| `DELETE` | `/dashboard/:studyId/config` | — | Reset to smart defaults |
-| `GET` | `/dashboard/:studyId/profiles` | — | All named arrangements |
-| `POST` | `/dashboard/:studyId/profiles` | `{ name, widgets }` | Save current widgets under a name |
-| `DELETE` | `/dashboard/:studyId/profiles/:name` | — | Remove a named profile (`404` if unknown) |
-
-`widgets` must be an array or the request returns `400`. Saving config only writes `dashboard_config_json` — it never touches collected data.
-
-### Read-only share links
-
-#### POST /studies/:studyId/share-link
-
-<ParamField body="days" type="integer" default="30">
-  Validity in days. Clamped to 1–365.
-</ParamField>
-
-```json
-{ "token": "eyJhbGciOi...", "expires_days": 30, "url": "/share/dashboard/<token>" }
-```
-
-#### GET /public/dashboard/:token
-
-**No authentication.** Validates the token's `dashboard-readonly` scope and returns the same widget JSON shape as the authenticated dashboard endpoint.
-
-<Warning>
-Share tokens are stateless: revoking means regenerating, and the **old token stays valid until it expires**. Choose `days` accordingly — and treat any link you've handed out as live for its full term.
-</Warning>
-
-## Locales
-
-The admin panel's own interface strings (Polish by default, English via the switch in the header and on the login screen). These are **app-wide UI strings**, unrelated to study content.
-
-### GET /locales
-
-Any authenticated user. Returns the four supported languages — `pl`, `en`, `cs`, `sk` — each merged from the committed file baseline plus database overrides, along with an `__overrides` map:
-
-```json
-{
-  "pl": { "tabs.dashboard": "..." },
-  "en": { "tabs.dashboard": "📊 Dashboard" },
-  "cs": { },
-  "sk": { },
-  "__overrides": {
-    "en": { "tabs.dashboard": { "value": "...", "updated_at": "2026-07-16 09:12:44" } }
-  }
-}
-```
-
-`__overrides` lists which keys are currently served from the database rather than the file — the UI badges those rows so you can confirm a save landed.
-
-### PUT /locales/:lang
-
-**Admin only.** Locale strings are global — every researcher and participant sees them — so researchers cannot write here. Invalid language codes return `400`.
-
-The server diffs your object against the file baseline and writes only real differences into `locale_overrides`. Any key whose value matches the file, or is empty/null, has its override **deleted** — so clearing a field restores the default. The whole save runs in one transaction.
-
-<Note>
-Overrides live in the database precisely because they must survive redeploys. Writing the JSON file on disk worked in-container but platforms like Railway wipe the filesystem on every deploy, silently reverting edits.
-</Note>
-
-## Errors
-
-Errors are JSON with an `error` string:
-
-```json
-{ "error": "Not found" }
-```
-
-| Status | Meaning |
-| --- | --- |
-| `400` | Validation failure, missing confirmation, or invalid logic rules |
-| `401` | Missing, malformed, expired, or wrong-scope token |
-| `403` | Owner-level or admin-only endpoint reached by someone without the right |
-| `404` | Not found — **or** found but not yours (edit-level guards) |
-| `409` | Username already taken |
-
-<Note>
-Some error messages are still in Polish (for example `Nieprawidłowy login lub hasło.` from `/login`) — the panel displays them as-is. Match on the status code, not the message text.
-</Note>

@@ -1,217 +1,161 @@
 ---
-title: "Quickstart: your first study"
-description: "Build, preview, activate and export a working misinformation study in about fifteen minutes."
+title: "Quickstart: build and launch your first study"
+sidebarTitle: "Quickstart"
+description: "Follow these ten steps to go from a blank admin panel to a live participant link and your first exported dataset in about 15 minutes."
 ---
 
-This walkthrough takes you from an empty admin panel to a live study link and a data file. It uses the smallest set of features that produces a valid experiment — a consent screen, one part with a few posts, a debriefing — and leaves the methodological options (A/B manipulation, social-proof conditions, conditional logic) for later pages. Everything you set up here stays valid when you add them.
-
-<Note>
-The admin panel opens at `/admin` on your installation. It defaults to **Polish**; the language selector sits in the top-right of the header, and also on the login card. This guide uses the English labels.
-</Note>
-
-## The walkthrough
+This guide walks you through the complete lifecycle of a Misinfo Research study — from signing in for the first time to downloading your data. Each step is brief by design; linked guides go deeper on every topic. By the end you will have a live study URL you can share with participants and a clear picture of where to find your results.
 
 <Steps>
+  <Step title="Sign in to the admin panel">
+    Open your installation's admin panel at `/admin` (for example, `https://your-host/admin`). Enter your username and password, then click **Zaloguj się** (or **Sign in** if the panel is already in English).
 
-<Step title="Sign in">
-Open `/admin` and enter your **Username** and **Password**, then **Sign in**.
+    <Note>
+      The admin panel opens in **Polish** by default. To switch to English, click the language selector in the **top-right corner** of the page — it shows a flag or language code. Your browser stores the preference as a cookie, so subsequent visits will stay in the language you chose.
+    </Note>
 
-There is no self-registration. Accounts are created by an administrator — if you are self-hosting, the first administrator account comes from your environment configuration; otherwise ask whoever runs your instance.
+    Once you are signed in, your own browser is also marked as an **admin session**. Any study link you open from this browser will be tagged as a preview session (`is_preview = 1`) and excluded from your real participant data automatically.
+  </Step>
 
-Once you are in, look at the header: a study picker (**— select a study —**), a **+ New** button, a **My sessions:** switch, and (for administrators) an **Accounts** button. Below the header sits the tab bar: **Dashboard**, **Posts**, **Demographics**, **Configurator**, **Export**, **Analyses**, **Settings**.
+  <Step title="Create a new study">
+    From the admin home screen, click the **+ New** button (top-right of the studies list). Misinfo Research creates a blank study immediately — you do not need to fill in a form first.
 
-<Info>
-Signing in sets a browser cookie that marks the sessions *you* start as previews. That is what the **My sessions:** switch in the header controls — **Preview (not counted)** by default, **Production (counted)** if you deliberately want your own run to land in the real dataset. Leave it on Preview while you build.
-</Info>
-</Step>
+    The new study starts with the placeholder name **"Nowe badanie"** (Polish for "New study") and has a status of **Inactive**, meaning participants cannot access it yet. You land directly on the **Settings** tab of the study editor, ready for the next step.
+  </Step>
 
-<Step title="Create the study">
-Click **+ New** in the header.
+  <Step title="Name the study and set its slug">
+    On the **Settings** tab, fill in two distinct name fields:
 
-There is no dialog. The panel creates the study immediately and drops you into it on the **Settings** tab. The new study is:
+    - **Internal name** — used only inside the admin panel to identify the study in lists and exports. Pick something descriptive for your team, such as *"Headline credibility — Wave 2"*.
+    - **Participant title** — shown to participants at the top of the study pages. Keep it neutral so it does not prime responses (for example, *"Online News Study"*).
 
-- named `Nowe badanie` (a Polish placeholder — rename it in the next step),
-- given the slug `nowe-badanie` (with `-2`, `-3`… appended if that slug is taken),
-- **inactive**, so nobody can reach it yet,
-- owned by your account.
+    Then set the **slug** — the short identifier that appears in the participant URL:
 
-The study also appears in the header's study picker, where inactive studies are marked as such.
-</Step>
+    ```
+    https://your-host/study/<slug>
+    ```
 
-<Step title="Name it and set the slug">
-You are on the **Settings** tab, looking at the study builder.
+    Choose a slug that is short, lowercase, and contains only letters, numbers, and hyphens (for example, `news-study-w2`).
 
-At the top: the **study name** field (admin-facing), a language selector (PL / EN / CS / SK), and the action row — **Preview**, **Activate**, **Duplicate**, **Delete**.
+    <Warning>
+      **Do not change the slug after you have shared the participant link.** Changing the slug invalidates all previously distributed URLs, and anyone who opens an old link will see a "study not found" error. Set the slug before you go live and leave it unchanged for the entire data-collection period.
+    </Warning>
+  </Step>
 
-Under **Basic information**:
+  <Step title="Shape the study flow in the Configurator">
+    Click the **Configurator** tab. This is where you define everything participants experience from start to finish.
 
-<ParamField path="Slug (study URL)" type="text">
-The last segment of the participant link: `/study/<slug>`. Keep it short and stable.
-</ParamField>
+    Work through the sections from top to bottom:
 
-<ParamField path="Title shown to participants" type="text">
-What participants see. Empty falls back to the study name — useful when the internal name is `Pilot 2 — high social proof` but participants should read *A study on social media*.
-</ParamField>
+    1. **Consent text** — paste your IRB-approved consent statement. Participants must click an accept button before proceeding.
+    2. **Instruction screen** — toggle this on if you want to show participants a set of instructions after consent and before the feed. You can write custom instruction text.
+    3. **Demographics position** — choose when the demographics questionnaire appears:
+       - *After consent* — participants fill in age, gender, and other items before seeing any posts.
+       - *At the end* — demographics appear after all experiment parts are complete.
+       - *Skip* — omit demographics entirely (useful for very short pilots).
+    4. **Add an experiment part** — click **+ Add part** to insert a feed block. Give the part a name, choose a layout (**Feed** for a scrolling timeline or **Pager** for one-post-at-a-time navigation), and configure any time limits or reaction requirements. A typical single-part study has one part containing all your posts.
 
-<ParamField path="Description (visible only in the admin panel)" type="text">
-Your own notes. Never shown to participants.
-</ParamField>
+    <Tip>
+      You can add multiple parts to create multi-phase studies — for example, a pre-exposure opinion measure, a news feed, and a post-exposure recall task — each with its own layout and settings.
+    </Tip>
+  </Step>
 
-The line under the header reads **Changes are saved automatically** — the builder autosaves shortly after you stop typing, and the status flips to **Saved ✓**. There is also an explicit **Save** button in the bar at the bottom of the tab if you want to force it.
+  <Step title="Add posts to your study">
+    Open the **Posts** tab and click **+ Add post** to create your first simulated social-media item.
 
-<Warning>
-Changing the slug changes the participant URL. Do it before you send the link out, not after — any link already in circulation will stop working.
-</Warning>
-</Step>
+    Fill in the post fields:
 
-<Step title="Shape the flow in the Configurator">
-Switch to the **Configurator** tab. It is the same study, showing only the sections that define the experiment:
+    | Field | What it controls |
+    |---|---|
+    | **Source name** | The media outlet or account display name shown above the post |
+    | **Handle** | The @username shown beneath the source name |
+    | **Time ago** | The relative timestamp displayed on the post (e.g., *"2 hours ago"*) |
+    | **Headline** | Bold title text; supply Headline A and Headline B for A/B variants |
+    | **Content** | Body text of the post |
+    | **True post** | Toggle on if this post describes a real, accurate event (ground-truth label — never shown to participants) |
+    | **Engagement counters** | Likes, shares, and comment counts displayed on the post |
+    | **Image** | Optional post image; maximum file size is **5 MB**; JPEG and PNG accepted |
 
-<AccordionGroup>
-<Accordion title="Study screens">
-The screens participants walk through. **Consent screen** and **Debriefing** are marked **Always** — they are never optional. **Consent declined** is the text shown to someone who refuses. **Instruction** has an on/off toggle. **Demographics** has a **Position in the study flow** dropdown: *After consent (before the instruction)* (default), *At the end (before the debriefing)*, or *Skip entirely*. Two study-wide behaviour toggles live here too: **Participant comments** and **Multiple reactions on one post**.
+    Click **Save post** when each post is ready. Repeat until all posts for the study are added.
 
-For a first study, write the consent text and the debriefing text and leave the rest at their defaults.
+    <Note>
+      The **True post** toggle stores a ground-truth label (`is_true`) that Misinfo Research uses in analyses comparing participant accuracy ratings to objective truth. It is never displayed to participants in any form.
+    </Note>
+  </Step>
 
-<Tip>
-Put demographics **at the end** when you are worried that asking about age, education or political attitudes first could prime behaviour in the main task. Choose **Skip entirely** when you recruit through a panel that already supplies demographics out of band.
-</Tip>
-</Accordion>
+  <Step title="Preview the study before going live">
+    Click the **Preview** button (available on the Settings or Configurator tab). Misinfo Research opens `https://your-host/study/<slug>?preview=1` in a new tab.
 
-<Accordion title="Experiment parts">
-A part is a block of the study with its own post layout. Every study has at least one. Each part card gives you:
+    Preview mode has several important properties:
 
-- a **Part name**,
-- a **Post layout** — **Feed** (scrolling) or **Pager** (one post per page),
-- **Show reaction buttons (👍 / 👎 / 🔄 / 🚩)**,
-- **Interaction requirements** — e.g. "👍 Likes × 2" before Next unlocks (a count of `0` makes the requirement optional),
-- **Maximum time for this part** in seconds (`0` = no limit),
-- **Allow navigating back**,
-- and, from the second part onwards, a transition screen.
+    - The study does **not** need to be active. You can preview an inactive study at any time.
+    - The session is always assigned to the **first condition** regardless of randomization settings, so your preview experience is deterministic.
+    - **Conditional logic rules do not fire** in preview mode, so you will see every part of the study in sequence.
+    - The session is tagged `is_preview = 1` and is excluded from all dashboards, analyses, and exports by default.
 
-**+ Add part** adds another. One part is enough for now.
-</Accordion>
+    Use preview sessions liberally during design. Run through the full flow — including consent, instructions, the feed, demographics, and the completion screen — to catch any issues before real participants see the study.
+  </Step>
 
-<Accordion title="Manipulation, Metric conditions, Conditional logic">
-Three optional sections you can skip today:
+  <Step title="Activate the study">
+    When you are satisfied with the study design, return to the **Settings** tab and click **Activate**. The study status changes to **Active**, and the participant link is now live.
 
-- **Manipulation (A/B condition)** — a between-subjects split where each post has an A and a B variant.
-- **Metric conditions (social proof)** — a second between-subjects factor that randomises the like/share counters shown under posts.
-- **Conditional logic** — "if → then" rules that skip a part or end the study early.
+    <Warning>
+      After you begin collecting real participant data, **avoid changing the `is_true` (True post) toggle** on any post. The ground-truth label is used to compute accuracy scores for sessions that have already been collected. Flipping the label retroactively changes the meaning of those scores and can invalidate your dataset.
+    </Warning>
 
-Leave all three empty and every participant sees the same single-condition study.
-</Accordion>
-</AccordionGroup>
-</Step>
+    You can deactivate a study at any time to pause data collection without deleting any data.
+  </Step>
 
-<Step title="Add posts">
-Go to the **Posts** tab and click **+ Add post**. An empty post is created and expands straight away — there is no separate dialog.
+  <Step title="Share the participant link">
+    Go to the **Dashboard** tab of your study. The participant URL is displayed prominently:
 
-Fill in the fields that matter for a first pass:
+    ```
+    https://your-host/study/<slug>
+    ```
 
-- **Source (name)**, **Handle**, **Time ago** — the fake account the post appears to come from.
-- **Headline** and **Content** — the post itself. (If you had defined an A/B manipulation, this section would split into one block per condition.)
-- **True post** — your ground-truth label for this item. This is the flag your analyses of belief accuracy depend on, so set it deliberately.
-- **Active** — inactive posts are never shown.
-- **Topic**, **Emoji**, **Hide topic** — the category badge above the post.
-- **Social interactions** — the baseline likes / shares / dislikes / flags printed under the post (`0` hides a counter).
-- **Image** — optional, jpg/png/webp, max 5 MB.
-- **Experiment parts** — appears once the study has two or more parts; tick every part this post belongs to.
+    Copy and distribute this link through your panel system, email list, or any recruitment platform. Each participant who opens the link starts a fresh session and is assigned to a condition automatically.
 
-Click **Save post**, then repeat. In a builder study every active post is shown, in the order you arrange them with the ↑/↓ controls.
+    <Warning>
+      If you open this link from your **own admin browser**, the session will be tagged as a preview session and excluded from data. Use a different browser or a private/incognito window to experience the study exactly as a participant would. The **My sessions** switch on the Dashboard filters the session list to show only your own sessions — turn it off to see real participant data.
+    </Warning>
+  </Step>
 
-<Tip>
-**From library** copies a ready-made post out of the reusable post library into this study. The copy is independent — later edits to the template do not touch it.
-</Tip>
-</Step>
+  <Step title="Monitor the Dashboard">
+    The **Dashboard** tab shows a live overview of your study while data collection is in progress:
 
-<Step title="Preview">
-Click **Preview** (in the Settings action row, or **Preview in a new tab** in the bar at the bottom of Settings and Configurator).
+    - **Session counts** — total started, completed, and dropped-out
+    - **Condition breakdown** — how many sessions have been assigned to each arm of the design
+    - **Response distributions** — histograms and frequency tables for reactions and ratings
+    - **Completion rate** — percentage of started sessions that reached the end
 
-The panel saves your work first, then opens `/study/<slug>?preview=1` in a new tab. Two things are worth knowing:
+    Widgets **auto-refresh** periodically. Use the **date-range filter** at the top of the Dashboard to focus on a specific recruitment window. You can also run quick in-app statistical tests (t-test, ANOVA, chi-squared, correlation, regression, Cronbach's alpha) from the **Analyses** section without leaving the platform.
+  </Step>
 
-- **Preview works while the study is still inactive.** That is the whole point of the flag — you can walk the full flow before anyone else can reach it.
-- **If the study has no active posts, an example post is created for you** so the preview has something to render. Replace it with your own content.
+  <Step title="Export your data">
+    When data collection is complete, open the **Export** tab.
 
-Preview runs are deterministic: they always use the *first* condition rather than a random one, so what you see is repeatable. Conditional-logic rules do not fire in preview.
+    Choose your preferred format:
 
-<Info>
-Sessions started this way are tagged as previews in the database. They are hidden from the Dashboard and excluded from the export unless you opt them in, and you can delete them in one click from the Export tab.
-</Info>
-</Step>
+    - **Download Excel (.xlsx)** — a multi-sheet workbook with separate tabs for raw reactions, session summaries, and the 2 × 2 condition design breakdown.
+    - **Download CSV** — a flat file with one row per reaction event, suitable for direct import into R, Python, or SPSS.
 
-<Step title="Activate">
-Click **Activate** — in the Settings action row, or on the study's row in the studies list.
-
-Until you do, `/study/<slug>` returns *not found* to anyone who opens it. After you do, the badge flips to **Active** and the link is live.
-
-<Warning>
-Activation is the point of no return for your design: from here on, participants generate real rows. Changing a Likert scale's numbering, a post's **True post** flag, or a manipulation after data collection has started changes the meaning of the data you already hold.
-</Warning>
-</Step>
-
-<Step title="Share the participant link">
-The link is:
-
-```
-https://your-installation.example.org/study/<slug>
-```
-
-The **Dashboard** tab prints it at the top, next to **URL:**, as a clickable link.
-
-<Warning>
-If you open the live link yourself, check the **My sessions:** switch in the header first. On **Preview (not counted)** your run is tagged as a preview and stays out of the data. On **Production (counted)** it lands in your dataset as if you were a participant.
-</Warning>
-
-The separate **Share** button on the Dashboard does something different: it generates a public, read-only link to the *dashboard*, for supervisors or collaborators who should see the numbers without an account. It is not the participant link.
-</Step>
-
-<Step title="Watch the Dashboard">
-Open the **Dashboard** tab with the study selected. On a new study the panel generates a default widget layout from your study's structure — it carries a **Default** badge until you change it.
-
-What you get out of the box:
-
-- A widget grid you can rearrange or extend: **Edit** turns on edit mode, then **+ Widget** adds histograms, bar charts, crosstabs, KPIs, time series and more.
-- A date-range filter with 7d / 30d / all-time shortcuts, and cross-filters — click a chart category to filter every other widget by it.
-- An auto-refresh selector (off / 30s / 1min / 5min) for watching a launch live.
-- **PNG** and **PDF** snapshots of the whole dashboard.
-- A **Last 20 completed sessions** table at the bottom: ID, Condition, Age, Gender, Avg. belief (false), Date. Preview sessions are marked with a 🧪.
-
-<Tip>
-The dashboard is for monitoring recruitment, not for testing hypotheses. Watch it for drop-out and for conditions filling unevenly; do the statistics on the exported file.
-</Tip>
-</Step>
-
-<Step title="Export">
-Open the **Export** tab. It shows how many sessions are completed, how many exist in total, and how many are hidden preview sessions.
-
-- **Download Excel (.xlsx)** — the full multi-sheet workbook.
-- **CSV** — the raw-data sheet only, for a quick import into R / SPSS / Python.
-- **Preview and customize columns** — expands an inline builder where you hide, rename and reorder columns before exporting. It never deletes anything from the database.
-- **Coding key for demographic variables** — the numeric codes used for gender, age, education and place of residence.
-
-Preview sessions are excluded by default; a checkbox lets you include the completed ones, and a delete button removes preview sessions (and their reactions, ratings and answers) without touching production data.
-
-<Check>
-You now have a study that participants can complete end to end, and a data file you can open in your analysis software.
-</Check>
-</Step>
-
+    Both formats exclude preview sessions. The Excel workbook is the recommended format for most researchers because the separate sheets make it easy to inspect different levels of the data before loading it into your analysis software.
+  </Step>
 </Steps>
 
-## What to read next
+## Where to go next
 
 <CardGroup cols={2}>
-<Card title="Core concepts" href="/concepts">
-Studies, parts, posts, conditions and sessions — the vocabulary the rest of the docs assumes.
-</Card>
-<Card title="The Configurator" href="/guide/configurator">
-Every screen, part and toggle in depth.
-</Card>
-<Card title="Manipulation (A/B)" href="/guide/manipulation">
-Turn the single-condition study above into a between-subjects experiment.
-</Card>
-<Card title="Preview and launch" href="/guide/preview-and-launch">
-Preview sessions, activation and the production-mode switch, in detail.
-</Card>
+  <Card title="Core Concepts" icon="diagram-project" href="/concepts">
+    Deepen your understanding of studies, parts, posts, conditions, and sessions.
+  </Card>
+  <Card title="Configurator" icon="sliders" href="/guide/configurator">
+    Full reference for every setting in the Configurator tab — layouts, logic rules, and part options.
+  </Card>
+  <Card title="A/B Manipulation" icon="code-branch" href="/guide/manipulation">
+    Learn how style conditions and metric conditions combine into a 2 × 2 factorial design.
+  </Card>
+  <Card title="Preview & Launch" icon="circle-play" href="/guide/preview-and-launch">
+    Best practices for testing your study end-to-end before opening recruitment.
+  </Card>
 </CardGroup>

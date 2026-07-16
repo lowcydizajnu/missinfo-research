@@ -1,189 +1,101 @@
 ---
-title: "In-app analyses"
-description: "Run descriptives, t-tests, ANOVA, chi-square, correlations, regression and Cronbach's alpha on your study data without leaving the panel."
+title: "Running Built-in Statistical Analyses"
+sidebarTitle: "Analyses"
+description: "Explore your study data with descriptive statistics, t-tests, ANOVA, correlations, chi-square tests, regression, and reliability analyses — all without leaving the platform."
 ---
 
-The **📊 Analyses** tab lets you ask a statistical question of your data while the study is still running: *does the misinformation condition change perceived credibility?*, *is my credibility scale internally consistent?*, *do older participants share more?* You pick a test, pick the variables, click **▶ Run analysis**, and get the test statistic, degrees of freedom, p-value, effect size and a one-line interpretation.
+The **Analyses** tab gives you access to a set of standard statistical procedures that run directly against your study's production data. You can compute descriptive summaries, compare groups, test associations, and check scale reliability without exporting to an external tool first. This makes it easy to get a quick read on your data while recruitment is still ongoing or immediately after it closes.
 
-It is a quick-look instrument. It exists so that you can sanity-check a manipulation after 30 sessions instead of waiting for the full sample and a trip to R. It is not a replacement for your analysis software, and the tab says so on every result card.
+<Warning>
+  **Built-in analyses are for quick exploration only.** The results shown on this tab have not been independently audited and should not appear in a manuscript without verification. Before reporting any finding for publication, **re-run your analyses in R, SPSS, JASP, or Python** where you have full control over assumptions, effect-size calculations, and reporting standards. Every result on this tab is accompanied by a reminder of this limitation.
+</Warning>
 
-Pick a study from the picker at the top first — otherwise the tab shows *Select a study from the list above.*
+## Available analyses
 
-## Where the numbers come from
+### Descriptive statistics
 
-The Analyses tab does not read a separate data store. Every test runs against **the same data layer the Export tab produces** — the `Dane_surowe` (raw data) sheet, recomputed from scratch on every run. Three consequences worth internalising:
+For any numeric variable in your dataset, the platform computes the mean, standard deviation, sample size (*n*), minimum, and maximum — broken down by group if you select a grouping variable. Use this as your first step before running any inferential test.
 
-- **Results are always live.** There is no caching. Run the same analysis tomorrow and it includes the sessions that arrived overnight.
-- **The variable pickers show your export column names.** The tab loads column metadata from the export preview and uses the *labelled* columns, so any header you renamed in the Export tab's column builder appears here under that new name. One source of truth for column labels.
-- **The tab follows the Export tab's current options.** When you click **▶ Run analysis**, it reads the language selector and the *include preview sessions* checkbox from the Export tab and passes them along. If you have not touched those, the analysis runs on canonical data with preview sessions excluded — the same defaults as a plain export.
+### Welch's t-test
 
-<Note>
-Every result card shows **N (filtered)** — the number of rows in the underlying dataset — next to the test name. This is the row count *before* the test drops incomplete cases, so it will usually be larger than the N reported inside the test itself. Read both.
-</Note>
+Compares the means of a continuous outcome variable between **two groups** (e.g., two conditions, or male vs. female participants). Welch's correction is applied by default so that the test remains valid when the two groups have unequal variances, without requiring you to first run a test of homogeneity of variance.
 
-## Variable types and what they unlock
+### One-way ANOVA with Tukey HSD post-hoc
 
-Each export column carries a type, shown as a badge in the pickers:
+Tests whether the means of a continuous outcome variable differ significantly across **three or more groups**. When the omnibus F-test is significant, **Tukey's Honest Significant Difference** post-hoc comparisons are computed automatically so you can see exactly which pairs of groups differ from each other while controlling the family-wise error rate.
 
-| Badge | Type | Example columns |
-| --- | --- | --- |
-| 🔢 | number | `post_1_liked`, `age_code`, rating scales |
-| 🏷 | categorical | `full_condition`, `age`, `post_1_reaction` |
-| 📝 | text | open-ended responses |
-| 🔗 | link | URL columns |
+### Pearson and Spearman correlation
 
-The pickers filter by type, and this is the main reason a variable you expect is missing from a dropdown. Continuous slots (means, correlations, regression, alpha) only offer **number** columns. Grouping slots only offer **categorical** or **text** columns.
+Quantifies the linear (Pearson) or rank-based monotonic (Spearman) relationship between two continuous or ordinal variables. Both options return the correlation coefficient *r* (or *ρ*), sample size, and two-tailed *p*-value. Choose Spearman when your variables are ordinal or when a histogram suggests the distribution is heavily skewed.
+
+### Correlation matrix
+
+Extends the pairwise correlation to a full grid of correlations across a set of numeric variables you select. Cells are colour-coded by magnitude and sign, making it easy to spot clusters of related variables at a glance.
+
+### Chi-square test with Cramér's V
+
+Tests whether two categorical variables are independent of each other (e.g., condition and whether participants shared a post). The result includes the χ² statistic, degrees of freedom, *p*-value, and **Cramér's V** as a standardised effect-size measure that is not inflated by large samples the way the raw χ² value can be.
+
+### Linear regression
+
+Fits an ordinary least-squares regression model predicting a continuous outcome from one or more predictor variables. The output table reports unstandardised coefficients, standard errors, *t*-statistics, *p*-values, and overall model *R²*. You can add categorical predictors by selecting a reference category for dummy coding.
+
+### Cronbach's alpha
+
+Estimates the internal consistency reliability of a set of items you believe measure the same latent construct (e.g., a block of credibility-rating questions). The output includes the overall alpha coefficient and the "alpha if item deleted" value for each item, so you can identify items that weaken the scale.
+
+## Running an analysis
+
+<Steps>
+  <Step title="Choose a test">
+    Select the statistical procedure you want from the left panel of the Analyses tab.
+  </Step>
+  <Step title="Configure the inputs">
+    Choose your outcome variable, grouping variable or predictors, and any relevant options (e.g., Pearson vs. Spearman). Available variables are drawn from the columns in your `Podsumowanie_sesji` and `Dane_surowe` sheets.
+  </Step>
+  <Step title="Run the analysis">
+    Click **Run**. Results appear in the main panel within a few seconds for typical sample sizes.
+  </Step>
+  <Step title="Review the exploration warning">
+    Each results panel displays a reminder that these outputs are for exploratory use only. Note this before sharing screenshots or summary tables with co-authors.
+  </Step>
+</Steps>
+
+## Saving analyses for later
+
+You can save any configured analysis — its test type, variable selections, and options — so that you can re-run it as new sessions come in or revisit it after a period of time.
+
+<Steps>
+  <Step title="Click Save analysis">
+    After running an analysis, click the **Save analysis** button in the results panel.
+  </Step>
+  <Step title="Give it a name">
+    Enter a short descriptive label (e.g., "Condition × Belief — Welch t-test") and click **Save**.
+  </Step>
+  <Step title="Re-run from the saved list">
+    Saved analyses appear in a list on the left panel. Click any saved item and then **Run** to execute it against the current dataset. The configuration is restored exactly as you left it.
+  </Step>
+</Steps>
 
 <Tip>
-Demographics are stored twice: `age` is the human-readable label (categorical — good for grouping) and `age_code` is the numeric code (number — good for correlations). Same for `residence`, `education` and `gender`. If a demographic will not appear in a continuous picker, you are looking at the label column; reach for the `_code` one.
+  Saving analyses is especially useful during ongoing data collection. You can re-run the same set of tests each week to monitor how effect estimates stabilise as your sample grows — while remembering that sequential peeking inflates Type I error rates, which is one more reason to treat these outputs as exploratory.
 </Tip>
 
-## The tests
+## Recommended external tools
 
-The sidebar lists eight tests under **Choose a test**. Selecting one clears the current parameters and result, so switch deliberately.
-
-<AccordionGroup>
-
-<Accordion title="📋 Descriptive statistics">
-*Mean, median, SD and quartiles for a single continuous variable.*
-
-**Fields:** Variable (one 🔢 column).
-
-**Returns:** N (complete), Missing, Mean (M), Std. deviation (SD), Median, IQR as Q1–Q3, Min, Max, SEM.
-
-The obvious first move for any new outcome variable — it tells you the range participants actually used, how much data is missing, and whether the distribution is anywhere near where you expected.
-</Accordion>
-
-<Accordion title="📊 t-test (Welch)">
-*Compares the means of 2 groups. Welch for independent samples, standard for paired ones.*
-
-**Fields:** *Paired samples* (checkbox), Continuous variable (🔢). Then, depending on the checkbox:
-- unchecked → Grouping variable (≥2 groups) (🏷 or 📝)
-- checked → Second variable (paired) (🔢)
-
-**Independent samples** use **Welch's t-test by default** — it does not assume equal variances. This is the right default: the equal-variance (Student) t-test is only correct when group variances match, and the Welch version costs you almost nothing when they do. You get t, df (fractional, as Welch's correction produces), the p-value, Cohen's d with a magnitude label, the 95% CI of the difference, and per-group N/M/SD.
-
-A **Levene test** (median-based) runs alongside and is reported under *Equality of variances (Levene)* with a verdict: *✓ met*, or *✗ violated (consider a non-parametric test)*. Because the test is already Welch, a violated Levene is information about your data rather than an invalidation of the result.
-
-**Paired samples** compare two columns row by row — the same participant measured twice (e.g. a pre and post rating). You get N pairs, mean difference, SD of the difference, t, df, p, Cohen's d and the 95% CI of the difference.
-
-<Warning>
-The independent-samples test refuses to run if the grouping variable has more than two groups, and tells you to use ANOVA instead. This is a guardrail, not a bug: silently comparing the first two of four conditions would be a real methodological error.
-</Warning>
-</Accordion>
-
-<Accordion title="📈 One-way ANOVA">
-*Compares the means of 3+ groups. With Tukey HSD post-hoc when significant.*
-
-**Fields:** Dependent variable (continuous) (🔢), Grouping variable (≥2 categories) (🏷 or 📝).
-
-**Returns:** F with both df, p, η² (eta²), SS between / within, and a **Group statistics** table (label, N, M, SD per group).
-
-**Post-hoc runs automatically** when the main effect is significant (p < .05) *and* there are at least three groups — an omnibus F only tells you *some* group differs, so the Tukey HSD table gives you the pairwise comparisons: mean difference, q, p, 95% CI, with significant rows marked. With only two groups no post-hoc appears (there is nothing to correct for — use the t-test).
-
-Levene is reported here too, with a violated verdict suggesting *Welch ANOVA or Kruskal-Wallis* — neither of which this tab implements. That is a deliberate hand-off to your stats software.
-</Accordion>
-
-<Accordion title="🔲 Chi² test of independence">
-*Whether two categorical variables are related. Cramér's V as the effect size.*
-
-**Fields:** Row variable (🏷 or 📝), Column variable (🏷 or 📝).
-
-The contingency table is built for you from the two columns — every observed category becomes a row or column. You get χ² with df and N, p, Cramér's V, and the full **Observed counts table**.
-
-<Warning>
-If any cell has an expected count below 5, a warning appears telling you how many cells are affected and that the result may be unreliable. Fisher's exact test is **not** available in this app — the suggested fixes are to merge categories or run the exact test elsewhere.
-</Warning>
-</Accordion>
-
-<Accordion title="∼ Correlation">
-*Pearson for linear continuous variables, Spearman for ranked/monotonic ones.*
-
-**Fields:** Method (*Pearson (linear)* or *Spearman (rank)*), Variable X (🔢), Variable Y (🔢).
-
-**Returns:** r (or r_s), N, df, p, r², and — for Pearson only — a 95% CI computed via the Fisher z transformation. Spearman gets no CI.
-
-Pairs are kept only where **both** variables have a numeric value, and the test needs at least three complete pairs.
-</Accordion>
-
-<Accordion title="⊞ Correlation matrix">
-*Pearson r between every pair of the selected continuous variables.*
-
-**Fields:** Continuous variables (Ctrl/Cmd+click to select several) — a multi-select of 🔢 columns; at least two.
-
-Returns a symmetric matrix of Pearson coefficients, with cells where p < .05 highlighted. Hovering a cell shows its exact p-value. The diagonal is 1.
-
-The natural companion to a battery of rating items: run the matrix first to see what hangs together, then run Cronbach's alpha on the cluster.
-
-<Warning>
-The matrix does **no** correction for multiple comparisons. Ten variables means 45 tests, and at α = .05 you expect roughly two "significant" cells from noise alone. Treat the highlighting as a map of where to look, never as a set of findings.
-</Warning>
-</Accordion>
-
-<Accordion title="↗ Linear regression Y ~ X">
-*Simple OLS: fits Y = a + b·X, reports R² and the significance of the slope.*
-
-**Fields:** Predictor (X) (🔢), Dependent variable (Y) (🔢).
-
-**Returns:** the fitted equation, R², r, the slope (b) with its standard error, t(df) for b with a p-value, and the 95% CI for b.
-
-This is **simple** regression — one predictor, one outcome. There is no multiple regression, no covariates, no interaction terms in this tab. Those belong in R/SPSS/JASP.
-</Accordion>
-
-<Accordion title="α Cronbach's alpha">
-*Internal consistency of a multi-item scale (e.g. several Likert questions).*
-
-**Fields:** Scale items (≥2 continuous; Ctrl/Cmd+click) — a multi-select of 🔢 columns.
-
-**Returns:** α, Number of items, N complete cases, a Reliability verdict, and an **α if item deleted** table listing every item with the alpha the scale would have without it.
-
-Alpha uses **listwise deletion** — only cases where every selected item has a numeric value count, so *N complete cases* can be well below your session count if participants skipped items.
-
-The *α if item deleted* table is the point of running this before your main analysis: an item whose removal *raises* alpha is a candidate for being reverse-coded incorrectly, ambiguously worded, or simply measuring something else.
-</Accordion>
-
-</AccordionGroup>
-
-## Saving and reloading an analysis
-
-**💾 Save as…** prompts you for a name (the placeholder suggests something like *"Credibility by condition"*) and stores the analysis under **Saved analyses** in the sidebar.
-
-What gets saved is the **template — the test type and the variable picks — not the numbers.** Clicking a saved analysis loads its configuration and immediately re-runs it against current data.
-
-<Note>
-This is the design decision that makes the tab useful during data collection. A saved analysis is a standing question, not a screenshot. Set up "credibility by condition" on day one, click it every morning, and you are always looking at today's sample — never at a stale result you forgot to refresh.
-</Note>
-
-Saved analyses live with the study, so they travel with it and are visible to anyone with access to that study. The 🗑 button next to a saved analysis deletes it after a confirmation prompt; it removes the template only and touches no data.
-
-## A note on result language
-
-The panel's interface is translated — Polish by default, with an English switch in the header. The **interpretation sentence** printed above each result table, and some validation error messages, are generated by the statistics engine in **Polish**, whatever language the panel interface is set to.
-
-The numbers, tables, labels and headings around them are translated normally, and the interpretation line never contains anything the tables do not also show, so nothing is lost if you cannot read it.
-
-## Before you publish
-
-<Warning>
-Every result card ends with the same line: **Result intended for quick exploration. Verify in R / SPSS / JASP before publication.** Take it literally.
-</Warning>
-
-The statistics engine's outputs are validated against R/SPSS to within four decimal places for the test fixtures in the project's test suite, so the arithmetic is not the concern. The concern is everything a quick-look tool deliberately leaves out:
-
-- **No multiple-comparison correction** anywhere except the Tukey post-hoc.
-- **No Fisher's exact test**, so small-cell contingency tables have no exact fallback here.
-- **No Welch ANOVA or Kruskal-Wallis**, so a violated homogeneity assumption in ANOVA has no in-app remedy.
-- **No multiple regression** — one predictor only.
-- **No Shapiro-Wilk.** The engine's normality checking is a skewness/kurtosis heuristic, chosen because approximate Shapiro-Wilk implementations are unreliable at small n and a wrong p-value is worse than an honest rule of thumb.
-- **No analysis plan, no pre-registration discipline, no audit trail.** Clicking through eight tests on the same data is exploration. Reporting the one that came out significant is p-hacking.
-
-The intended workflow is: explore here, confirm there. When you are ready to write up, use the Export tab to download the data (**📥 Download Excel (.xlsx)** or the CSV, which is the `Dane_surowe` sheet only for a quick import into R/SPSS/Python) and re-run the analysis in your own software — the empty state of this tab tells you the same thing.
+Once your data collection is complete, carry your analysis into one of the following environments for publication-quality results:
 
 <CardGroup cols={2}>
-  <Card title="Data export" href="/guide/export" icon="download">
-    Download the data, rename columns, and manage preview sessions — the same layer these tests read.
+  <Card title="R / RStudio" icon="r-project">
+    Full-featured statistical computing with packages such as `lme4`, `effectsize`, `psych`, and `ggplot2`. Ideal for complex mixed models and reproducible scripting.
   </Card>
-  <Card title="Dashboard" href="/guide/dashboard" icon="chart-line">
-    Live charts and widgets for monitoring a study as it runs.
+  <Card title="JASP" icon="chart-bar">
+    Point-and-click interface that mirrors the Analyses tab experience while producing APA-formatted output tables and Bayesian alternatives for every frequentist test.
+  </Card>
+  <Card title="SPSS" icon="table">
+    Widely used in social-science departments. Supports all tests available on the Analyses tab and generates syntax files for reproducibility.
+  </Card>
+  <Card title="Python (pingouin / scipy)" icon="python">
+    The `pingouin` library replicates every test on this tab and integrates with `pandas` DataFrames, making it easy to load your exported CSV directly.
   </Card>
 </CardGroup>

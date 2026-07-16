@@ -1,232 +1,139 @@
 ---
-title: "Posts and the post library"
-description: "Build the stimuli participants see — source, headline, image, base metrics, A/B variants — and reuse them across studies via the post library."
+title: "Creating and Managing Posts in Your Study"
+sidebarTitle: "Posts"
+description: "Add, configure, and organise posts in a builder study, including images, A/B variants, engagement counters, and part assignments."
 ---
 
-Posts are your stimuli. Each one is a mock social-media item with a source, a headline, a body, optional image and avatar, and optional engagement counters. Everything a participant reacts to and rates comes from a post, so this is where most of your experimental design becomes concrete.
+The Posts tab is where you create and manage every piece of content participants will see during your study. Each post represents a single social-media item — a news article headline, a tweet-style post, or any other content unit your study requires. Posts are study-specific: they are not shared across studies unless you copy them from the post library. You can add as many posts as your study needs, reorder them at any time, and control exactly which experiment parts each post appears in.
 
-You edit posts in the **Posts** tab (the pane is titled **Post editor**). The tab works on one study at a time — select a study first, otherwise the editor tells you to.
-
-## The post list
-
-Every post is a collapsible row. Click the row header to open its form. The header shows, from left to right:
-
-- the **order number** (`order_index`), which drives the sequence participants see;
-- the **source name** and **handle**;
-- a **Last edited** timestamp, once the post has been saved at least once;
-- the **topic badge** (emoji + topic);
-- a **TRUE** / **FALSE** badge — your ground-truth flag for the item;
-- an **Active** / **Hidden** badge.
-
-On the right of each row:
-
-| Button | What it does |
-| --- | --- |
-| **👁 Preview** | Opens a preview of the post as participants would see it |
-| **🗂 To library** | Copies the post into the shared post library (the study post stays where it is) |
-| **↑** / **↓** | **Move up** / **Move down** — swaps the post's `order_index` with its neighbour |
-| **🗑** | **Delete post** — asks for confirmation |
-
-<Warning>
-Deleting a post also deletes the reactions and ratings attached to it, and cannot be undone. The confirmation dialog says so explicitly. If you only want a post out of the feed, switch off **Active** instead — hidden posts keep their data.
-</Warning>
-
-Above the list there are two buttons: **+ Add post** creates an empty post at the end of the list and expands it; **🗂 From library** opens the library picker.
-
-<Note>
-A brand-new post is not blank in the database: it starts with topic `nauka`, emoji `📝` and **Time ago** `teraz`. Overwrite those with your own content.
-</Note>
-
-## Two editor layouts
-
-The fields you see depend on how the study was created.
-
-<Tabs>
-  <Tab title="Studies built in the Configurator">
-    Every study you create with **+ New** in the header opens in the Configurator and is flagged as a builder study (the study list marks it with a **Builder** badge). Its post form is the one described below: variant sections are labelled with your own condition names, base metrics are edited directly on the post, and comments under the post are a free list.
-  </Tab>
-  <Tab title="Older (legacy) studies">
-    Studies created before the Configurator keep the older post form. It differs in four places, described in [Legacy post form](#legacy-post-form): fixed "Version A — manipulative / Version B — neutral" headings, a **Manipulation techniques** checklist, an **Experimenter comment** per variant, and **Metrics per condition** instead of plain base metrics.
-  </Tab>
-</Tabs>
-
-## Basics
-
-| Field | Notes |
-| --- | --- |
-| **Topic** | A dropdown with five fixed values: `zdrowie`, `klimat`, `polityka`, `ekonomia`, `nauka`. This is study content, so it stays in the study's language and is translated per study, not by the panel's language switch. |
-| **Emoji** | Free text, shown next to the topic on the post's badge. |
-| **Source (name)** | The account name shown on the post, e.g. a fictional outlet. Also used to build the fallback avatar initials. |
-| **Handle** | The `@`-style handle under/next to the source name. |
-| **Time ago** | Free text, not a real timestamp — you type exactly what participants read (e.g. `2 h`). |
-| **True post** | Toggle. Your ground truth for accuracy analyses; drives the TRUE/FALSE badge in the admin list. Participants never see it in the feed. |
-| **Active** | Toggle. Only active posts are served to participants. |
-| **Hide topic** | Toggle. Suppresses this post's topic badge for participants — useful when the category itself would cue credibility. |
-
-### Experiment parts
-
-If the study has two or more parts, the Basics grid also shows **Experiment parts** with a checkbox per part, prefixed by its position in the flow (`1.`, `2.`, …). Tick every part the post should appear in — one post can appear in several parts, which is how you show the same stimuli twice (e.g. a feed for reactions in part 1, then paged with questions in part 2). The hint under the checkboxes states the fallback: **Nothing ticked = the post goes to the first part.**
-
-## Content and A/B variants
-
-Each post stores two content variants in the database: `headline_a` / `content_a` and `headline_b` / `content_b`. This is what the **Manipulation** factor in the Configurator switches between — a participant assigned to the first condition sees the `_a` fields, one assigned to the second sees the `_b` fields.
-
-What the form shows follows directly from that:
+## Adding a Post
 
 <Steps>
-  <Step title="No manipulation configured">
-    You get a single **Headline** and **Content** pair plus one **Image** upload. No A/B anywhere — the `_b` fields are not editable and stay empty.
+  <Step title="Open the Posts tab">
+    Navigate to your study and click the **Posts** tab.
   </Step>
-  <Step title="A manipulation with two named conditions">
-    You get two sections headed `Condition A: your label` and `Condition B: your label`, each with its own **Headline**, **Content**, and an **Image** area labelled with that condition. The first condition writes to the `_a` columns, the second to the `_b` columns.
+  <Step title="Click Add Post">
+    A new blank post card appears at the bottom of the list.
+  </Step>
+  <Step title="Fill in the post fields">
+    Complete the fields described below. At minimum, provide a Source name and either a Headline or Content.
+  </Step>
+  <Step title="Save">
+    Click **Save** on the post card. Unsaved posts are highlighted; navigating away without saving will lose your changes.
   </Step>
 </Steps>
 
-<Warning>
-The manipulation is deliberately a **two-arm** split, because a post only carries `_a` and `_b` content. If a study were saved with three or more conditions, the participant runtime assigns only the first two — a third arm would be recorded but could not show distinct content.
-</Warning>
+## Post Fields
+
+<ParamField path="source_name" type="string" required>
+  The display name of the account or publication that "posted" this content. Shown as the author name in the post card — for example, *The Daily Wire* or *@sciencenews*.
+</ParamField>
+
+<ParamField path="handle" type="string">
+  The @handle shown below the source name. Include the @ symbol in the value if you want it displayed. Leave blank to show no handle.
+</ParamField>
+
+<ParamField path="time_ago" type="string">
+  A human-readable timestamp shown on the post, e.g. *2h*, *3 days ago*, or *Jan 14*. This is free text — it is not computed from a real date.
+</ParamField>
+
+<ParamField path="topic" type="string">
+  A category badge displayed on the post card, such as *Health*, *Politics*, or *Climate*. Use topics to group posts thematically. The topic label is visible to participants unless you enable Hide topic.
+</ParamField>
+
+<ParamField path="emoji" type="string">
+  A single emoji shown alongside the topic badge. Optional purely decorative element.
+</ParamField>
+
+<ParamField path="hide_topic" type="boolean" default="false">
+  When enabled, the topic badge and emoji are hidden from participants. The topic field is still populated and available in exports for your own categorisation.
+</ParamField>
+
+<ParamField path="headline" type="string">
+  The main headline of the post. Rendered in larger, bolder text. For A/B studies, this becomes **Headline A** — see [A/B Variants](#ab-variants) below.
+</ParamField>
+
+<ParamField path="content" type="string">
+  The body text of the post, shown beneath the headline. For A/B studies, this becomes **Content A**.
+</ParamField>
+
+<ParamField path="true_post" type="boolean" default="false">
+  Marks this post as the ground-truth "true" version for belief-accuracy analysis. **True posts are never shown to participants.** They exist solely for export purposes, allowing you to compare participant responses to the canonical accurate version of a story. Do not confuse this with the "Active" toggle — a true post can be active in the database but will never appear in the participant flow.
+</ParamField>
+
+<ParamField path="active" type="boolean" default="true">
+  When disabled, the post is excluded from all parts of the study. Use this to draft posts without participants seeing them, or to retire posts mid-study without deleting them.
+</ParamField>
+
+## Engagement Counters
+
+Each post has four social-interaction counters. These set the **base values** displayed under the post:
+
+| Counter | Field | Behaviour when set to 0 |
+|---------|-------|------------------------|
+| Likes | `base_likes` | Counter hidden entirely |
+| Shares | `base_shares` | Counter hidden entirely |
+| Dislikes | `base_dislikes` | Counter hidden entirely |
+| Flags | `base_flags` | Counter hidden entirely |
+
+Setting a counter to **0** hides that metric from participants — no zero is shown. Set it to any positive integer to display that number. If you have defined [metric conditions (social proof)](/guide/social-proof), a non-zero base value on an individual post **overrides** the condition's random range for that counter on that post.
+
+## Image Upload
+
+You can attach one image to each post. Supported formats are **JPEG, PNG, and WebP**. The maximum file size is **5 MB**.
+
+<Note>
+  Images are stored per-post and per-study. Uploading the same image to multiple posts creates separate copies. If you update an image, re-upload it on every post where it should change.
+</Note>
+
+To upload an image, click the image area on the post card and select a file, or drag and drop a file onto the image zone. To remove an image, click the remove icon that appears on hover.
+
+## A/B Variants
+
+When you have enabled a [Manipulation (A/B)](/guide/manipulation) in the Configurator, each post card gains four additional fields:
+
+<ParamField path="headline_a" type="string">
+  The headline shown to participants assigned to condition A. This replaces the standard Headline field for condition-A sessions.
+</ParamField>
+
+<ParamField path="content_a" type="string">
+  The body text shown to condition-A participants.
+</ParamField>
+
+<ParamField path="headline_b" type="string">
+  The headline shown to participants assigned to condition B.
+</ParamField>
+
+<ParamField path="content_b" type="string">
+  The body text shown to condition-B participants.
+</ParamField>
+
+You may also upload a separate image per variant. If no variant-specific image is provided, both conditions see the same image (or no image, if none is uploaded).
 
 <Tip>
-Fill in the B variant for every post you intend to manipulate. In builder studies, an empty `headline_b` / `content_b` silently falls back to the A text, so a half-finished B condition looks like it works while actually showing condition A's stimulus to both groups.
+  For control posts — posts that should be identical across conditions — fill in the same text for both A and B variants, or leave B blank and ensure your manipulation design accounts for this. See the [Manipulation guide](/guide/manipulation) for the recommended approach.
 </Tip>
 
-## Social interactions (base metrics)
+## Assigning Posts to Experiment Parts
 
-Under **Social interactions** — hinted with **(0 = hide)** — you set the engagement numbers printed on the post:
+When your study has **two or more experiment parts**, each post card displays a set of checkboxes listing every part. Check the parts you want this post to appear in. A post can be assigned to multiple parts — it will appear independently in each one, and reactions recorded in each part are stored separately.
 
-- **👍 Likes** → `base_likes`
-- **🔄 Shares** → `base_shares`
-- **👎 Dislikes** → `base_dislikes`
-- **🚩 Flags** → `base_flags`
-- **💬 Comments** — read-only; it **Updates automatically from the comment list below**.
+If your study has only one part, the assignment checkboxes do not appear and all active posts are automatically included.
 
-How these interact with the study's metric conditions (the social-proof factor set in the Configurator) matters methodologically:
+## Reordering Posts
 
-1. A base value greater than 0 on the post **always wins**.
-2. Otherwise, if the assigned metric condition has a range (`max > 0`), the number is drawn at random from that range.
-3. If neither applies, the counter is 0.
+Use the **↑** and **↓** arrow controls on each post card to move it up or down in the list. The order in the Posts tab determines the default display order within a part using the **Feed** layout. In **Pager** layout, posts are presented in this same order, one at a time.
 
-So pin a value on a post only when you want that specific post to escape the randomised social-proof manipulation — pinning values on every post disables the factor in practice.
+## Copying from the Post Library
 
-<Note>
-Whether counters are shown to participants at all is a study-level switch (**Show metric counters to participants**) in the Configurator, not a post setting.
-</Note>
+The **From library** button opens a modal listing posts in your shared post library. Selecting a library post copies its fields — source name, handle, headline, content, counters, and image — into a new post in the current study. The copy is fully independent: editing it does not affect the library original.
 
-## Comments under the post
+<Tip>
+  Use the post library to maintain a curated bank of validated stimuli that you can reuse across studies without re-entering data.
+</Tip>
 
-**💬 Comments under the post** is a list you build with **+ Add comment**. Each row has:
+## Builder Comments
 
-- **Author (nickname)**
-- **Comment text**
-- a likes number (**Comment likes**)
-- an **✕** button to remove the row
+Each post supports a **builder comment thread** — a fake comment section visible beneath the post in the participant view. Builder comments are authored by you in the builder and are purely static: participants cannot reply to them or interact with them. Use them to simulate the social context of a real comment section, which can influence how participants perceive and respond to a post.
 
-These are fake comments displayed as part of the stimulus — a cheap and well-controlled way to manipulate perceived consensus. Rows with empty text are dropped on save, and the read-only **💬 Comments** counter tracks the list length.
-
-<Note>
-This is different from the participant's own comment field, which is the **💬 Comment field** toggle described below.
-</Note>
-
-## Avatar
-
-Click the circle to upload an avatar (**jpg/png/webp, max 5 MB**). Without one, the post shows initials derived from the **Source (name)**. **Delete avatar** removes it and falls back to initials — the confirmation says exactly that.
-
-Below it: **Show the avatar on this post (turn off for an anonymous source)**. Use it when a source should read as faceless while the rest of the feed keeps avatars.
-
-## Visible interactions under the post
-
-**Visible interactions under the post** — **(per-post; also limited by the study and part settings)** — is a row of toggles controlling which affordances this post offers:
-
-**👍 Like**, **👎 Dislike**, **🔄 Share**, **🚩 Flag**, **💬 Comment field**.
-
-All default to on. The hint is the important part: these are per-post *limits*, applied on top of the study- and part-level settings — a post cannot show an interaction the study has switched off.
-
-The comment field is the one exception, and it's handled for you: if you tick **💬 Comment field** on a post while comments are off study-wide, saving the post also enables comments at the study level and tells you so (*"Comments were also enabled at the study level (required by the per-post toggle)."*). Other posts keep whatever their own toggle says.
-
-## Images
-
-Images upload immediately on selection — you do not need to press **Save post** for them. Accepted types are jpg/png/webp, up to 5 MB. Each variant has its own **Click to choose an image** area and a **Delete image** button that appears once an image exists.
-
-<Info>
-Uploaded images are stored in the database (as a blob) and served from `/uploads/<study_id>/<filename>`. Every upload gets a fresh filename, so replacing an image never leaves participants looking at a cached old one.
-</Info>
-
-## Saving
-
-**Save post** writes the form; a **✓ Saved** marker appears briefly and the TRUE/FALSE and Active/Hidden badges in the row header update. Text fields are only persisted on save — images and avatars, as noted, are not.
-
-## Order and what participants actually see
-
-Ordering is controlled by the **↑** / **↓** arrows, which swap `order_index` between neighbouring posts. The participant feed is served ordered by part, then `order_index`, then id — so your reordering is reflected in what participants see.
-
-Two study-level settings sit on top of this:
-
-- Only posts with **Active** on are served.
-- **Posts per session** (1–20) limits how many posts a participant gets.
-
-## The post library
-
-The library is a study-agnostic catalogue of reusable posts. Its purpose is to stop you rebuilding the same stimuli by hand for every study — and, more usefully, to let a lab converge on a stable, reusable stimulus set across experiments.
-
-<Warning>
-The post library is **global**: it is shared by every account on the installation, unlike studies, which are private to their owner. Anything you promote to the library is visible to — and deletable by — every other researcher on the same instance.
-</Warning>
-
-### Promoting a post to the library
-
-Click **🗂 To library** on any post row (*"Save this post to the library for reuse"*). There is no dialog: the entry is created immediately and you get a *"Post saved to the library."* confirmation. The study post itself is untouched — this creates a copy in the catalogue.
-
-The name and category are derived automatically:
-
-- **Name**: `source · topic` when both exist, otherwise the source, otherwise the topic, otherwise a trimmed headline.
-- **Category**: the post's topic — which is what the picker's category filter uses.
-
-Everything content-related is copied, including both content variants, both images, the avatar, base metrics, comments, and the per-post visibility toggles. What is *not* copied is anything study-specific: the study id, the order index, and the part assignment.
-
-### Adding a post from the library
-
-**🗂 From library** in the Posts toolbar (*"Copy a ready-made post from the reusable library"*) opens the **🗂 Post library** modal. Each template is a card with its thumbnail, a TRUE/FALSE badge, the name, source, and headline.
-
-If any templates carry categories, a filter bar appears above the grid with an **All** button and one button per category.
-
-Click **➕ Add to study** to copy the template into the currently selected study; it lands at the end of the post list and the modal closes.
-
-### Copy-on-add
-
-This is the rule worth internalising, and the modal states it outright: *"Click "➕ Add to study" to copy the template into the current study. The copy is independent — later changes to the template do not affect it."*
-
-<Check>
-The copy is a true copy, images included. After adding:
-- editing the study's post never touches the library template;
-- editing the library template never touches posts already copied into studies;
-- deleting the library template leaves every copied post intact.
-</Check>
-
-This is a deliberate design choice, not a limitation. A live link would mean a template edit could silently change the stimuli of a study that is already collecting data — which would quietly invalidate it. Copy-on-add makes each study's stimulus set frozen and self-contained at the moment you build it.
-
-The trade-off: fixing a typo in a template does **not** propagate. Studies already using it keep the typo, and you fix each one by hand.
-
-### Deleting from the library
-
-The **🗑** button on a card (**Delete from library**) removes the catalogue entry. The confirmation is explicit: *Delete "…" from the library? Posts already copied into studies remain untouched.*
-
-When the library is empty, the modal says: *"The library is empty. Use "🗂 To library" on any post to add the first template."*
-
-## Legacy post form
-
-Studies created before the Configurator use an older post form. Basics, avatar, visible-interaction toggles, images, and ordering work the same; four things differ.
-
-<AccordionGroup>
-  <Accordion title="Fixed variant headings">
-    Instead of your own condition labels, the two content sections are headed **Version A — manipulative** and **Version B — neutral**, with **Headline A** / **Content A** and **Headline B** / **Content B**. They write to the same `_a` / `_b` columns. Images are labelled simply **Version A** and **Version B** under **Images (optional, max 5 MB — jpg/png/webp)**.
-  </Accordion>
-  <Accordion title="Manipulation techniques">
-    A checkbox grid for tagging which techniques a post uses. The list is fixed and in Polish: `pilność`, `fałszywy ekspert`, `spisek`, `liczby bez źródła`, `emocjonalne słowa`, `kozioł ofiarny`. It is metadata for your own analysis — participants never see it.
-  </Accordion>
-  <Accordion title="Experimenter comment">
-    One author + text pair per style condition, hinted **(shown only in conditions with 💬 enabled)**. The section labels come from the study's own condition labels. This is the legacy equivalent of the builder's comment list — a single planted comment rather than a free list.
-  </Accordion>
-  <Accordion title="Metrics per condition">
-    Rather than plain base metrics, the legacy form shows a **👍 Likes / 🔄 Shares / 👎 Dislikes / 🚩 Flags** row **per active metric condition**, with the condition's range shown next to its label. The hint reads **(empty = random from the condition's range)** — leave a field blank to let the social-proof manipulation generate the number, fill it to pin that condition's value for that post.
-  </Accordion>
-</AccordionGroup>
+To add a builder comment, expand the **Comments** section on a post card and click **Add Comment**. Each comment has an author name, handle, and text body. Comments appear in the order you define them.

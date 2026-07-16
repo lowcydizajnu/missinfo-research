@@ -1,0 +1,136 @@
+{
+  "projectType": "saas",
+  "projectName": "Misinfo Research",
+  "projectDescription": "A self-hosted, open-source platform for running social-media misinformation experiments — build a simulated feed, randomise between-subjects conditions, collect participant data, and export analysis-ready results.",
+  "theme": "luma",
+  "primaryColor": "#4F7CFF",
+  "lightColor": "#7B9DFF",
+  "darkColor": "#2E5BD8",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Guide",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "index",
+              "quickstart",
+              "concepts"
+            ]
+          },
+          {
+            "group": "Building a Study",
+            "pages": [
+              "guide/configurator",
+              "guide/posts",
+              "guide/demographics",
+              "guide/manipulation",
+              "guide/social-proof",
+              "guide/conditional-logic"
+            ]
+          },
+          {
+            "group": "Running & Analysing",
+            "pages": [
+              "guide/preview-and-launch",
+              "guide/dashboard",
+              "guide/export",
+              "guide/analyses"
+            ]
+          },
+          {
+            "group": "Administration",
+            "pages": [
+              "guide/accounts",
+              "guide/settings",
+              "guide/translations",
+              "guide/panel-integration"
+            ]
+          },
+          {
+            "group": "Help",
+            "pages": [
+              "faq",
+              "troubleshooting"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Self-Hosting",
+        "groups": [
+          {
+            "group": "Deploy",
+            "pages": [
+              "hosting/install",
+              "hosting/docker",
+              "hosting/railway",
+              "hosting/configuration"
+            ]
+          },
+          {
+            "group": "Operate",
+            "pages": [
+              "hosting/backup",
+              "hosting/upgrading"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API",
+        "groups": [
+          {
+            "group": "Reference",
+            "pages": [
+              "api/overview",
+              "api/authentication",
+              "api/studies",
+              "api/participant",
+              "api/data-model"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Visual study builder with Configurator tab — screens, parts, post layout, questions, all in one place",
+    "A/B manipulation — between-subjects split with per-post content variants (Headline A vs B)",
+    "Metric conditions (social proof) — second between-subjects factor controlling visible like/share counts",
+    "Conditional logic — deterministic if→then rules to skip parts, screen out participants, or end the study early",
+    "Multi-part experiment design — sequence of feed or pager parts with transition screens and interaction requirements",
+    "Dashboard — configurable widget grid (KPIs, charts, crosstabs) with public shareable read-only link",
+    "Multi-sheet Excel export plus CSV — raw reactions, session summaries, credibility ratings, 2×2 design breakdown",
+    "In-app analyses — t-test, ANOVA, chi², correlation, regression, Cronbach's alpha",
+    "Panel recruitment integration — capture external respondent IDs, completion and screen-out redirect URLs",
+    "Eye tracking — optional webcam gaze tracking via WebGazer.js, exported to a dedicated sheet",
+    "Multi-user accounts — admin and researcher roles, invite-only, per-study ownership and access grants",
+    "AI-assisted translation — optional Anthropic API key powers automatic study-content translation",
+    "MS Clarity integration — per-study project ID, demographic masking, virtual URLs for per-screen heatmaps",
+    "Preview mode — fully functional study walkthrough that stays out of the real dataset"
+  ],
+  "publicApiSurface": [
+    "POST /api/session/start",
+    "POST /api/session/consent",
+    "POST /api/session/demographics",
+    "POST /api/reaction",
+    "POST /api/rating",
+    "POST /api/session/complete",
+    "POST /api/admin/login",
+    "GET  /api/admin/studies",
+    "POST /api/admin/studies",
+    "PATCH /api/admin/studies/:id",
+    "DELETE /api/admin/studies/:id",
+    "POST /api/admin/studies/:id/duplicate",
+    "GET  /api/admin/studies/:id/posts",
+    "POST /api/admin/posts",
+    "PATCH /api/admin/posts/:id",
+    "PATCH /api/admin/posts/:id/reorder",
+    "POST /api/admin/posts/:id/image",
+    "DELETE /api/admin/posts/:id/image",
+    "GET  /api/admin/dashboard/:studyId",
+    "GET  /api/admin/export/:studyId"
+  ]
+}

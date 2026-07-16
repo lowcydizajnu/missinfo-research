@@ -1,269 +1,129 @@
 ---
-title: "Dashboard"
-description: "Monitor recruitment and first results: the all-studies landing view, the per-study widget grid, filters, notes and the read-only share link."
+title: "Monitoring Your Study with the Dashboard"
+sidebarTitle: "Dashboard"
+description: "Track recruitment progress, explore response distributions, and share live charts with colleagues using the per-study configurable dashboard."
 ---
 
-The Dashboard is where you watch a study while it is still running. It answers the questions you ask daily during data collection — *is recruitment moving? are the conditions balanced? is anyone dropping out at one particular screen?* — without exporting anything.
+Each study has its own dashboard — a configurable widget grid that updates as participants complete sessions. The first time you open a study's dashboard, a default layout is generated automatically based on your study design. You can reshape this layout at any time without affecting the underlying data.
 
-There are in fact **two different dashboards**: a cross-study landing view, and a per-study **📊 Dashboard** tab. They share a name and almost nothing else.
+The dashboard shows **production sessions only**. Preview sessions — those you ran yourself while testing the study — are excluded from every chart and table on this page.
 
-## The aggregate landing (all studies)
-
-This is what you see right after signing in, and again whenever you click the platform logo in the header (tooltip: *All studies — combined dashboard*). The tab bar disappears, because there is no study selected yet.
-
-It shows five figures across every study you can see — **Studies**, **Completed sessions**, **All sessions**, **Drop-out**, **Avg. duration (min)** — followed by a table of your studies with **All**, **Completed** and **Drop-out** per row. Clicking a row opens that study and drops you into its own Dashboard.
-
-<Note>
-The aggregate view counts **production sessions only** (previews are excluded everywhere here), and it is scoped to your account: a researcher sees studies they own plus studies they were added to as a collaborator; an administrator sees all of them. Drop-out is computed as `(all − completed) / all`, where "all" is counted by session *start*, so unfinished sessions are not silently dropped from the denominator.
-</Note>
-
-The landing view has no widgets, no filters and no export — it is a router with numbers on it. Everything else on this page describes the per-study tab.
-
-## What the per-study Dashboard is made of
-
-Select a study, then open **📊 Dashboard**. Top to bottom:
-
-<Steps>
-<Step title="Header">
-The participant URL (`/study/<slug>`) as a clickable link, an optional **⚙ Default** badge, and the **✏️ Edit** button.
-</Step>
-<Step title="Filter bar">
-Date range (from / to plus the **7d**, **30d** and **∞** shortcuts), any active cross-filter chips, the auto-refresh selector, the profile selector, and the **🖼 PNG**, **📄 PDF** and **🔗 Share** buttons.
-</Step>
-<Step title="Eye-tracking row">
-Only rendered when the study has eye tracking enabled: **👁 ET — consent**, **👁 ET — declined**, **👁 Calibration error** (consent given but no gaze points recorded) and **Open Viewer →**, which opens the heatmap viewer in a new tab.
-</Step>
-<Step title="Widget grid">
-Your configurable widgets — the heart of the tab.
-</Step>
-<Step title="Last 20 completed sessions">
-A fixed table: ID, Condition, Age, Gender, **Avg. belief (false)** (mean `belief_1_7` rating across the posts marked as false) and Date. Useful as a sanity check that real data is arriving in the shape you expect.
-</Step>
-</Steps>
-
-## Where the numbers come from
-
-Every widget is computed from **the same rows the Export tab produces** for its raw-data sheet — one row per session, one column per variable. Nothing is cached: each load recomputes from SQLite, which is why auto-refresh is cheap and why a number here always matches the file you download seconds later.
-
-Two consequences worth internalising:
-
-- **Preview sessions never enter the widget data.** Your own test runs stay out of the picture. (A dedicated KPI metric can still count them — see below.)
-- **Column labels are shared.** If you rename a column in the Export tab, the new label appears in the widget variable pickers and in **📊 Analyses** too. There is one source of truth for what a variable is called.
-
-<Info>
-Variables in the pickers are typed and marked with an icon: 🔢 numeric, 🏷 categorical, 📝 text. Each widget only offers the columns that make sense for it — you cannot accidentally ask for the mean of a gender column.
-</Info>
+<Tip>
+  The dashboard is designed for **monitoring recruitment**, not for testing hypotheses. Use it to track completion rates, spot dropout patterns, and check that conditions are filling evenly. For statistical inference, use the [Analyses tab](./analyses) or export your data to R, SPSS, JASP, or Python.
+</Tip>
 
 ## Widget types
 
-| Type | What it shows |
-| --- | --- |
-| 🔢 **KPI** | A single number (count / mean / %). |
-| 📊 **Bar chart** | Value per category. |
-| 📉 **Histogram** | Distribution of a single continuous variable. |
-| 🔲 **Crosstab** | Counts for two categorical variables. |
-| 📈 **Time series** | Sessions over time (day/week/month). |
-| ⚬ **Scatter plot** | X-Y points for two continuous variables + Pearson r. |
-| 📦 **Boxplot** | Quartiles + outliers per group. |
-| 🥧 **Pie / donut** | Category composition (e.g. demographics). |
-| 🟦 **Correlation heatmap** | An N×N correlation matrix with colours. |
-| 💬 **Text responses** | A list of open-ended responses with a group filter. |
+The dashboard supports the following widget types. Each widget can be scoped to a specific variable or pair of variables from your study data.
 
 <AccordionGroup>
-
-<Accordion title="🔢 KPI">
-Pick a **Metric**: *Number of completed sessions*, *All sessions*, *Preview sessions*, *Drop-out (%)*, *Mean of column*, *Median of column*, *Sum of column*, *% missing in column*, or *% of rows where column = value*. The column-based metrics need a **Column**; `% of rows where column = value` additionally reveals a **Value** field (e.g. `like`, `A`, `female`).
-
-*% missing in column* is the quietly useful one: it is your live missing-data monitor for a question you suspect people are skipping.
-</Accordion>
-
-<Accordion title="📊 Bar chart">
-**Grouping variable (X axis)** is required. **Aggregator** is *Count*, *Mean*, *Median* or *Sum*; anything other than Count also needs a **Value variable**.
-
-With the Mean aggregator you can attach an **Inline statistical test**: *ANOVA (≥2 groups)* or *t-test (exactly 2 groups)*. The result is printed under the chart in APA-ish form — `F(df) = …, p = …, η² = …` or `t(df) = …, p = …, d = …`. Mean bars also carry standard errors. Groups with fewer than two observations are dropped from the test, and the test is skipped entirely unless the aggregator is Mean and a value variable is set.
-
-<Warning>
-Treat that inline test as a smoke alarm, not as a result. It is unadjusted, run on partial data, and re-run every time you touch a filter — exactly the conditions under which repeatedly peeking at *p* inflates your false-positive rate. Confirm in your pre-registered analysis on the exported dataset.
-</Warning>
-</Accordion>
-
-<Accordion title="📉 Histogram">
-One **Continuous variable**, plus an optional **Number of bins (empty = auto/Sturges)** — the automatic choice is Sturges' rule, clamped to between 3 and 30 bins. The strip below the chart reports `M`, `SD`, `Md` and `N`. Needs at least two numeric values, and refuses when every value is identical.
-</Accordion>
-
-<Accordion title="🔲 Crosstab">
-**Row variable** × **Column variable**, both categorical, with row/column/grand totals. **% mode (next to counts)** adds percentages of the *row*, of the *column* or of the *total*. Tick **Show chi² test + Cramér's V** to get χ², df, p and the effect size (requires at least a 2×2 table); the engine surfaces the expected-count assumption warning when relevant.
-
-This is the widget to keep open during recruitment if you randomise: `Condition × gender` tells you at a glance whether your randomisation is still balanced.
-</Accordion>
-
-<Accordion title="📈 Time series">
-**Granularity** (*Day*, *Week*, *Month*), **Metric** (*Completed sessions* or *Started sessions*) and **How many recent periods** (default 30). Empty periods are filled with zeros so a quiet weekend shows as a dip rather than vanishing. The chart footer prints the sum over the window.
-
-The widget's own window is independent of the dashboard date range — the range narrows which sessions exist, the widget decides how far back to draw.
-</Accordion>
-
-<Accordion title="⚬ Scatter plot">
-**X variable** and **Y variable**, both continuous, plus optional colour grouping by a categorical variable. Only rows where *both* values are numeric are plotted, and the count (`n`) reflects that pairwise deletion. Pearson **r** is printed only when no colour grouping is set — with groups, a single pooled r would be misleading, so it is deliberately omitted.
-</Accordion>
-
-<Accordion title="📦 Boxplot">
-One **Continuous variable**, optionally grouped by a categorical one; without a grouping you get a single box for the whole sample. Drawn as SVG: box = Q1–Q3, thick line = median, whiskers = the most extreme values within 1.5×IQR, red dots = outliers beyond the fences. Each group is labelled with its `n`.
-</Accordion>
-
-<Accordion title="🥧 Pie / donut">
-One **Categorical variable**, with an optional **Top N categories** limit — everything past N collapses into a single remainder slice. The footer reports `N` and the number of categories.
-</Accordion>
-
-<Accordion title="🟦 Correlation heatmap">
-Select **≥2 continuous variables** (Ctrl/Cmd+click in the list) and a **Method**: *Pearson (linear)* or *Spearman (rank)*. Blue = positive, red = negative, intensity scales with |r|; cells where **p < .05 are bold**; hovering a cell shows exact r and p.
-
-<Warning>
-The **Method** selector currently only changes the caption printed under the matrix — the coefficients themselves are computed with Pearson either way. If you need Spearman, use the **📊 Analyses** tab or your statistics package.
-</Warning>
-</Accordion>
-
-<Accordion title="💬 Text responses">
-A **Variable with responses**, an optional **Group by**, and a **Maximum to display (limit)** (default 100; the server caps it at 500). Each entry shows the session id and, when grouped, the group label above the text. Empty answers are skipped.
-
-Reading raw open-ended answers early is the cheapest way to discover that a question was misunderstood, while you can still do something about it.
-</Accordion>
-
+  <Accordion title="KPIs">
+    Single-number summaries: total completed sessions, completion rate, average belief score on false posts, and other configurable metrics.
+  </Accordion>
+  <Accordion title="Bar charts">
+    Counts or means broken down by a categorical variable such as condition, gender, or education level.
+  </Accordion>
+  <Accordion title="Histograms">
+    Distribution of a continuous variable (e.g., dwell time, belief ratings) across all sessions or within a condition.
+  </Accordion>
+  <Accordion title="Boxplots">
+    Median and spread of a continuous variable by group — useful for comparing belief scores across conditions at a glance.
+  </Accordion>
+  <Accordion title="Crosstabs">
+    Frequency table showing the joint distribution of two categorical variables.
+  </Accordion>
+  <Accordion title="Scatter plots">
+    Relationship between two continuous variables, with optional colour-coding by condition.
+  </Accordion>
+  <Accordion title="Correlation heatmaps">
+    Grid of Pearson correlations across a set of numeric variables. Useful for a quick overview of multivariate relationships.
+  </Accordion>
+  <Accordion title="Time series">
+    Session completions over time — by day, week, or custom interval. Helps you spot when a recruitment push drove a surge in responses.
+  </Accordion>
+  <Accordion title="Text responses">
+    Sample of open-text answers to a specific question, displayed as a scrollable list.
+  </Accordion>
 </AccordionGroup>
 
-## The default layout
+## Editing the layout
 
-A study that has never had its dashboard saved gets one generated from its own schema, marked with a **⚙ Default** badge (*Default layout generated from the study schema. Edit to customize it.*):
+<Steps>
+  <Step title="Enter edit mode">
+    Click the **Edit** button (pencil icon) in the dashboard toolbar to enter edit mode.
+  </Step>
+  <Step title="Add a widget">
+    Click **+ Widget**, choose a widget type, select the variable(s) to display, and give the widget an optional title. Click **Save** to place it on the grid.
+  </Step>
+  <Step title="Rearrange widgets">
+    In edit mode, drag any widget to a new position. Widgets snap to the grid and resize automatically to fill available space.
+  </Step>
+  <Step title="Remove a widget">
+    Click the **×** icon on a widget to remove it from the layout. This does not delete any data.
+  </Step>
+  <Step title="Exit edit mode">
+    Click **Done** to save the new layout and return to the live view.
+  </Step>
+</Steps>
 
-- four KPIs — completed sessions, all sessions, drop-out, mean duration in minutes;
-- a 30-day time series of completed sessions;
-- if the study has a manipulation with at least two conditions: a bar chart of the mean of its first Likert post-question (falling back to session duration) by condition, with ANOVA attached;
-- a count bar chart of the sample's gender composition;
-- and, again only for multi-condition studies, a `condition × gender` crosstab with row percentages and χ².
+## Filtering the data
 
-The default is generated on the fly and is not stored. It becomes yours — and the badge disappears — the moment you add, edit, delete, reorder or annotate anything.
+### Date-range filter
 
-<Note>
-Generated widget titles and KPI subtitles come from the server in Polish, regardless of the panel language. Give a widget your own **Widget title** in the wizard and it will stay exactly as you typed it.
-</Note>
+Use the date-range control in the dashboard toolbar to focus all widgets on a specific time window:
 
-## Edit mode
+- **7d** — last 7 days
+- **30d** — last 30 days
+- **All time** — full dataset (default)
+- **Custom range** — pick a start and end date from the calendar picker
 
-**✏️ Edit** turns the button into **✓ Done** and reveals **+ Widget**, **💾 Save profile** and **↺ Reset** in the header, plus a control strip on every widget: **⋮⋮** (drag handle), **💭** (note), **✏️** (edit), **🗑** (delete).
+### Cross-filters
 
-There is no separate save step — every change is written to the study as it happens.
-
-**↺ Reset** asks *"Clear your configuration and return to the default layout? Your changes will be undone."* and, if confirmed, deletes your configuration so the generated default comes back.
-
-### The widget wizard
-
-**+ Widget** opens the **Add widget** modal; **✏️** on an existing widget opens the same form as **Edit widget** with **Save changes** at the bottom. The form is always the same two fields — **Widget type** and **Widget title** — followed by the fields that type needs. The wizard validates before saving: a bar chart without a grouping variable, or a heatmap with fewer than two variables, is refused with a message rather than saved broken.
-
-<Warning>
-Changing **Widget type** inside the wizard resets the type-specific fields (only the title is carried over). Pick the type first, configure second.
-</Warning>
-
-### Reordering
-
-In edit mode, drag a widget by its **⋮⋮** handle. The new order is saved immediately; the data is not re-fetched, because only the arrangement changed.
-
-Widget footprints are chosen automatically per type and cannot be set by hand: KPIs and pies are narrow; time series, text responses and large correlation matrices span the full width; everything else takes a middle size.
-
-### Notes
-
-**💭** opens the **💭 Widget note** modal — a free-text field with the placeholder *"Spike after pre-registration", "Check this difference in ANOVA"…*. Saving pins the note under the widget; **🗑 Delete note** (or saving it empty) removes it. Outside edit mode, a **💭** button on the widget toggles the note's visibility.
-
-This is the platform's small nudge toward an audit trail: write down *why* the curve jumped when you still remember. Notes are part of the widget configuration, so they travel into profiles and appear on the read-only share link — as the modal's own hint says, only you and people with that link will see them.
-
-## Profiles
-
-A profile is a **named snapshot of the current widget arrangement**. In edit mode, **💾 Save profile** prompts for a name (*e.g. "Recruitment", "Analyses"*). The picker in the filter bar (**— profile —**) lists everything you have saved.
-
-The typical use is having a lean "Recruitment" layout — KPIs, time series, balance crosstab — for the weeks of data collection, and a heavier "Analyses" layout for when the sample is complete.
-
-<Warning>
-Selecting a profile **overwrites the live dashboard configuration** with that profile's widgets — it is not a temporary preview. Save your current arrangement as a profile first if you want it back. Also note that the panel offers no button for deleting a saved profile.
-</Warning>
-
-## Date range and cross-filters
-
-Two filtering mechanisms stack.
-
-**Date range.** The from/to date inputs, or the **7d** / **30d** / **∞** shortcuts (*Last 7 days*, *Last 30 days*, *All time*). The range applies to the widgets, the session KPIs and the "Last 20 completed sessions" table together — they never disagree. Completed sessions are matched on their completion date, while the "all sessions" count is matched on the start date, so that unfinished sessions keep counting toward drop-out instead of collapsing it to zero. Eye-tracking counts deliberately ignore the range.
-
-**Cross-filters.** Click a **bar** in a bar chart or a **slice** in a pie: the clicked category turns green and *every* widget re-renders on that subset only. The active filters appear as chips in the filter bar — click a chip (or the same bar again) to remove it, or **Clear** to drop them all. Filters survive an auto-refresh and a manual reload.
-
-So "what does the drop-out curve look like for women only?" is a click on the gender pie, not a query.
-
-<Note>
-One asymmetry worth knowing: the session-level KPI metrics (*Number of completed sessions*, *All sessions*, *Preview sessions*, *Drop-out (%)*) are counted directly in the database and therefore follow the **date range but not the cross-filters**. Column-based metrics (mean, median, sum, % missing, % of rows where…) and every chart are computed from the filtered rows and follow **both**. If a KPI seems not to react to a chip you just set, that is why.
-</Note>
+Clicking a bar, segment, or data point in any chart automatically filters all other widgets to show only sessions that match that category. For example, clicking the "Correction" bar in a condition chart narrows every other widget to participants in the Correction condition. Click the same element again to clear the filter.
 
 ## Auto-refresh
 
-The selector offers **⏸ No auto-refresh** (the default), **🔄 30s**, **🔄 1min** and **🔄 5min**. It simply re-fetches the dashboard on that interval, with the current filters applied. Your choice is remembered in the browser and re-applied the next time you open a study's dashboard; it is stopped when you go back to the all-studies landing.
+Use the **Auto-refresh** dropdown to keep the dashboard current during active recruitment periods:
 
-Useful on a screen during a recruitment wave. Less useful — arguably harmful — when you are looking at effects, for the peeking reason above.
+| Setting | Behaviour |
+|---|---|
+| Off | Data loads once on page open; refresh manually with ⟳ |
+| 30 s | Dashboard polls for new sessions every 30 seconds |
+| 1 min | Polls every minute |
+| 5 min | Polls every 5 minutes |
 
-## PNG and PDF export
+## Sharing the dashboard
 
-**🖼 PNG** and **📄 PDF** capture the dashboard as it currently looks. Edit controls and the filter bar are hidden from the capture so the output is clean, and the file is named `<study-slug>_dashboard_<YYYY-MM-DD>.png` / `.pdf`. The PDF is A4 landscape and is split across pages when the grid is taller than one page.
+Clicking **Share** generates a **public read-only link** to the dashboard. Anyone with this link can view the charts and filters without being able to edit anything or access the admin panel.
 
 <Note>
-These are **snapshots of the screen**, not data exports. Whatever date range and cross-filters were active are baked into the image, and nothing else records that context — so if you paste one into a lab meeting, say which filters were on. For analysable data, use the **📥 Export** tab.
+  The **Share** button produces a link to the **dashboard**, not to the study itself. Do not use it to recruit participants. The participant link is `/study/<slug>`, which you can find on the study's Settings page.
 </Note>
 
-## The public read-only share link
+## Exporting a snapshot
 
-**🔗 Share** asks *"How many days should the link be valid for? (1-365, default 30)"*, then shows the generated URL and offers to copy it to your clipboard. The link looks like:
-
-```text
-https://your-host/share/dashboard/<token>
-```
-
-The token is a signed JWT carrying the study id and a read-only dashboard scope, and nothing else. Anyone with the link sees the study name, the completed / all / drop-out figures, the expiry date and the widget grid — **without an account**. They cannot edit, filter or export, and the endpoint refuses any token whose scope is not the read-only dashboard one.
-
-<Warning>
-The share page renders **only a saved configuration**. A study still showing the **⚙ Default** badge has nothing stored, so its share link renders an empty dashboard. Open **✏️ Edit** and make any change first — that persists the layout.
-</Warning>
-
-Other properties to know before you send one to a supervisor or a collaborator:
-
-<AccordionGroup>
-<Accordion title="What renders, and what does not">
-The public page implements a subset of the renderers: **KPI, bar chart, time series, pie, histogram and crosstab** draw normally. Scatter, boxplot, correlation heatmap and text responses show a placeholder telling the reader that the details are available in the admin panel. Widget notes *are* shown.
-</Accordion>
-
-<Accordion title="Preview sessions are never included">
-The read-only endpoint hard-codes the exclusion of preview sessions — your test runs cannot leak through a share link.
-</Accordion>
-
-<Accordion title="Regenerating does not revoke">
-Tokens are stateless: issuing a new link does **not** invalidate the previous one, which stays valid until its own expiry. Choose the number of days as your actual revocation mechanism — for an external reviewer, a short window is the sane default.
-</Accordion>
-
-<Accordion title="The public page's interface is in Polish">
-The share page's own chrome (banner, statistics line, expiry label) is Polish regardless of your panel language. Your widget titles and notes appear exactly as you wrote them, so if the recipient does not read Polish, put everything they need into the titles and notes.
-</Accordion>
-
-<Accordion title="Only the owner can generate one">
-Share-link generation is restricted to accounts that have access to the study, and the token is scoped to that one study.
-</Accordion>
-</AccordionGroup>
-
-## Using the Dashboard well
+You can export the current state of the dashboard — with whatever filters and layout you have applied — as a static image or document:
 
 <CardGroup cols={2}>
-<Card title="While recruiting" icon="chart-line">
-Time series + drop-out KPI + a `condition × gender` crosstab. You are watching logistics and randomisation balance, not effects.
-</Card>
-<Card title="While piloting" icon="magnifying-glass">
-`% missing in column` KPIs and a text-responses widget. You are hunting for questions people skip or misread — the things you can still fix.
-</Card>
-<Card title="For an actual result" icon="file-export">
-Go to **📥 Export**, download the data, and analyse it in R, SPSS, JASP or Python. The dashboard's inline tests are for exploration.
-</Card>
-<Card title="For a reader" icon="link">
-A PNG for a slide; a share link with a short expiry and notes on the widgets for someone who needs to keep looking.
-</Card>
+  <Card title="PNG snapshot" icon="image">
+    Downloads a full-page screenshot of the dashboard grid at the current scroll position. Useful for slide decks and interim reports.
+  </Card>
+  <Card title="PDF snapshot" icon="file-pdf">
+    Downloads a paginated PDF of all widgets. Widgets are reflowed to fit A4 / letter pages automatically.
+  </Card>
 </CardGroup>
+
+## Recent sessions table
+
+At the bottom of the dashboard, a table lists the **last 20 completed sessions**. Each row shows:
+
+| Column | Description |
+|---|---|
+| Session ID | Anonymised participant identifier |
+| Condition | Full condition label (e.g., `ratio_correction`) |
+| Age | Participant age band |
+| Gender | Participant gender |
+| Avg. belief (false posts) | Mean credibility rating given to false posts in this session |
+| Date | Session completion timestamp |
+
+Preview sessions are excluded from this table. If a session was accidentally recorded as production data, you can manage it from the [Export tab](./export).

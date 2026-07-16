@@ -1,8 +1,7 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
   "name": "Misinfo Research",
-  "description": "Open-source platform for running social-media misinformation experiments.",
+  "theme": "luma",
   "colors": {
     "primary": "#4F7CFF",
     "light": "#7B9DFF",
@@ -15,7 +14,7 @@
         "tab": "Guide",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Get Started",
             "pages": [
               "index",
               "quickstart",
@@ -23,18 +22,18 @@
             ]
           },
           {
-            "group": "Building a study",
+            "group": "Building a Study",
             "pages": [
               "guide/configurator",
               "guide/posts",
               "guide/demographics",
               "guide/manipulation",
-              "guide/conditional-logic",
-              "guide/social-proof"
+              "guide/social-proof",
+              "guide/conditional-logic"
             ]
           },
           {
-            "group": "Running & analysing",
+            "group": "Running & Analysing",
             "pages": [
               "guide/preview-and-launch",
               "guide/dashboard",
@@ -45,8 +44,8 @@
           {
             "group": "Administration",
             "pages": [
-              "guide/settings",
               "guide/accounts",
+              "guide/settings",
               "guide/translations",
               "guide/panel-integration"
             ]
@@ -61,7 +60,7 @@
         ]
       },
       {
-        "tab": "Self-hosting",
+        "tab": "Self-Hosting",
         "groups": [
           {
             "group": "Deploy",

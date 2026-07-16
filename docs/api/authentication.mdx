@@ -1,178 +1,121 @@
 ---
-title: "Authentication"
-description: "Sign in to the admin API with a username and password, then send the returned JWT as a Bearer token."
+title: "Authentication & Authorization — Misinfo Research API"
+sidebarTitle: "Authentication"
+description: "Obtain a JWT token via the login endpoint, attach it to every admin request as a Bearer header, and understand the admin vs researcher role distinction."
 ---
 
-Every admin endpoint under `/api/admin` is protected. You obtain a token once by posting your username and password to the login endpoint, then send that token in an `Authorization: Bearer` header on every subsequent request. Tokens are JSON Web Tokens (JWTs) signed by the server; they expire after 24 hours.
+Admin endpoints in the Misinfo Research API are protected with JSON Web Tokens (JWT). You obtain a token by posting your credentials to the login endpoint, then include that token as a `Bearer` header on every subsequent admin request. Participant endpoints — the session, reaction, and rating endpoints — require no authentication at all.
 
-Participant-facing endpoints work differently — they identify a respondent by a `session_token` stored in the `sessions` table, not by a JWT. Nothing on this page applies to them.
+## Getting a Token
 
-## Logging in
+Send a `POST` request to `/api/admin/login` with your username and password. On success you receive a token along with your username and role.
+
+<CodeGroup>
+```bash Login request
+curl -X POST https://your-host/api/admin/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "alice", "password": "s3cr3t"}'
+```
+
+```json Response
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "role": "researcher",
+  "username": "alice"
+}
+```
+</CodeGroup>
+
+Store the returned `token` value securely. You will attach it to all admin API calls.
+
+### Request Parameters
 
 <ParamField body="username" type="string" required>
-  The account login. Matched exactly, and only against accounts where `is_active = 1`.
+  The account username registered on your Misinfo Research instance.
 </ParamField>
 
 <ParamField body="password" type="string" required>
-  The account password. Compared against a bcrypt hash stored in the `users` table.
+  The account password.
 </ParamField>
 
-```bash Login
-curl -X POST https://your-domain.example/api/admin/login \
-  -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "your-password"}'
-```
-
-A successful login returns `200` with three fields:
-
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "role": "admin",
-  "username": "admin"
-}
-```
+### Response Fields
 
 <ResponseField name="token" type="string">
-  The signed JWT. Send this in the `Authorization` header.
+  A signed JWT. Valid for **24 hours** from the time of issue.
 </ResponseField>
 
 <ResponseField name="role" type="string">
-  Either `admin` or `researcher`. Convenience only — the server re-derives the role from the token on every request, so a client that lies about it gains nothing.
+  Either `"admin"` or `"researcher"`. Controls which operations you are permitted to perform.
 </ResponseField>
 
 <ResponseField name="username" type="string">
-  The account login, echoed back.
+  The username of the authenticated account, echoed back for confirmation.
 </ResponseField>
 
-Logging in also stamps `last_login` on the user row — this is what the **Last login** column shows on the **Accounts** screen in the panel.
+## Using the Token
 
-A wrong username or a wrong password both return `401` with the same body:
+Include the token in the `Authorization` header of every admin request using the `Bearer` scheme:
 
-```json
-{ "error": "Nieprawidłowy login lub hasło." }
+```http
+Authorization: Bearer <token>
 ```
 
-<Note>
-  API error strings are Polish, because Polish is the platform's source language. This is independent of the panel's UI language: the admin panel never displays the raw API string — it shows its own translated message ("Incorrect username or password." in English). If you build your own client, translate these strings yourself rather than displaying them.
-</Note>
-
-The response is deliberately identical whether the account does not exist, is deactivated, or the password is simply wrong. The server also runs a bcrypt comparison against a dummy hash when the username is unknown, so a failed login takes roughly the same time either way and cannot be used to discover which usernames exist.
-
-## Using the token
-
-Send the token on every admin request:
-
+<CodeGroup>
 ```bash Authenticated request
-curl https://your-domain.example/api/admin/studies \
+curl https://your-host/api/admin/studies \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 ```
-
-The header must literally begin with `Bearer ` — a bare token is rejected.
-
-| Situation | Status | Body |
-| --- | --- | --- |
-| No `Authorization` header, or it doesn't start with `Bearer ` | `401` | `{ "error": "Unauthorized" }` |
-| Token invalid, tampered with, or past its expiry | `401` | `{ "error": "Invalid or expired token" }` |
-| A dashboard share token used on an admin endpoint | `401` | `{ "error": "Invalid token" }` |
-| Valid token, but the endpoint is admin-only and you are a researcher | `403` | `{ "error": "Wymagane konto administratora." }` |
-
-## Token payload and expiry
-
-The token carries exactly two custom claims, plus the standard `iat` and `exp` that the JWT library adds:
-
-```json
-{
-  "userId": 1,
-  "role": "admin",
-  "iat": 1710000000,
-  "exp": 1710086400
-}
-```
-
-`userId` is the row id in the `users` table; `role` is `admin` or `researcher`. The server uses `userId` to decide which studies you may touch (you reach a study when you own it, when you are listed as a collaborator on it, or when you are an admin) and `role` to gate account management.
-
-Tokens expire **24 hours** after issue. There is no refresh endpoint and no server-side logout — signing out in the panel simply discards the stored token in the browser. When a token expires, log in again.
+</CodeGroup>
 
 <Warning>
-  Because tokens are stateless, they cannot be revoked before they expire. Deactivating an account stops it from logging in again, but a token that account obtained beforehand keeps working until its 24-hour expiry. The only way to invalidate every outstanding token at once is to change `JWT_SECRET` and restart the server — which also breaks any dashboard share links you have handed out.
+Tokens expire after **24 hours**. When a token expires, the API returns `401 Unauthorized`. Repeat the login flow to obtain a fresh token. Do not embed tokens in client-side code or commit them to source control.
 </Warning>
 
-The payload is signed, not encrypted: anyone holding a token can read `userId` and `role` from it, but cannot change them without the secret. The panel itself decodes the payload client-side purely to decide which controls to show; the server enforces access independently.
+## Token Lifetime
 
-## JWT_SECRET
+| Property | Value |
+|---|---|
+| Expiry | 24 hours from issue |
+| Algorithm | JWT (signed server-side) |
+| Transport | `Authorization: Bearer` header only |
 
-Tokens are signed with HMAC using the `JWT_SECRET` environment variable. It is **required** — if it is unset, the server logs a fatal error and refuses to start rather than fall back to a predictable secret, which would let anyone forge a valid admin token.
+There is no refresh endpoint. When your token expires, log in again with your credentials to obtain a new one.
 
-Generate a strong random value:
+## Rate Limiting on Login
 
-```bash
-node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
-```
+To protect against brute-force attacks, the login endpoint is rate-limited:
 
-```bash .env
-JWT_SECRET=paste-the-generated-value-here
-```
+<Note>
+You may make a maximum of **20 login attempts per 15-minute window** per IP address. Exceeding this limit returns `429 Too Many Requests`. Wait for the window to reset before retrying.
+</Note>
 
-Changing the secret invalidates all existing tokens and all dashboard share links. Keep it out of version control.
+## Roles and Permissions
 
-## Login rate limit
+Every authenticated user has one of two roles returned at login time.
 
-The login endpoint — and only the login endpoint — is rate limited to **20 requests per 15 minutes per IP address**. Requests beyond that are rejected with `429` before any password check runs. Each response carries the standard `RateLimit-Limit`, `RateLimit-Remaining` and `RateLimit-Reset` headers, so a client can back off gracefully.
+### `admin`
 
-The window is a rolling 15 minutes and counts every login attempt, successful or not. If you are scripting against the API, cache the token for its 24-hour lifetime instead of logging in per request — you will not hit the limit, and you avoid a bcrypt comparison on each call.
+Admins have unrestricted access to all studies and all admin operations across the entire instance, regardless of who created the study.
+
+### `researcher`
+
+Researchers can access their own studies and any studies they have been added to as a collaborator. Attempting to access another user's study returns `404` (not `403`) to prevent enumeration. Attempting an operation that is strictly admin-only returns `403 Forbidden`.
+
+| Operation | `admin` | `researcher` |
+|---|---|---|
+| View own studies | ✅ | ✅ |
+| View all studies on instance | ✅ | ❌ |
+| Create / edit / delete studies | ✅ | ✅ (own only) |
+| Access collaborated studies | ✅ | ✅ |
+| Admin-only operations | ✅ | ❌ (`403`) |
+
+## Authentication Errors
+
+| Status | Meaning | When it occurs |
+|---|---|---|
+| `401` | Unauthorized | `Authorization` header missing, token malformed, or token expired |
+| `403` | Forbidden | Token is valid but the role does not permit the requested operation |
 
 <Tip>
-  The limit is keyed by IP. If your server sits behind a reverse proxy or a platform load balancer, make sure it forwards the real client IP, otherwise every request looks like it comes from the proxy and the limit applies to all your users collectively.
+If you receive a `401` on a request that previously worked, your token has likely expired. Re-authenticate via `POST /api/admin/login` and retry with the new token.
 </Tip>
-
-## There is no public registration
-
-The platform is invite-only by design. There is no sign-up endpoint and no sign-up screen — a researcher cannot create their own account.
-
-<Steps>
-  <Step title="The first admin is seeded from the environment">
-    On the very first start, when the `users` table is empty, the server creates one account with the username `admin` and the password from the `ADMIN_PASSWORD` environment variable. This happens once. Afterwards, login checks the bcrypt hash in the database, so changing `ADMIN_PASSWORD` later has no effect on the account.
-
-    If `ADMIN_PASSWORD` is not set on that first start, the seed is skipped with a warning and nobody can log in — set it and restart.
-  </Step>
-  <Step title="Every other account is created by an admin">
-    An admin opens the **Accounts** button in the panel header and uses **New account** to set a login, an optional email, an initial password (minimum 8 characters) and a role. Behind the panel this is `POST /api/admin/users`, which requires a valid token belonging to an `admin`.
-  </Step>
-  <Step title="Passwords are reset the same way">
-    An admin sets a new password from **Accounts** using the **Password** button. There is no self-service password reset and no email-based recovery flow — a locked-out researcher needs an admin.
-  </Step>
-</Steps>
-
-All passwords are stored as bcrypt hashes with a cost factor of 12; the plaintext is never written to the database and never returned by any endpoint.
-
-<Info>
-  The platform will not let the last active admin be demoted, deactivated, or delete their own account. This is a deliberate lockout guard — if it were bypassed, nobody could ever create accounts again without direct database access.
-</Info>
-
-## Dashboard share tokens
-
-One other kind of token exists. `POST /api/admin/studies/:studyId/share-link` returns a JWT that grants **read-only** access to a single study's dashboard, for handing to a collaborator or a supervisor who has no account:
-
-```bash
-curl -X POST https://your-domain.example/api/admin/studies/3/share-link \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"days": 30}'
-```
-
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "expires_days": 30,
-  "url": "/share/dashboard/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-}
-```
-
-`days` defaults to 30 and is clamped between 1 and 365. The payload is `{ study_id, scope: "dashboard-readonly" }` — a different shape from a login token, signed with the same secret. The share page reads the dashboard through `GET /api/admin/public/dashboard/:token`, which needs no `Authorization` header and checks the `scope` claim before returning anything.
-
-The two token types cannot be confused for one another: the admin middleware rejects any token carrying a `scope` claim, and the public dashboard endpoint rejects any token whose scope isn't `dashboard-readonly`.
-
-<Warning>
-  A share link is a bearer credential in a URL: anyone who has it can read that study's dashboard until the token expires. It cannot be revoked — generating a new link does not invalidate the old one. Choose a short `days` value for anything sensitive.
-</Warning>

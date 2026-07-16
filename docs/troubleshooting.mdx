@@ -1,338 +1,212 @@
 ---
-title: "Troubleshooting"
-description: "Fixes for the problems researchers and operators actually hit: startup failures, lockouts, missing images, study 404s, preview sessions and custom domains."
+title: "Troubleshooting common Misinfo Research issues"
+sidebarTitle: "Troubleshooting"
+description: "Step-by-step fixes for the most common problems in Misinfo Research: server startup, login, 404 links, missing images, data export, and more."
 ---
 
-Most problems with a Misinfo Research instance come from one of three places: an environment variable that is missing or misunderstood, a study that is not active, or a session that was tagged as a preview. This page walks through the symptoms you are likely to see, explains what the server is actually doing, and gives the fix.
-
-Throughout, the panel labels are the **English** ones (the admin panel defaults to Polish; the language switch is in the top-right of the header and on the login card). A few messages come straight from the server and are still Polish regardless of your panel language — those are called out where they matter.
-
-## The server refuses to start
-
-**Symptom:** the process exits immediately after launch and the log ends with:
-
-```
-FATAL: JWT_SECRET is not set. Refusing to start with a forgeable token secret.
-```
-
-**Cause:** `JWT_SECRET` signs the admin login tokens. There is deliberately no fallback value — a predictable secret would let anyone forge an admin token, so the server exits rather than start in that state.
-
-**Fix:** set `JWT_SECRET` to a long random string and restart.
-
-```bash
-node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
-```
-
-Put it in your `.env` (self-hosted) or in your host's environment variables (e.g. the Railway dashboard → Variables).
-
-<Warning>
-The server reads `.env` from the **working directory you launch it from**. Running `node /path/to/app/server.js` from your home directory will not pick up `/path/to/app/.env`. Start the app from the application directory (`npm start`), or set the variables in the environment directly.
-</Warning>
-
-With Docker Compose the failure looks different — Compose stops before the container is even built:
-
-```
-set JWT_SECRET in your .env (see .env.example)
-```
-
-Copy `.env.example` to `.env` next to `docker-compose.yml` and fill in `JWT_SECRET` and `ADMIN_PASSWORD`.
-
-<Note>
-Just above the fatal line you may also see: `[accounts] No users yet and ADMIN_PASSWORD not set — admin seed skipped.` That warning is not fatal on its own — the database layer loads before the admin routes, so both messages can appear in the same failed boot. Fix `JWT_SECRET` first, then re-read the section below.
-</Note>
-
-<Tip>
-Changing `JWT_SECRET` on an existing instance is safe for your data but invalidates every token already issued. Everyone who was signed in is silently signed out on their next click. Do it deliberately, not casually.
-</Tip>
-
-## Nobody can sign in / the admin password is lost
-
-The single most misunderstood variable on the platform is `ADMIN_PASSWORD`.
-
-<Warning>
-`ADMIN_PASSWORD` **only seeds the very first admin account**, and only when the `users` table is completely empty. After that first boot, login checks the bcrypt hash stored in the database. Editing `ADMIN_PASSWORD` later — in `.env`, in Railway, anywhere — has **no effect at all**.
-</Warning>
-
-On the boot where the seed runs, the log says:
-
-```
-[accounts] Seeded admin user "admin"; assigned 0 existing studies to it.
-```
-
-The username is literally `admin`. Any pre-existing studies without an owner are handed to that account, so nothing is orphaned.
-
-### Work through this in order
-
-<Steps>
-
-<Step title="Check the username, not just the password">
-The seeded account is `admin` — not your email, not your name. On the login card that is the **Username** field.
-</Step>
-
-<Step title="Check whether the account is disabled">
-Login only matches **active** accounts. A disabled account produces exactly the same message as a wrong password — *"Incorrect username or password."* — by design, so nobody can probe which logins exist. An administrator can re-enable it from **Accounts** (**Status** column → **Enable**).
-</Step>
-
-<Step title="Have another administrator reset the password">
-This is the normal path. In the header, click **Accounts**, find the row, click **🔑 Password**, and enter the new one at the *"New password (min. 8 characters):"* prompt. Passwords shorter than 8 characters are rejected by the server.
-</Step>
-
-<Step title="Only if there is no other administrator: reset at the database level">
-The platform ships no password-reset command, and the seed will not re-run while any user row exists. If the last admin password is gone, you need shell access to the machine holding the database file.
-</Step>
-
-</Steps>
-
-<Warning>
-The last step edits the database directly. Take a copy of the `.db` file first, and stop the app while you do it.
-
-```bash
-# 1. Generate a hash with the same algorithm and cost the app uses (bcrypt, 12).
-node -e "console.log(require('bcryptjs').hashSync('your-new-password', 12))"
-
-# 2. Write it onto the admin row (adjust the path to your DATABASE_PATH).
-sqlite3 ./data/research.db \
-  "UPDATE users SET password_hash='<paste-the-hash>', is_active=1 WHERE username='admin';"
-```
-
-Run step 1 from the application directory so `bcryptjs` resolves. Then restart the app and sign in with the new password.
-</Warning>
-
-### Other sign-in oddities
+Most issues with Misinfo Research fall into one of a small number of categories: missing environment variables, study configuration oversights, or mismatches between what the server expects and what it receives. Work through the relevant accordion below — each entry follows a **Symptom → Cause → Fix** structure so you can confirm you have the right issue before making any changes.
 
 <AccordionGroup>
 
-<Accordion title="I was working and got thrown back to the login screen">
-Login tokens expire after **24 hours**. When a token expires the panel receives a 401 and signs you out automatically. Sign in again — nothing is lost, the Configurator autosaves.
-</Accordion>
+  <Accordion title="Server refuses to start">
+    **Symptom:** The Node.js process exits immediately on startup, often with an error referencing a missing secret or a configuration problem.
 
-<Accordion title="Suddenly no login works, even the correct one">
-The login endpoint is rate-limited: **20 attempts per 15 minutes per IP address**. Once the window is exhausted, further attempts are rejected regardless of the credentials, and the login card does not tell you that this is what happened. Wait 15 minutes and try once, carefully.
+    **Cause:** The `JWT_SECRET` environment variable is not set. Misinfo Research requires this variable to sign and verify session tokens. Without it, the server will not start, as running without a secret would make all admin sessions cryptographically insecure.
 
-If this happens constantly with only one or two people using the panel, everyone's attempts are probably being counted against the same IP — see [Rate limiting behind a proxy](#rate-limiting-behind-a-proxy).
-</Accordion>
+    **Fix:**
 
-<Accordion title="I want researchers to register themselves">
-They cannot. Accounts are invite-only: *"Accounts are created by an administrator (no self-registration). Each researcher sees only their own studies; the administrator sees all of them."* Create them from **Accounts** → **New account**.
-</Accordion>
+    <Steps>
+      <Step title="Open your environment configuration">
+        If you are running locally, open (or create) the `.env` file in the project root. If you are running on a platform like Railway or Render, open the environment variables panel for your service.
+      </Step>
+      <Step title="Add the JWT_SECRET variable">
+        Set `JWT_SECRET` to any long, random string. A minimum of 32 characters is recommended. You can generate one with:
+        ```bash
+        node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+        ```
+      </Step>
+      <Step title="Restart the server">
+        Save your changes and restart the process. The server should now start without errors. Check the logs to confirm there are no other missing required variables.
+      </Step>
+    </Steps>
+
+    <Warning>
+      Never commit your `.env` file to version control. Add it to `.gitignore` before your first commit.
+    </Warning>
+  </Accordion>
+
+  <Accordion title="Can't log in or locked out of the admin panel">
+    **Symptom:** Navigating to `/admin` and entering your credentials returns an "Invalid password" error, or you cannot remember the password and have no way to reset it through the UI.
+
+    **Cause:** The `ADMIN_PASSWORD` environment variable is used to seed the admin account **on first boot only** — specifically, when no admin user exists in the database yet. If the variable was not set before the first run, or if you have changed it after the initial seed, the stored password will not match what you are entering.
+
+    **Fix:**
+
+    <Steps>
+      <Step title="Check whether an admin user already exists">
+        If the database was already seeded (i.e., the server has been started at least once before), simply changing `ADMIN_PASSWORD` in `.env` and restarting will **not** update the password. The seed only runs when there is no admin in the database.
+      </Step>
+      <Step title="Reset the password via the server console">
+        Connect to your server and run a one-off script or SQLite command to update the hashed password directly. Refer to the project README for the exact command, as it uses bcrypt hashing consistent with the rest of the auth system.
+      </Step>
+      <Step title="Alternatively, wipe and re-seed (development only)">
+        If you are in a development environment and have no data you need to keep, you can delete the SQLite database file and restart the server with `ADMIN_PASSWORD` set. The server will create a fresh database and seed the admin account with the new password.
+      </Step>
+    </Steps>
+
+    <Note>
+      In production, always use the console reset path. Wiping the database destroys all study data and cannot be undone.
+    </Note>
+  </Accordion>
+
+  <Accordion title="Participant link returns a 404 error">
+    **Symptom:** A participant (or you, during testing) opens the `/study/<slug>` URL and sees a 404 or "Study not found" page.
+
+    **Cause:** There are two common causes:
+    1. The study has not been **activated**. Studies are inactive by default and do not accept participants until you explicitly activate them.
+    2. The **slug in the URL is wrong** — either a typo or the slug was automatically suffixed (e.g., `-2`) because of a conflict with an existing study name.
+
+    **Fix:**
+
+    <Steps>
+      <Step title="Confirm the study is active">
+        Log in to `/admin`, open the study, and check its status. If it shows as inactive or draft, toggle it to active and save.
+      </Step>
+      <Step title="Confirm the correct slug">
+        In the study Settings tab, check the **Study slug** field. Copy the slug exactly as shown and construct the link as `/study/<slug>`. If the slug ends in `-2` or `-3`, the link you shared may be pointing to the original un-suffixed slug.
+      </Step>
+      <Step title="Rename the slug before resharing">
+        If the auto-suffixed slug is the problem, edit it to something clean and memorable in Settings, then reshare the updated link with participants.
+      </Step>
+    </Steps>
+  </Accordion>
+
+  <Accordion title="My test sessions are appearing in production data">
+    **Symptom:** When you view the dashboard or export data, you can see sessions that you ran yourself during testing — they are inflating your completion counts or skewing response distributions.
+
+    **Cause:** When you opened the live study link, the **"My sessions"** toggle in the participant view was set to **Production** rather than **Preview**. This caused your session to be recorded as a real participant session instead of a preview session.
+
+    **Fix:**
+
+    <Steps>
+      <Step title="Open the Export tab for your study">
+        In the admin panel, navigate to the affected study and click the **Export** tab.
+      </Step>
+      <Step title="Identify and delete your test sessions">
+        Preview sessions and production sessions are listed separately. Locate your test sessions — you can usually identify them by timestamp or by the UUID if you noted it — and delete them individually. You can also delete all preview sessions at once if none of them should be in the dataset.
+      </Step>
+      <Step title="Set the toggle correctly for future tests">
+        Before opening your own study link for any future testing, confirm the toggle is set to **Preview** so your sessions are automatically excluded from exports and dashboard statistics.
+      </Step>
+    </Steps>
+  </Accordion>
+
+  <Accordion title="Post images are not loading">
+    **Symptom:** Post cards display broken image icons instead of the images you uploaded. The rest of the study (text, buttons, Likert scales) loads normally.
+
+    **Cause:** Uploaded files are stored in the `./uploads/` directory on the server by default. In containerised or cloud deployments, this directory may not be persisted across restarts, or the `UPLOADS_PATH` environment variable may be pointing to a location that the server process cannot read.
+
+    **Fix:**
+
+    <Steps>
+      <Step title="Check the UPLOADS_PATH variable">
+        Confirm that `UPLOADS_PATH` in your environment points to the directory where images were originally uploaded. If the variable is unset, the server defaults to `./uploads/` relative to the project root.
+      </Step>
+      <Step title="Verify the directory exists and is readable">
+        SSH into your server (or open a shell in your container) and confirm the uploads directory exists and contains your image files. If the directory is empty, the images were not persisted.
+      </Step>
+      <Step title="Mount a persistent volume (Docker / Railway)">
+        If you are running in Docker or on Railway, ensure you have a persistent volume mounted to the uploads path. Without a volume, files written inside the container are lost on every restart. After mounting, re-upload any images that were lost.
+      </Step>
+    </Steps>
+
+    <Warning>
+      Do not rely on ephemeral container storage for uploads in production. Always configure a persistent volume or object storage before going live with a study.
+    </Warning>
+  </Accordion>
+
+  <Accordion title="Condition cells are filling unevenly">
+    **Symptom:** After collecting a number of sessions, you notice that one condition has significantly more participants than another, even though you expected balanced cells.
+
+    **Cause:** **Builder mode studies use uniform random assignment**, which means each participant is independently assigned to a condition with equal probability. Over small samples, this can produce noticeable imbalance by chance — just as flipping a fair coin ten times does not guarantee five heads.
+
+    **Classic mode studies** use **permuted block randomisation**, which does guarantee balanced cells within each block and results in more even condition sizes at every point during data collection.
+
+    **Fix:**
+
+    <Steps>
+      <Step title="Assess whether the imbalance is within acceptable bounds">
+        For most studies, minor imbalance from random assignment is statistically unproblematic and should be accounted for in your analysis (e.g., by including condition as a covariate). A difference of a few sessions between cells is expected and not a sign of a bug.
+      </Step>
+      <Step title="Switch to classic mode if balance is critical">
+        If your protocol requires guaranteed equal cell sizes at every interim check, consider using a classic study, which uses permuted block randomisation. Note that classic and builder studies have different feature sets, so review the FAQ entry on classic vs builder mode before switching.
+      </Step>
+    </Steps>
+  </Accordion>
+
+  <Accordion title="Export shows fewer sessions than the dashboard">
+    **Symptom:** The number of sessions in your downloaded export file is lower than the total session count shown on the study dashboard.
+
+    **Cause:** The data export includes **only completed sessions** — participants who reached the end of the study and submitted their responses. Participants who started the study but dropped out before completing it appear in the dashboard's session and completion-rate counts, but their partial records are excluded from the export.
+
+    **Fix:**
+
+    <Steps>
+      <Step title="Check completion rate on the dashboard">
+        The dashboard shows both total sessions started and the completion rate. The difference between those two numbers is your drop-out count. This is expected behaviour, not a data loss bug.
+      </Step>
+      <Step title="Investigate the drop-off stage">
+        The dashboard also shows which stage of the study participants were at when they dropped out. If a particular stage has high abandonment, consider whether the instructions are clear, whether the page is too long, or whether there is a rendering issue at that point.
+      </Step>
+      <Step title="Do not expect partial data in the export">
+        If you need to analyse drop-out patterns beyond what the dashboard provides, you would need to access the SQLite database directly and query the sessions table for incomplete records.
+      </Step>
+    </Steps>
+  </Accordion>
+
+  <Accordion title="AI translation button is not visible in the builder">
+    **Symptom:** You expected to see a translate or AI-assist button in the study builder for post content or interface strings, but no such button appears.
+
+    **Cause:** The AI translation feature is only available when a valid `ANTHROPIC_API_KEY` is configured on the server instance. If the environment variable is missing or empty, the translation UI is hidden entirely.
+
+    **Fix:**
+
+    <Steps>
+      <Step title="Obtain an Anthropic API key">
+        Sign up for API access at [anthropic.com](https://www.anthropic.com) and generate an API key from your account dashboard.
+      </Step>
+      <Step title="Set the environment variable">
+        Add `ANTHROPIC_API_KEY=<your-key>` to your `.env` file or your hosting platform's environment variables panel.
+      </Step>
+      <Step title="Restart the server">
+        Restart the Node.js process to pick up the new variable. The translation button should now appear in the builder without any further configuration.
+      </Step>
+    </Steps>
+
+    <Note>
+      All other platform features — study building, data collection, and export — work without this key. It is only required for AI-assisted translation.
+    </Note>
+  </Accordion>
+
+  <Accordion title="New study has an unexpected slug suffix (-2, -3, etc.)">
+    **Symptom:** You created a new study and noticed that its auto-generated slug ends in `-2`, `-3`, or another number — for example, `vaccine-attitudes-2` instead of `vaccine-attitudes`.
+
+    **Cause:** Misinfo Research requires every study slug to be unique across the instance. When you create a study whose title would generate a slug that already exists (from a previous study, even a deleted one that left a slug behind), the platform automatically appends a numeric suffix to avoid a conflict.
+
+    **Fix:**
+
+    <Steps>
+      <Step title="Rename the slug before sharing any links">
+        Open the study's **Settings** tab and edit the slug field to the value you want. Choose something unique, descriptive, and URL-safe (lowercase letters, numbers, and hyphens only).
+      </Step>
+      <Step title="Save and verify">
+        Save the settings and confirm the participant link now reads `/study/<your-chosen-slug>`. Test it in your browser before distributing it to participants.
+      </Step>
+    </Steps>
+
+    <Warning>
+      If you have already shared the suffixed link with any participants, do **not** rename the slug — doing so will break the link for anyone who has bookmarked or received it. Only rename before the study goes live.
+    </Warning>
+  </Accordion>
 
 </AccordionGroup>
-
-## Auto-translation reports a missing API key
-
-**Symptom:** clicking **✨ Translate automatically** returns *"Translation error: …"* wrapping this message (it is emitted by the server in Polish even when your panel is in English):
-
-> Brak klucza API Anthropic. Ustaw zmienną środowiskową ANTHROPIC_API_KEY…
-
-**Cause:** AI-assisted translation calls the Anthropic API and needs `ANTHROPIC_API_KEY`. It is an optional variable — the rest of the platform is fully functional without it.
-
-**Fix:** set `ANTHROPIC_API_KEY` in your `.env` or host environment and **restart the server**. The value is read from the process environment, so a running instance will not pick up a newly added key.
-
-<Info>
-Auto-translation targets **English, Czech and Slovak**. Asking for anything else returns `Invalid language`; Polish is the source language, and the panel tells you *"Select a language other than Polish."*
-</Info>
-
-<AccordionGroup>
-
-<Accordion title="The screens got translated but the posts stayed Polish">
-Translation runs as two separate calls: study-level content (consent, instruction, transitions, debriefing, demographic questions, post questions, part labels) and then the posts. The posts call is deliberately non-fatal — if it fails, the study-level translation is still saved and the posts keep their original text. Your server log will show:
-
-```
-Posts translation error (non-fatal): …
-```
-
-Run **✨ Translate automatically** again, or translate the affected post fields by hand.
-</Accordion>
-
-<Accordion title="Translation failed with some other message">
-Any error the server does not recognise as an authentication problem is passed through verbatim from the Anthropic SDK (rate limits, network failures, quota). The full error is in the server log next to `Translation error:`. Retrying usually resolves transient failures; nothing is written to the study unless the study-level call succeeds.
-</Accordion>
-
-<Accordion title="Do I need a key just to run a study in English?">
-No. The key only automates the *first draft* of a translation. Translated text is stored on the study and stays editable by hand, and a study can be authored in another language without ever calling the API.
-</Accordion>
-
-</AccordionGroup>
-
-## Images disappear after a redeploy
-
-This one has a counter-intuitive answer.
-
-Post images and avatars are **not** kept as files. When you upload one, the bytes go straight into the database as a BLOB on the post row, and `/uploads/<studyId>/<filename>` streams them back out of the database. There is a fallback that reads from disk, but that exists only for legacy files that predate this design.
-
-So: **images survive a redeploy exactly as well as your database does.** If they vanished, the database file vanished with them.
-
-<Warning>
-An ephemeral filesystem is the usual culprit. Most PaaS hosts wipe the container filesystem on every deploy. If `./data/research.db` (or wherever `DATABASE_PATH` points) is not on a persistent volume, you do not just lose images — you lose studies, sessions, reactions, ratings and accounts, and the next boot re-seeds a brand-new `admin` from `ADMIN_PASSWORD`. Losing *everything* rather than only images is the diagnostic signal.
-</Warning>
-
-**Fix:** put the database on a persistent volume.
-
-<Tabs>
-<Tab title="Railway">
-Service → **Volumes** → **Add Volume** with mount path `/app/data`. Redeploy. The default `DATABASE_PATH` (`./data/research.db`) then lands inside the volume.
-
-Add a second volume at `/app/uploads` if the instance is old enough to still hold on-disk images.
-</Tab>
-<Tab title="Docker Compose">
-The bundled `docker-compose.yml` already declares named volumes:
-
-```yaml
-volumes:
-  - misinfo-data:/app/data
-  - misinfo-uploads:/app/uploads
-```
-
-If you wrote your own compose file or run `docker run` by hand, mount both paths yourself — the image declares `VOLUME ["/app/data", "/app/uploads"]`.
-</Tab>
-</Tabs>
-
-<AccordionGroup>
-
-<Accordion title="Old images vanished but new uploads stick">
-That instance predates BLOB storage and still had images on disk. On every boot the app scans the uploads directory and copies any file it finds into the matching post's BLOB columns, logging:
-
-```
-[image-migration] Loaded 12 image(s) from disk into DB BLOBs
-```
-
-The scan is idempotent (it skips posts that already have BLOBs) but it can only migrate files that are still *there* at boot. If the uploads directory was ephemeral, those files are gone and the images must be re-uploaded. Once re-uploaded, they are in the database and the `/app/uploads` volume stops mattering.
-</Accordion>
-
-<Accordion title="The upload is rejected">
-Two limits apply, both server-side: the file must be **JPEG, PNG or WebP** (anything else fails with `Invalid file type`), and it must be **at most 5 MB**. The panel surfaces the message as an error toast.
-</Accordion>
-
-</AccordionGroup>
-
-## A participant gets a 404 on the study link
-
-**Symptom:** the study URL shows *"Badanie nie zostało znalezione lub jest nieaktywne."* ("Study not found or inactive.")
-
-The server resolves participant URLs with exactly two lookups:
-
-| URL | What must be true |
-| --- | --- |
-| `/study/<slug>` | a study with that slug exists **and `is_active = 1`** |
-| `/study/<slug>?preview=1` | a study with that slug exists **and is a builder-mode study** |
-
-Both failures produce the same 404 page, so work through the causes in order:
-
-<Steps>
-
-<Step title="The study is not active">
-This is the common one. A new study is created **inactive** on purpose so it cannot be reached before it is finished. Activate it with **Activate** in the **Configurator** (or the **Settings** tab); the study picker in the header marks inactive studies as *inactive*, and the studies list shows an **Inactive** badge.
-</Step>
-
-<Step title="The slug is wrong or was changed">
-Slugs are unique; creating a study whose slug is taken appends `-2`, `-3` and so on. If you edited **Slug (study URL)** after distributing the link, every previously shared URL now 404s. Treat the slug as frozen once recruitment starts.
-</Step>
-
-<Step title="You sent a preview link, or expected one to keep working">
-`?preview=1` bypasses the active check, but only for builder-mode studies, and it tags every resulting session as a preview. It is for *your* walkthroughs. Participants must get the plain `/study/<slug>` URL against an active study.
-</Step>
-
-<Step title="The link is on a custom domain">
-On a bound custom domain almost every path other than the study itself returns a 404 that reads *"Strona nie została znaleziona."* — see the next section.
-</Step>
-
-</Steps>
-
-## Rate limiting behind a proxy
-
-Only one endpoint is rate-limited: **admin login**, at 20 attempts per 15 minutes per IP. Participant endpoints are not rate-limited, so a proxy misconfiguration never blocks your sample — it locks out *researchers*.
-
-For that limit to identify callers correctly, the app must know it is behind a proxy. `server.js` declares exactly one trusted hop:
-
-```js
-app.set('trust proxy', 1);
-```
-
-<AccordionGroup>
-
-<Accordion title="ERR_ERL_UNEXPECTED_X_FORWARDED_FOR in the logs">
-The rate limiter saw an `X-Forwarded-For` header while the app did not trust any proxy, so it cannot tell the real client from the proxy and refuses to guess. On a stock checkout this cannot happen — the line above is already there. If you see it, that line was removed or overridden; restore it.
-</Accordion>
-
-<Accordion title="Everyone gets locked out of login after a handful of attempts">
-Symptom of **more than one proxy hop** in front of the app (for example a CDN in front of your host). With one hop trusted, the address the limiter sees is the intermediate proxy — identical for everybody — so all admins share a single 20-attempts bucket.
-
-The fix is to make the trusted hop count match your actual topology in `server.js`. Count the proxies between the public internet and the app and set the number accordingly.
-</Accordion>
-
-<Accordion title="Can I just set trust proxy to true?">
-Don't. `true` trusts whatever `X-Forwarded-For` arrives, which lets any client claim any IP and walk straight around the login limiter. Trusting a specific number of hops is what makes the header trustworthy.
-</Accordion>
-
-</AccordionGroup>
-
-## Preview sessions where you don't want them
-
-A session row carries an `is_preview` flag. The server sets it to `1` when **either**:
-
-1. the URL carried `?preview=1`, or
-2. the browser sent a `missinfo_admin_mode` cookie whose value is `preview`.
-
-The panel sets that cookie to `preview` the moment you sign in (24-hour lifetime, cleared on sign-out). That is what the **My sessions:** switch in the header controls — **🧪 Preview (not counted)** or **📊 Production (counted)**. The dashboard, the analyses and the export all exclude preview sessions by default.
-
-<AccordionGroup>
-
-<Accordion title="My own test runs are counted as real participants">
-Your **My sessions:** switch is on **📊 Production (counted)**. The panel warns you when you flip it: *"⚠ Your sessions on study links will count as PRODUCTION. Remember to switch back to Preview mode after testing."* Switch it back to **🧪 Preview (not counted)**, then remove the sessions you already created — see below.
-</Accordion>
-
-<Accordion title="Real participants' sessions are missing from the dashboard">
-Check whether they used a browser that was signed in to the admin panel — a lab machine or your own laptop handed to a pilot participant. The cookie, not the person, decides the flag. Any session started from a signed-in browser while the switch says Preview is tagged `is_preview = 1` and hidden from the dashboard and export.
-
-The data is not lost. In the **Export** tab, tick the checkbox that adds preview sessions to the export (its label is still shown in Polish: *"Dołącz sesje podglądowe (preview) do eksportu"*) and download again.
-</Accordion>
-
-<Accordion title="Preview sessions are cluttering the export">
-They are excluded unless you explicitly include them. To remove them for good, use **🗑 Delete preview sessions** in the **Export** tab (the button carries the count in brackets). It deletes both completed and unfinished preview sessions together with their reactions, ratings and answers; production sessions are untouched. The confirmation is blunt about it: *"This operation cannot be undone."*
-</Accordion>
-
-<Accordion title="I ticked include-preview but a session still isn't there">
-Only **completed** preview sessions are included. Unfinished ones never appear in the export, even with the option on — the panel spells this out in the tooltip: *"Preview sessions that were never finished — they will not appear in the export even with 'Include preview sessions' enabled"*. If there are no completed previews at all you get *"No completed preview sessions to include."*
-</Accordion>
-
-</AccordionGroup>
-
-## A custom domain doesn't serve the study
-
-**Custom study domain** (in the **Configurator**) binds one hostname to one study. Requests arriving on that host serve that study at `/` and nothing else — no admin panel, no other studies, no dashboard.
-
-The platform only matches the hostname it receives. Getting traffic to arrive there at all — the DNS record and the TLS certificate — is your DNS and hosting provider's job.
-
-<AccordionGroup>
-
-<Accordion title="The domain shows the admin login instead of the study">
-The host → study lookup requires the study to be **active**. If the bound study is inactive the lookup finds nothing, the routing middleware does nothing, and the request falls through to normal routing — where `/` redirects to `/admin`.
-
-So an inactive study on a bound domain does not 404: it exposes your admin login on the domain you gave participants. **Activate the study**, and check the binding again.
-</Accordion>
-
-<Accordion title="The domain doesn't match at all">
-The stored value must be the **exact bare hostname** — no `https://`, no trailing slash, lowercase, no wildcards. The Configurator normalises what you type (it strips the protocol and any path and lowercases the result) but it intentionally leaves `www.` alone, because only you know whether your CNAME points at the apex or the `www` form. If you bound `example.org` and traffic arrives on `www.example.org`, that is a miss — handle the normalisation in DNS.
-
-The field help says the same thing: *"enter EXACTLY that host name here — without `https://`, without a trailing `/`"*.
-</Accordion>
-
-<Accordion title="Some pages on the domain return a Polish 404">
-That is the binding working as intended. On a bound host only the study and what it needs are reachable: `/` (the bound study), that study's own `/study/<slug>` URL, `/api/*`, `/uploads/*`, and the static assets under `/css/`, `/js/`, `/locales/`, `/favicon` plus the eye-tracking model path. Everything else — including `/admin` — returns *"Strona nie została znaleziona."*
-
-Use your installation's original address for the admin panel. Recruitment links keep working: the query string is preserved, so `https://study.example.org/?res_id=ABC123` still lands the panel ID on the session.
-</Accordion>
-
-<Accordion title="Two studies are bound to the same hostname">
-Nothing stops you from saving the same hostname on two studies — uniqueness is not enforced in the schema, only at lookup time, where the first matching active study wins. Which one that is, is not something you should rely on. Bind one host to one study, and clear the field on the other (empty = the study is reachable only via `/study/<slug>` on the app's main address).
-</Accordion>
-
-</AccordionGroup>
-
-## When nothing above fits
-
-<Card title="Read the server log first">
-The platform reports its real problems on stdout, not in the UI: the fatal `JWT_SECRET` line, the `[accounts]` seed messages, `[image-migration]` counts, and the full text of any failed translation. Your host's log view (or `docker compose logs -f app`) answers more questions than the panel does.
-</Card>
-
-If the behaviour still looks wrong after that, it may be a bug rather than a configuration problem — the platform is open source (MIT), so the code is the final documentation. Report it at [github.com/lowcydizajnu/missinfo-research](https://github.com/lowcydizajnu/missinfo-research) with the relevant log lines and the steps that produced it.

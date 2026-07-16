@@ -1,185 +1,95 @@
 ---
-title: "Translations"
-description: "How the admin panel language, participant interface strings, and translated study content work — and how to run a study in several languages."
+title: "Working with Translations and Languages"
+sidebarTitle: "Translations"
+description: "Understand the two separate language layers in Misinfo Research — admin panel UI language and per-study content language — and how to translate study content."
 ---
 
-Misinfo Research keeps three kinds of text strictly apart: the language **you** work in as a researcher, the platform's own wording **participants** see, and the study content **you wrote** (consent, posts, questions). They are stored in different places, translated by different mechanisms, and changing one never touches the others.
+Misinfo Research has two independent language layers that are worth keeping distinct: the **admin panel UI language**, which controls what you and your team see while building studies, and the **study content language**, which controls what participants see when they take part. Changing one has no effect on the other.
 
-Getting this distinction right saves a lot of confusion later — so the first section is a map, and the rest of the page follows it.
+## Admin Panel UI Language
 
-## The three layers
+The admin interface is available in **Polish** (the default) and **English**. You can switch at any time using the language toggle in the **top-right corner of the header**, or on the **login screen** before signing in. The preference is stored in your browser and applies to your session only — other users on the same instance can choose their own preferred language independently.
 
-| Layer | Who sees it | Where it lives | How you change it |
-| --- | --- | --- | --- |
-| Admin panel UI | You (the researcher) | `public/locales/admin/pl.json`, `public/locales/admin/en.json` | Language dropdown in the header or on the login screen |
-| Participant interface strings | Participants | `public/locales/{pl,en,cs,sk}.json` + `locale_overrides` table | **Interface translations** modal (⚙ in the header) |
-| Study content | Participants | Study columns and rows in the database, plus `translations_json` | Configurator / Settings, optionally seeded by **Translate automatically** |
+This setting affects only the labels, buttons, menu items, and messages you see in the admin panel. It does not change anything that participants experience.
+
+## Study Content Language
+
+Each study has its own content language, set in **Settings → Language** (see [Settings](/guide/settings)). This controls which translation overlay is shown to participants — consent text, instructions, post headlines and body text, demographic questions, post questions, transition texts, debrief, and action button labels all follow this setting.
+
+Available content languages:
+
+| Code | Language |
+|------|----------|
+| PL | Polish |
+| EN | English |
+| CS | Czech |
+| SK | Slovak |
+
+Polish is the source language for all study content — your primary text entries are stored in the original Polish columns. When you set a study to a non-Polish language, the platform uses a **translations overlay** (`translations_json` on the study record) to serve the translated strings to participants.
+
+## Translation Workflow
+
+When your study is set to a non-Polish language, every translatable field in the builder and Configurator gains an additional input where you enter the target-language version. You have two options for filling in those fields.
+
+<Steps>
+  <Step title="Enter translations manually">
+    Type the translated text directly into each target-language field alongside the Polish source. This works for any language and requires no external services — the platform is fully functional without any AI integration.
+  </Step>
+  <Step title="Use automatic translation">
+    Click the **✨ Translate automatically** button available at the top of translatable sections. The platform sends the Polish source text to the Anthropic Claude API and populates the target-language fields for you. Review the results and adjust as needed before saving.
+  </Step>
+</Steps>
 
 <Note>
-Demographic questions and their answer options are **study content**, not interface strings. You write them yourself, they live in the database, and they are translated per study — never through the interface-translations modal.
+  Automatic translation requires an `ANTHROPIC_API_KEY` to be configured on your Misinfo Research instance. If no API key is present, the **✨ Translate automatically** button will not appear, and the platform remains fully functional for manual translation. Contact your system administrator if you want to enable AI-assisted translation.
 </Note>
 
-## Layer 1 — the admin panel language
+### What AI Translation Covers
 
-The panel ships in **Polish (default) and English**. Both live as flat key/value files in `public/locales/admin/`; Polish is the source language.
+When you trigger automatic translation, the following content areas are translated in one operation:
 
-Switch it with the small language dropdown (tooltip: *Panel language*) that appears in two places:
+<AccordionGroup>
+  <Accordion title="Study framework">
+    - Consent screen text
+    - Instructions shown before the feed
+    - Debriefing text shown after completion
+    - Transition texts between study parts
+    - Part labels
+  </Accordion>
+  <Accordion title="Posts">
+    - Post headlines
+    - Post body content
+    - Action button labels (e.g. "Share", "Like", custom labels)
+    - Post-level questions and their answer options
+  </Accordion>
+  <Accordion title="Demographic questions">
+    - Question labels
+    - Answer option labels
+  </Accordion>
+</AccordionGroup>
 
-- in the **header**, top-right, next to the ⚙ button and **Sign out**;
-- on the **login card**, below the **Sign in** button — so you can read the panel in English before you have an account.
+Fields left empty by the automatic pass — for example, custom content you add after running the translation — will fall back to their Polish source values until you provide a translation manually.
 
-The choice is stored in your browser (`localStorage`, key `admin_lang`) and applies to that browser only. Switching reloads the page, which guarantees no already-rendered tab keeps a stale string.
+<Tip>
+  Run automatic translation early in your workflow, then make manual edits to refine phrasing. It is easier to correct a machine-translated draft than to translate from scratch, especially for longer consent and debrief texts.
+</Tip>
 
-<Info>
-If an English key is missing, the panel falls back to the **Polish** string, never to a raw key like `header.logout`. A partially translated panel degrades to Polish rather than to gibberish.
-</Info>
+## Admin Panel Locale Overrides
 
-This setting is purely cosmetic for you. It has **no effect whatsoever** on what participants see — a panel set to English will still run a Polish study in Polish.
-
-## Layer 2 — participant interface strings
-
-Everything the platform says to a participant that you did not write yourself — action buttons, topic pills, navigation, generic prompts — comes from the participant locale file for the **study's** language: `public/locales/pl.json`, `en.json`, `cs.json`, or `sk.json`.
-
-You can override any of these strings from the panel:
+If the default Polish or English labels in the admin interface do not match your institution's terminology, administrators can customise the UI strings directly. Open the **Tłumaczenia interfejsu** (Interface Translations) modal, accessible from the admin panel settings area.
 
 <Steps>
   <Step title="Open the modal">
-    Click the **⚙** button in the header (tooltip: *Translations and platform settings*).
+    Navigate to the instance-level settings and select **Tłumaczenia interfejsu**. You will see a list of all translatable UI keys for both the Polish and English admin interfaces.
   </Step>
-  <Step title="Pick a language tab">
-    Tabs for 🇵🇱 Polski, 🇬🇧 English, 🇨🇿 Čeština, 🇸🇰 Slovenčina. On a non-Polish tab the Polish text is shown read-only on the left as the reference; on the Polish tab you edit Polish directly.
+  <Step title="Edit the strings">
+    Click any string to edit it. Your override replaces the default value for **all users on this instance** — it is not a per-user setting.
   </Step>
-  <Step title="Edit and save">
-    Type a replacement, then save. Leaving a field empty means "use the default from the locale file".
+  <Step title="Save changes">
+    Overrides are stored in the database and take effect immediately. They persist across platform updates unless a new release introduces a key that does not yet have an override.
   </Step>
 </Steps>
-
-Saves do **not** rewrite the JSON files on disk. They are diffed against the file baseline and written to a `locale_overrides` table (`lang` + `key` composite key). Any value equal to the file default, or cleared, deletes its row — so the table only ever holds genuine overrides.
-
-<Tip>
-That indirection exists for a reason: on hosts with an ephemeral filesystem (Railway, containers), a file write would be silently wiped on the next redeploy. Each row is badged in the modal — **💾 DB** means "stored in the database, survives redeploy", **📄 PL.json** means "still the file default". Hovering a DB badge shows when the edit landed.
-</Tip>
-
-<Warning>
-Interface strings are **global**: they apply to every study, every researcher, and every participant on the installation. Because of that, saving them requires an **admin** account (a non-admin gets a 403). Any signed-in user can open the modal and read the values.
-</Warning>
 
 <Note>
-The interface-translations modal renders its own chrome (title, hint, save button, badge tooltips) in Polish regardless of your panel language. The strings you are editing are shown correctly in all four languages — only the modal's own furniture is Polish-only.
+  Locale overrides affect the admin panel UI only. They do not modify any participant-facing content. Study content translations are managed per study in the builder or Configurator.
 </Note>
-
-## Layer 3 — study content
-
-Study content is the text of the experiment itself: participant title, consent, instructions, transitions, debriefing, action labels, the Likert wording, demographic questions and their options, post questions, part labels, and the posts.
-
-**Polish is always the source language.** Each study carries a `language` field (`pl`, `en`, `cs`, `sk`). Set it in the:
-
-- **Configurator** tab — the compact `🇵🇱 PL / 🇬🇧 EN / 🇨🇿 CS / 🇸🇰 SK` dropdown in the study header (builder-mode studies);
-- **Settings** tab — the **Study language** dropdown (older, non-builder studies).
-
-When a study's language is anything other than Polish, translated text is not written over your Polish columns. It is stored **alongside** them, in the study's `translations_json`, keyed by language:
-
-```json
-{
-  "en": {
-    "consent_text": "…",
-    "label_action_like": "Like",
-    "demographic_questions": [{ "id": 12, "label": "Age", "options": [{ "label": "18–24" }] }],
-    "posts": [{ "id": 340, "headline_a": "…", "content_a": "…" }]
-  }
-}
-```
-
-At runtime this overlay **shadows** the database row: participants see the translated value where one exists, and the Polish source wherever one does not. So a study set to `cs` with no translation yet is not broken — participants simply get Polish content inside a Czech interface.
-
-<Info>
-A post's `topic` stays a key (e.g. `nauka`) in the database. The topic pill is rendered from the participant locale (`topics.<key>`), which is why translating the topic key itself would break the lookup rather than fix it. Topic labels belong to layer 2.
-</Info>
-
-## Automatic translation
-
-Setting the language to anything but Polish reveals a **✨ Translate automatically** button (it reads **Translate again** once a translation exists, next to a `✓ Translated` / `⚠ No translation` status).
-
-Clicking it sends your study's Polish content to the Anthropic API and writes the result into `translations_json` for the target language. It also sets the study's `language` to that target.
-
-<Steps>
-  <Step title="Study-level content">
-    One request covers participant title, consent, no-consent text, instructions, both transition texts, debriefing, the Likert question and its min/max labels, the four action labels (like / dislike / share / flag), the comment placeholder, plus demographic questions, post questions and part labels.
-  </Step>
-  <Step title="Posts">
-    A second request covers the posts: headlines and content for both A and B variants, `time_ago`, and the pinned comment with its author.
-  </Step>
-</Steps>
-
-Machine-readable structure is deliberately preserved: option `value` codes, question and row `id`s, Likert `scale` numbers, and `question_type` all pass through untouched — only human-visible labels are translated. Empty fields stay empty. Only **active** posts and questions are sent.
-
-<Warning>
-Automatic translation targets **English, Czech and Slovak only**, and always translates *from* Polish. There is no reverse direction: a study written in English cannot be machine-translated to Polish.
-</Warning>
-
-<Note>
-If the posts request fails, the study-level translation is still saved and the posts simply keep their Polish text. You can rerun the button or fix the posts by hand.
-</Note>
-
-### The API key
-
-Automatic translation calls the Anthropic API and needs an `ANTHROPIC_API_KEY` environment variable on the server:
-
-```bash
-# .env next to the app, or your host's environment variables
-ANTHROPIC_API_KEY=sk-ant-…
-```
-
-This key is **optional**. The platform is fully functional without it — every other feature works, and you can still run multilingual studies by typing the translations in yourself. Without the key, the **Translate automatically** button returns an error asking you to set `ANTHROPIC_API_KEY` and restart the server.
-
-<Warning>
-Treat machine translation as a **first draft, not a finished instrument**. Consent forms, debriefing, and Likert anchors carry methodological weight: anchor wording changes response distributions, and an ethics committee approved a specific consent text, not an approximation of it. Have a native speaker read every translated study before it goes live.
-</Warning>
-
-## Editing translations by hand
-
-This is the important half of the workflow, and it works exactly as you would hope: **switch the study to the target language, then edit the fields normally.**
-
-The panel is overlay-aware in both directions. Reading a study in Czech shows you the Czech text, not the Polish source. Saving writes translatable fields back into the overlay for that language and leaves the Polish source columns intact. This holds for study-level text, demographic questions, post questions, parts, and posts alike.
-
-<Check>
-Clearing a field in a non-Polish version makes it empty **for that language** — it does not silently fall back to the Polish source. What you see in the panel is what the participant gets.
-</Check>
-
-To edit the Polish original, switch the study's language back to `pl`; you are then editing the source columns directly, and existing translations for other languages are left alone.
-
-## Running a study in several languages
-
-<Info>
-**The workflow used in practice is one study per language.** A study carries a single `language` value, so a single study renders in exactly one language. Multi-language fieldwork is done by duplication, not by a language toggle for participants.
-</Info>
-
-<Steps>
-  <Step title="Build and finalise the Polish master">
-    Get the design right first — posts, conditions, demographics, consent. Every duplicate inherits it.
-  </Step>
-  <Step title="Duplicate the study">
-    **Duplicate**, once per additional language. Settings and posts are copied; session data is not. Copies are named `… (kopia)`, `… (kopia 2)`, and so on — rename them to something like *Vaccines — CS*.
-  </Step>
-  <Step title="Set the language on the copy">
-    Open the copy, set its language to `en` / `cs` / `sk`.
-  </Step>
-  <Step title="Translate">
-    Click **✨ Translate automatically**, then review and correct every field by hand.
-  </Step>
-  <Step title="Verify, then activate">
-    Preview the copy end to end before opening it to participants.
-  </Step>
-</Steps>
-
-Duplication handles the awkward part for you: the copy's posts and questions get new database ids, and the ids inside `translations_json` are remapped to match, so translations that were already present keep pointing at the right rows.
-
-Practical consequences worth planning for:
-
-- Each language version is an **independent study** with its own slug, its own participant URL, and its own sessions. Recruit into each one separately.
-- Exports are per study, so you get one dataset per language and combine them in your analysis software. Keep a stable identifier — a consistent naming scheme, or the study slug — so the language is a variable you can model.
-- Changes to the Polish master after duplication do **not** propagate. Freeze the design before you duplicate; if you must change something afterwards, apply it to every copy.
-
-<Warning>
-Language is confounded with sample in this design: participants in the Czech version are Czech recruits in a Czech setting, not a random assignment to a language condition. Cross-language differences are cross-sample differences — treat them as such, and consider measurement invariance before comparing means across versions.
-</Warning>
