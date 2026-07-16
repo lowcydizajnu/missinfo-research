@@ -23,20 +23,25 @@
 <div id="login-screen">
   <div class="login-wrap">
     <div class="login-card">
-      <h1>Panel Administratora</h1>
-      <p class="login-sub">Misinfo Research Platform</p>
+      <h1 data-i18n="login.title">Panel Administratora</h1>
+      <p class="login-sub" data-i18n="login.subtitle">Misinfo Research Platform</p>
       <form id="login-form">
         <div class="form-group">
-          <label for="admin-username">Login</label>
-          <input type="text" id="admin-username" placeholder="np. admin" autocomplete="username">
+          <label for="admin-username" data-i18n="login.username">Login</label>
+          <input type="text" id="admin-username" placeholder="np. admin" data-i18n-placeholder="login.username_ph" autocomplete="username">
         </div>
         <div class="form-group">
-          <label for="admin-password">Hasło</label>
+          <label for="admin-password" data-i18n="login.password">Hasło</label>
           <input type="password" id="admin-password" placeholder="••••••••" autocomplete="current-password">
         </div>
-        <button type="submit" class="btn btn-primary btn-full">Zaloguj się</button>
-        <p class="error-text" id="login-error" style="display:none">Nieprawidłowy login lub hasło.</p>
+        <button type="submit" class="btn btn-primary btn-full" data-i18n="login.submit">Zaloguj się</button>
+        <p class="error-text" id="login-error" style="display:none" data-i18n="login.error">Nieprawidłowy login lub hasło.</p>
       </form>
+      <select class="admin-lang-select" data-i18n-title="header.lang_title" title="Język panelu"
+              style="margin-top:1.25rem;width:auto;font-size:0.78rem;padding:0.2rem 1.5rem 0.2rem 0.4rem">
+        <option value="pl">Polski</option>
+        <option value="en">English</option>
+      </select>
     </div>
   </div>
 </div>
@@ -45,46 +50,50 @@
 <div id="admin-panel" style="display:none">
 
   <header class="admin-header">
-    <div class="header-brand" id="brand-home" style="cursor:pointer" title="Wszystkie badania — pulpit zbiorczy">
+    <div class="header-brand" id="brand-home" style="cursor:pointer" data-i18n-title="header.brand_title" title="Wszystkie badania — pulpit zbiorczy">
       <span class="brand-icon">🔬</span>
       <span class="brand-name">Misinfo Research</span>
     </div>
     <div class="header-center">
       <div class="study-picker" id="study-picker">
         <button type="button" class="study-picker-btn" id="study-picker-btn">
-          <span id="study-picker-label">— wybierz badanie —</span>
+          <span id="study-picker-label" data-i18n="header.pick_study">— wybierz badanie —</span>
           <span class="study-picker-chevron">▾</span>
         </button>
         <ul class="study-picker-list" id="study-picker-list"></ul>
       </div>
-      <button class="btn btn-primary btn-sm" id="btn-create-study">+ Nowe</button>
-      <button class="btn btn-ghost btn-sm" id="btn-konta" style="display:none" title="Konta użytkowników i przypisanie do badań">👥 Konta</button>
+      <button class="btn btn-primary btn-sm" id="btn-create-study" data-i18n="header.new_study">+ Nowe</button>
+      <button class="btn btn-ghost btn-sm" id="btn-konta" style="display:none" data-i18n-title="header.accounts_title" data-i18n="header.accounts" title="Konta użytkowników i przypisanie do badań">👥 Konta</button>
     </div>
     <div class="header-actions">
       <!-- Session-mode toggle: when set to "preview" (default after login), any
            study URL opened from this browser tags the resulting session as
            is_preview=1 — so admin's check sessions never pollute production
            data. Switch to "production" to do a true live test. -->
-      <label id="admin-mode-wrap" style="display:flex;align-items:center;gap:0.4rem;font-size:0.78rem;color:var(--muted);cursor:pointer;padding:0.3rem 0.6rem;background:var(--surface2);border-radius:7px" title="Jak liczyć Twoje własne sesje w tym badaniu">
-        <span>Moje sesje:</span>
+      <label id="admin-mode-wrap" style="display:flex;align-items:center;gap:0.4rem;font-size:0.78rem;color:var(--muted);cursor:pointer;padding:0.3rem 0.6rem;background:var(--surface2);border-radius:7px" data-i18n-title="header.mode_title" title="Jak liczyć Twoje własne sesje w tym badaniu">
+        <span data-i18n="header.my_sessions">Moje sesje:</span>
         <select id="admin-mode-select" style="width:auto;font-size:0.78rem;padding:0.15rem 1.5rem 0.15rem 0.4rem">
-          <option value="preview">🧪 Podgląd (nie liczone)</option>
-          <option value="production">📊 Produkcyjnie (liczone)</option>
+          <option value="preview" data-i18n="header.mode_preview">🧪 Podgląd (nie liczone)</option>
+          <option value="production" data-i18n="header.mode_production">📊 Produkcyjnie (liczone)</option>
         </select>
       </label>
-      <button class="btn btn-ghost btn-sm btn-icon" id="btn-platform-settings" title="Tłumaczenia i ustawienia platformy">⚙</button>
-      <button class="btn btn-ghost btn-sm" id="logout-btn">Wyloguj</button>
+      <select class="admin-lang-select" data-i18n-title="header.lang_title" title="Język panelu" style="width:auto;font-size:0.78rem;padding:0.15rem 1.5rem 0.15rem 0.4rem">
+        <option value="pl">Polski</option>
+        <option value="en">English</option>
+      </select>
+      <button class="btn btn-ghost btn-sm btn-icon" id="btn-platform-settings" data-i18n-title="header.platform_settings" title="Tłumaczenia i ustawienia platformy">⚙</button>
+      <button class="btn btn-ghost btn-sm" id="logout-btn" data-i18n="header.logout">Wyloguj</button>
     </div>
   </header>
 
   <nav class="tab-nav">
-    <button class="tab-btn active" data-tab="dashboard">📊 Pulpit</button>
-    <button class="tab-btn" data-tab="posts">✏️ Posty</button>
-    <button class="tab-btn" data-tab="demographics">👤 Pytania dem.</button>
-    <button class="tab-btn" data-tab="konfigurator">🔧 Konfigurator</button>
-    <button class="tab-btn" data-tab="export">📥 Eksport</button>
-    <button class="tab-btn" data-tab="analyses">📊 Analizy</button>
-    <button class="tab-btn tab-btn-right" data-tab="settings">⚙️ Ustawienia</button>
+    <button class="tab-btn active" data-tab="dashboard" data-i18n="tabs.dashboard">📊 Pulpit</button>
+    <button class="tab-btn" data-tab="posts" data-i18n="tabs.posts">✏️ Posty</button>
+    <button class="tab-btn" data-tab="demographics" data-i18n="tabs.demographics">👤 Pytania dem.</button>
+    <button class="tab-btn" data-tab="konfigurator" data-i18n="tabs.konfigurator">🔧 Konfigurator</button>
+    <button class="tab-btn" data-tab="export" data-i18n="tabs.export">📥 Eksport</button>
+    <button class="tab-btn" data-tab="analyses" data-i18n="tabs.analyses">📊 Analizy</button>
+    <button class="tab-btn tab-btn-right" data-tab="settings" data-i18n="tabs.settings">⚙️ Ustawienia</button>
   </nav>
 
   <main class="admin-main">

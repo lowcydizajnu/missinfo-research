@@ -1,0 +1,39 @@
+{
+  "login": {
+    "title": "Panel Administratora",
+    "subtitle": "Misinfo Research Platform",
+    "username": "Login",
+    "username_ph": "np. admin",
+    "password": "Hasło",
+    "submit": "Zaloguj się",
+    "error": "Nieprawidłowy login lub hasło."
+  },
+  "header": {
+    "brand_title": "Wszystkie badania — pulpit zbiorczy",
+    "pick_study": "— wybierz badanie —",
+    "new_study": "+ Nowe",
+    "accounts": "👥 Konta",
+    "accounts_title": "Konta użytkowników i przypisanie do badań",
+    "my_sessions": "Moje sesje:",
+    "mode_preview": "🧪 Podgląd (nie liczone)",
+    "mode_production": "📊 Produkcyjnie (liczone)",
+    "mode_title": "Jak liczyć Twoje własne sesje w tym badaniu",
+    "platform_settings": "Tłumaczenia i ustawienia platformy",
+    "logout": "Wyloguj",
+    "lang_title": "Język panelu",
+    "study_inactive": "nieaktywne"
+  },
+  "tabs": {
+    "dashboard": "📊 Pulpit",
+    "posts": "✏️ Posty",
+    "demographics": "👤 Pytania dem.",
+    "konfigurator": "🔧 Konfigurator",
+    "export": "📥 Eksport",
+    "analyses": "📊 Analizy",
+    "settings": "⚙️ Ustawienia"
+  },
+  "common": {
+    "pick_study_first": "Wybierz badanie z listy powyżej.",
+    "loading": "Ładowanie…"
+  }
+}

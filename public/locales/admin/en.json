@@ -1,0 +1,39 @@
+{
+  "login": {
+    "title": "Admin Panel",
+    "subtitle": "Misinfo Research Platform",
+    "username": "Username",
+    "username_ph": "e.g. admin",
+    "password": "Password",
+    "submit": "Sign in",
+    "error": "Incorrect username or password."
+  },
+  "header": {
+    "brand_title": "All studies — combined dashboard",
+    "pick_study": "— select a study —",
+    "new_study": "+ New",
+    "accounts": "👥 Accounts",
+    "accounts_title": "User accounts and study assignment",
+    "my_sessions": "My sessions:",
+    "mode_preview": "🧪 Preview (not counted)",
+    "mode_production": "📊 Production (counted)",
+    "mode_title": "How your own sessions in this study are counted",
+    "platform_settings": "Translations and platform settings",
+    "logout": "Sign out",
+    "lang_title": "Panel language",
+    "study_inactive": "inactive"
+  },
+  "tabs": {
+    "dashboard": "📊 Dashboard",
+    "posts": "✏️ Posts",
+    "demographics": "👤 Demographics",
+    "konfigurator": "🔧 Configurator",
+    "export": "📥 Export",
+    "analyses": "📊 Analyses",
+    "settings": "⚙️ Settings"
+  },
+  "common": {
+    "pick_study_first": "Select a study from the list above.",
+    "loading": "Loading…"
+  }
+}

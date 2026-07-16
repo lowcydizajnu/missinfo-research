@@ -8,7 +8,58 @@ const S = {
   selectedPostsStudy: null,
   selectedExportStudy: null,
   currentPosts: [],   // cached for preview
+  lang: localStorage.getItem('admin_lang') || 'pl',  // panel UI language
+  locales: {},        // {pl: {...}, en: {...}}
 };
+
+// ── i18n ─────────────────────────────────────────────────────────────────────
+// Polish is the SOURCE language and the default; English is an overlay for
+// self-hosters. Mirrors the participant-side t() (participant.js) — dot-path
+// keys + {{var}} interpolation — with one deliberate difference: a missing key
+// falls back to the POLISH string, never to the raw key. A partially translated
+// panel therefore degrades to Polish rather than showing "header.logout".
+const ADMIN_LANGS = { pl: 'Polski', en: 'English' };
+
+async function loadAdminLocales() {
+  // Always load pl: it is the fallback for every key the overlay lacks.
+  const langs = S.lang === 'pl' ? ['pl'] : ['pl', S.lang];
+  await Promise.all(langs.map(async l => {
+    try {
+      const r = await fetch(`/locales/admin/${l}.json`, { cache: 'no-cache' });
+      S.locales[l] = r.ok ? await r.json() : {};
+    } catch { S.locales[l] = {}; }
+  }));
+}
+
+function t(keyPath, vars = {}) {
+  const pick = (loc) => {
+    let v = loc;
+    for (const k of keyPath.split('.')) { v = v?.[k]; if (v === undefined) return undefined; }
+    return typeof v === 'string' ? v : undefined;
+  };
+  const val = pick(S.locales[S.lang]) ?? pick(S.locales.pl) ?? keyPath;
+  return val.replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] ?? '');
+}
+
+// Translate the STATIC markup in admin.html. JS-rendered templates call t()
+// inline instead; this covers only what ships in the HTML file.
+//   data-i18n="key"             → textContent
+//   data-i18n-placeholder="key" → placeholder attribute
+//   data-i18n-title="key"       → title attribute
+function applyStaticI18n(root = document) {
+  root.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+  root.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+  root.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = t(el.dataset.i18nTitle); });
+}
+
+// Switching language re-renders everything the simplest bulletproof way: a
+// reload. It is a rare action and guarantees no stale strings survive in any
+// already-rendered tab.
+function setAdminLang(lang) {
+  if (!ADMIN_LANGS[lang] || lang === S.lang) return;
+  localStorage.setItem('admin_lang', lang);
+  location.reload();
+}
 
 // ── API ────────────────────────────────────────────────────────────────────
 async function api(method, path, data, isForm = false) {
@@ -111,7 +162,7 @@ function setActiveStudy(id) {
 
   const study = S.studies.find(s => String(s.id) === S.activeStudy);
   const label = document.getElementById('study-picker-label');
-  label.textContent = study ? study.name : '— wybierz badanie —';
+  label.textContent = study ? study.name : t('header.pick_study');
   document.querySelectorAll('#study-picker-list li').forEach(li => {
     li.classList.toggle('selected', li.dataset.id === S.activeStudy);
   });
@@ -160,7 +211,7 @@ async function renderAggregateDashboard() {
   if (DB.refreshTimer) { clearInterval(DB.refreshTimer); DB.refreshTimer = null; }
   DB.studyId = null;
   const label = document.getElementById('study-picker-label');
-  if (label) label.textContent = '— wybierz badanie —';
+  if (label) label.textContent = t('header.pick_study');
   document.querySelectorAll('#study-picker-list li').forEach(li => li.classList.remove('selected'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === 'dashboard'));
   document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id === 'tab-dashboard'));
@@ -468,6 +519,16 @@ function showAdminPanel() {
   loadAll();
 }
 
+// Panel language switcher. Class-based, not id-based, because it appears BOTH
+// on the login card and in the header — a self-hoster must be able to switch to
+// English before signing in, not only after.
+function initLangSwitchers() {
+  document.querySelectorAll('.admin-lang-select').forEach(sel => {
+    sel.value = S.lang;
+    sel.onchange = () => setAdminLang(sel.value);
+  });
+}
+
 // Accounts view — top-level (not a study tab). Hides the study-specific tab bar.
 function showKontaView() {
   S.activeStudy = '';
@@ -482,7 +543,15 @@ async function loadAll() {
   populateStudySelects();
 }
 
-if (S.token) showAdminPanel();
+// Boot: locales first, so neither the login screen nor the panel can paint a
+// stale language. applyStaticI18n() translates admin.html's static markup; the
+// JS-rendered views call t() as they render.
+(async function boot() {
+  await loadAdminLocales();
+  applyStaticI18n();
+  initLangSwitchers();   // works on the login screen too, not just the header
+  if (S.token) showAdminPanel();
+})();
 
 // ── Studies ────────────────────────────────────────────────────────────────
 async function loadStudies() {
@@ -499,7 +568,7 @@ function populateStudySelects() {
   S.studies.forEach(s => {
     const li = document.createElement('li');
     li.dataset.id = s.id;
-    li.textContent = `${s.name}${s.is_active ? '' : ' (nieaktywne)'}`;
+    li.textContent = `${s.name}${s.is_active ? '' : ` (${t('header.study_inactive')})`}`;
     li.addEventListener('click', () => {
       setActiveStudy(s.id);
       list.classList.remove('open');
