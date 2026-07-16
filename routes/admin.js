@@ -2398,7 +2398,7 @@ ${JSON.stringify(postsToTranslate, null, 2)}`
   } catch (err) {
     console.error('Translation error:', err);
     const msg = err.message?.includes('authentication') || err.message?.includes('API key') || err.message?.includes('apiKey')
-      ? 'Brak klucza API Anthropic. Dodaj zmienną środowiskową ANTHROPIC_API_KEY w ustawieniach serwera (Railway → Variables).'
+      ? 'Brak klucza API Anthropic. Ustaw zmienną środowiskową ANTHROPIC_API_KEY (plik .env obok aplikacji lub zmienne środowiskowe Twojego hostingu) i zrestartuj serwer.'
       : err.message;
     res.status(500).json({ error: msg });
   }

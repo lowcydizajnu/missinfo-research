@@ -1461,7 +1461,7 @@ async function renderBuilderView(studyId) {
                style="font-family:var(--font-mono,monospace);font-size:0.9rem">
         <div style="font-size:0.78rem;color:var(--muted);margin-top:0.3rem;line-height:1.5">
           Jeśli skonfigurowałeś rekord CNAME dla subdomeny (np. <code>study.example.org</code>
-          → Railway), wpisz tu DOKŁADNIE tę nazwę hosta — <strong>bez</strong> <code>https://</code>,
+          → adres tej aplikacji), wpisz tu DOKŁADNIE tę nazwę hosta — <strong>bez</strong> <code>https://</code>,
           <strong>bez</strong> końcowego <code>/</code>. Wtedy uczestnik wejdzie na
           <code>https://study.example.org/?res_id=...</code> i od razu zobaczy
           to konkretne badanie. Panel admin oraz inne badania będą niedostępne pod tym hostem.
