@@ -1,5 +1,5 @@
 ---
-title: "Exporting Study Data"
+title: "Exporting Study Data from Misinfo Research to Excel or CSV"
 sidebarTitle: "Export"
 description: "Download your raw data as Excel or CSV, customise the column layout with the inline builder, and manage preview sessions before sharing your dataset."
 ---
@@ -12,44 +12,38 @@ Only **completed sessions** are included in exports. Participants who started th
 
 <CardGroup cols={2}>
   <Card title="Excel (.xlsx)" icon="file-excel">
-    A multi-sheet workbook containing raw reactions, credibility ratings, session summaries, a design pivot table, and supplementary sheets for questions, demographics, and optional modules. This is the recommended format for most research workflows.
+    A workbook with two sheets: `Dane_surowe` (one wide row per session, with every post's reactions, ratings, and question answers pivoted into columns) and `Klucz_kodowania` (the demographic and condition codebook). This is the recommended format for most research workflows.
   </Card>
   <Card title="CSV" icon="file-csv">
-    A single file containing the raw-data sheet (`Dane_surowe`) only. Use this when you are importing directly into R, Python, or another tool that reads delimited text.
+    A single file containing the `Dane_surowe` sheet only, in comma-separated format. Use this when you are importing directly into R, Python, or another tool that reads delimited text.
   </Card>
 </CardGroup>
 
 ## Excel workbook structure
 
-The Excel export is organised into named sheets. The table below describes each sheet and what it contains.
+The Excel export contains two sheets.
 
 | Sheet name | Contents |
 |---|---|
-| `Dane_surowe` | One row per participant reaction. Columns: `session_id`, `post_id`, `post_order`, `action` (like / dislike / share / flag / comment), `dwell_ms`, `likes_shown`, `shares_shown`, `dislikes_shown`, `flags_shown`, `style_condition`, `metric_condition`, `full_condition`, `is_true`, `is_undo`. |
-| `Oceny_wiarygodnosci` | One row per credibility rating. In classic studies this is a `belief_1_7` scale entry per post per session. Builder studies use post-level questions instead of this sheet. |
-| `Podsumowanie_sesji` | One row per completed session with aggregate metrics: `session_id`, `started_at`, `completed_at`, condition columns, all demographic fields, average reaction rates, average belief on true posts, and average belief on false posts. |
-| `Design_2x2` | Pivot table showing cell sizes and a demographic breakdown for each condition cell. Useful for verifying that randomisation distributed participants evenly. |
-| Post questions | One sheet per post-level question block, one row per answer. Present when post questions are configured in the study. |
-| Demographic questions | Custom demographic items beyond the standard coding-key variables. |
-| Eye tracking | Gaze fixation and saccade data per post per session. Present only when eye-tracking is enabled for the study. |
-| Coding key | Human-readable legend for all numeric demographic codes (see below). |
+| `Dane_surowe` | One row per completed session. Each post appears as a group of columns with a numeric prefix (e.g. `post_1_reaction`, `post_1_dwell_ms`, `post_2_belief_1_7`). The sheet also includes session metadata (`session_id`, `full_condition`, `style_condition`, `metric_condition`, `started_at`, `completed_at`, `duration_min`), all demographic fields with their numeric codes, any post-level question answers, and a conditional-logic audit trail (`logic_applied`, `logic_skipped_parts`, `logic_end_rule`). |
+| `Klucz_kodowania` | Human-readable legend that maps every numeric demographic code to its label (e.g. gender `1` = woman, age `2` = 26–35). Also lists all condition labels and post-question IDs so you can decode the `Dane_surowe` columns without referring back to the platform. |
 
 ## Demographic coding key
 
-Numeric codes are used throughout the export to represent demographic responses. The **Coding key** sheet documents each code. A summary of the standard variables is below:
+Numeric codes are used throughout the export to represent demographic responses. The **`Klucz_kodowania`** sheet documents each code. A summary of the standard variables is below:
 
 <AccordionGroup>
   <Accordion title="Age">
-    Age is recorded as a band code rather than an exact year. The coding key sheet lists the age range corresponding to each numeric value.
+    Age is recorded as a band code rather than an exact year. The `Klucz_kodowania` sheet lists the age range corresponding to each numeric value.
   </Accordion>
   <Accordion title="Gender">
-    Gender is stored as a small integer. The coding key maps each value to its label (e.g., woman, man, non-binary, prefer not to say).
+    Gender is stored as a small integer. The `Klucz_kodowania` sheet maps each value to its label (e.g., woman, man, non-binary, prefer not to say).
   </Accordion>
   <Accordion title="Education">
-    Education level is an ordered integer scale from primary / secondary through postgraduate. The coding key documents each step.
+    Education level is an ordered integer scale from primary / secondary through postgraduate. The `Klucz_kodowania` sheet documents each step.
   </Accordion>
   <Accordion title="Residence">
-    Residence type is coded as an integer representing settlement size categories (e.g., rural, small town, large city). The coding key sheet lists all categories.
+    Residence type is coded as an integer representing settlement size categories (e.g., rural, small town, large city). The `Klucz_kodowania` sheet lists all categories.
   </Accordion>
 </AccordionGroup>
 

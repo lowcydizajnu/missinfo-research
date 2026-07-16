@@ -16,8 +16,8 @@ The Session object is returned in full by `POST /api/session/start`. It is the s
   UUID that uniquely identifies this participant's session. Include this value in every subsequent participant API call (`/api/session/consent`, `/api/reaction`, etc.).
 </ResponseField>
 
-<ResponseField name="is_preview" type="boolean">
-  `true` if this session was started with `preview: true`. Preview sessions are excluded from analysis exports.
+<ResponseField name="is_preview" type="number">
+  `1` if this session was started with `preview: true`, `0` otherwise. Preview sessions are excluded from analysis exports. Note that this field is returned as an integer (`0` or `1`), not a boolean.
 </ResponseField>
 
 <ResponseField name="style_condition" type="string">
@@ -32,8 +32,8 @@ The Session object is returned in full by `POST /api/session/start`. It is the s
   Compound condition string combining style and metric conditions (e.g. `"A_hidden"`). Useful as a single grouping key in analysis.
 </ResponseField>
 
-<ResponseField name="external_id" type="string">
-  Identifier derived from `url_params` (e.g. a Prolific or MTurk worker ID). Use this to join session records back to your participant panel.
+<ResponseField name="external_id" type="string | null">
+  Identifier derived from `url_params` using the study's configured parameter name (e.g. a Prolific or MTurk worker ID). `null` when no matching URL parameter was found. Use this to join session records back to your participant panel.
 </ResponseField>
 
 <ResponseField name="language" type="string">

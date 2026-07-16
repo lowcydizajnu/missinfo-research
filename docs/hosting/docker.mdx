@@ -46,7 +46,6 @@ Running Misinfo Research with Docker Compose is the easiest way to get a consist
     ```env
     JWT_SECRET=your_generated_secret_here
     ADMIN_PASSWORD=your_strong_password_here
-    NODE_ENV=production
     ```
 
     <Warning>
@@ -71,7 +70,7 @@ Docker Compose creates two named volumes automatically. They are stored by Docke
 
 | Volume name | Mount path inside container | Contents |
 |---|---|---|
-| `misinfo-data` | `/app/data` | SQLite database (`misinfo.db`) |
+| `misinfo-data` | `/app/data` | SQLite database (`research.db`) |
 | `misinfo-uploads` | `/app/uploads` | User-uploaded images |
 
 <Note>

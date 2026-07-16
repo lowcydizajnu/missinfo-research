@@ -50,7 +50,7 @@ You will need a Railway account (free tier available). If you are not already si
     2. Add a new volume and set the **mount path** to `/app/data`.
     3. Save and redeploy the service.
 
-    This volume stores `misinfo.db` and survives all future deploys and restarts.
+    This volume stores `research.db` and survives all future deploys and restarts.
 
     <Note>
       If you expect to store a significant number of uploaded images, add a second volume mounted at `/app/uploads`. Without it, uploaded files are lost on each redeploy.

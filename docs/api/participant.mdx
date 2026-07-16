@@ -63,8 +63,8 @@ The response is a full session bootstrap object. See [Data Model — Session](/a
   UUID identifying this participant's session. Include this in every subsequent API call.
 </ResponseField>
 
-<ResponseField name="is_preview" type="boolean">
-  `true` if this is a preview session, `false` for a real session.
+<ResponseField name="is_preview" type="number">
+  `1` if this is a preview session, `0` for a real session. Note that this field is returned as an integer, not a boolean.
 </ResponseField>
 
 <ResponseField name="style_condition" type="string">
@@ -79,8 +79,12 @@ The response is a full session bootstrap object. See [Data Model — Session](/a
   Combined condition string combining style and metric conditions.
 </ResponseField>
 
+<ResponseField name="external_id" type="string | null">
+  The captured panel-recruitment identifier extracted from `url_params` using the study's configured parameter name (e.g. a Prolific or MTurk worker ID). `null` if no matching parameter was found in `url_params`.
+</ResponseField>
+
 <ResponseField name="parts" type="array">
-  Array of study part objects defining multi-part experiment structure.
+  Array of study part objects defining multi-part experiment structure. Present and populated for builder-mode studies; an empty array for classic (non-builder) studies.
 </ResponseField>
 
 <ResponseField name="posts" type="array">
@@ -120,10 +124,11 @@ curl -X POST https://your-host/api/session/start \
 ```json Response (abbreviated)
 {
   "session_token": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
-  "is_preview": false,
+  "is_preview": 0,
   "style_condition": "B",
   "metric_condition": "shown",
   "full_condition": "B_shown",
+  "external_id": null,
   "language": "en",
   "posts": [...],
   "study": { "participant_title": "Social Media Study", ... },
@@ -145,6 +150,10 @@ POST /api/session/consent
 ```
 
 Records whether the participant consented to take part in the study. You must call this endpoint after presenting your consent form, regardless of the participant's decision. If `consented` is `false`, the session is marked as withdrawn and the participant should be directed to an exit page.
+
+<Note>
+If the `session_token` is missing or does not match any active session, the server returns `401 Unauthorized`. Always ensure the token from `/api/session/start` is stored and forwarded correctly.
+</Note>
 
 ### Request Body
 

@@ -73,7 +73,8 @@ The table below lists every endpoint in the API with its authentication requirem
 | `POST` | `/api/admin/posts/:id/image` | Bearer JWT | Upload a post image (multipart) |
 | `DELETE` | `/api/admin/posts/:id/image` | Bearer JWT | Remove the image from a post |
 | `GET` | `/api/admin/dashboard/:studyId` | Bearer JWT | Retrieve aggregated dashboard statistics |
-| `GET` | `/api/admin/export/:studyId` | Bearer JWT | Download session data as XLSX or CSV |
+| `GET` | `/api/admin/export/:studyId` | Bearer JWT | Download session data as a multi-sheet XLSX workbook |
+| `GET` | `/api/admin/export/:studyId/csv` | Bearer JWT | Download the primary data sheet as a UTF-8 CSV file |
 | `POST` | `/api/session/start` | None | Start a participant session and receive the study bootstrap |
 | `POST` | `/api/session/consent` | None | Record participant consent decision |
 | `POST` | `/api/session/demographics` | None | Submit participant demographic responses |

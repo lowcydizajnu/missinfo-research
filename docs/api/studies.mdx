@@ -1,7 +1,7 @@
 ---
 title: "Studies & Posts API — Misinfo Research"
 sidebarTitle: "Studies API"
-description: "Create and manage studies, configure posts, upload images, reorder content, and export session data using the admin API endpoints."
+description: "Create and manage studies, configure posts, upload images, reorder content, and export session data using the Misinfo Research admin API."
 ---
 
 The Studies and Posts API gives you full programmatic control over the content and configuration of your misinformation experiments. All endpoints in this section require a valid JWT Bearer token — see [Authentication](/api/authentication) for how to obtain one.
@@ -96,6 +96,10 @@ PATCH /api/admin/studies/:id
 
 Partially updates a study. Send only the fields you want to change; all other fields remain unchanged.
 
+<Note>
+This endpoint returns the **full updated study object**, not just `{"ok": true}`. You can use the returned object to refresh your local state without a separate GET request.
+</Note>
+
 #### Path Parameters
 
 <ParamField path="id" type="number" required>
@@ -142,9 +146,7 @@ Partially updates a study. Send only the fields you want to change; all other fi
 
 #### Response
 
-<ResponseField name="ok" type="boolean">
-  `true` on success.
-</ResponseField>
+The full updated study object is returned. Key fields include those sent in the request plus all unchanged study fields.
 
 <CodeGroup>
 ```bash Request
@@ -155,7 +157,15 @@ curl -X PATCH https://your-host/api/admin/studies/2 \
 ```
 
 ```json Response
-{ "ok": true }
+{
+  "id": 2,
+  "name": "Climate Denial Study",
+  "slug": "climate-denial",
+  "is_active": true,
+  "contact_email": "pi@university.edu",
+  "language": "en",
+  "created_at": "2024-03-01T10:00:00Z"
+}
 ```
 </CodeGroup>
 
@@ -179,11 +189,30 @@ Deletion is **irreversible**. All posts, sessions, and collected data are remove
   The integer ID of the study to delete.
 </ParamField>
 
+#### Request Body
+
+<ParamField body="confirm" type="string" required>
+  Must be the exact string `"DELETE"`. This confirmation field is required to prevent accidental deletions. Omitting it or sending any other value returns `400 Bad Request`.
+</ParamField>
+
 #### Response
 
 <ResponseField name="ok" type="boolean">
   `true` on success.
 </ResponseField>
+
+<CodeGroup>
+```bash Request
+curl -X DELETE https://your-host/api/admin/studies/2 \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"confirm": "DELETE"}'
+```
+
+```json Response
+{ "ok": true }
+```
+</CodeGroup>
 
 ---
 
@@ -203,12 +232,18 @@ Creates a copy of the study with all its posts. The duplicate has no participant
 
 #### Response
 
+The full study object for the newly created duplicate is returned — the same shape as the `GET /api/admin/studies` list entries. Key fields include:
+
 <ResponseField name="id" type="number">
   Integer ID of the newly created duplicate study.
 </ResponseField>
 
 <ResponseField name="slug" type="string">
-  Auto-generated slug for the duplicate (derived from the original slug with a suffix).
+  Auto-generated slug for the duplicate, derived from the original slug with a numeric copy suffix.
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Display name of the duplicate, derived from the original name with a copy suffix.
 </ResponseField>
 
 <CodeGroup>
@@ -218,7 +253,14 @@ curl -X POST https://your-host/api/admin/studies/2/duplicate \
 ```
 
 ```json Response
-{ "id": 3, "slug": "climate-denial-copy" }
+{
+  "id": 3,
+  "slug": "climate-denial-copy",
+  "name": "Climate Denial Study (kopia)",
+  "is_active": false,
+  "language": "en",
+  "created_at": "2024-04-01T12:00:00Z"
+}
 ```
 </CodeGroup>
 
@@ -345,8 +387,18 @@ Creates a new post and appends it to the specified study. Posts support an A/B v
 
 #### Response
 
+The full post object for the newly created post is returned. Key fields include:
+
 <ResponseField name="id" type="number">
   Integer ID of the newly created post.
+</ResponseField>
+
+<ResponseField name="study_id" type="number">
+  ID of the study this post belongs to.
+</ResponseField>
+
+<ResponseField name="order_index" type="number">
+  Position of this post within the study's post list (appended at the end on creation).
 </ResponseField>
 
 ---
@@ -371,9 +423,7 @@ All fields from the `POST /api/admin/posts` body are accepted as optional partia
 
 #### Response
 
-<ResponseField name="ok" type="boolean">
-  `true` on success.
-</ResponseField>
+The full updated post object is returned — the same shape as the `GET /api/admin/studies/:id/posts` list entries. You can use this to refresh your local post state without a separate GET request.
 
 ---
 
@@ -427,8 +477,16 @@ Attaches an image to a post. The request must be sent as `multipart/form-data`.
 
 #### Response
 
-<ResponseField name="url" type="string">
-  Absolute URL of the uploaded image as served by your host. Store this URL if you need to reference the image externally.
+<ResponseField name="image_url" type="string">
+  Root-relative URL of the uploaded image as served by your host (e.g. `/uploads/2/10_abc123.png`). Prepend your base URL to construct the full absolute URL.
+</ResponseField>
+
+<ResponseField name="filename" type="string">
+  The server-assigned filename for the uploaded image. Each upload generates a unique timestamped filename to prevent stale CDN or browser cache hits.
+</ResponseField>
+
+<ResponseField name="col" type="string">
+  Internal database column name the image was stored in. You can safely ignore this field in most integrations.
 </ResponseField>
 
 <CodeGroup>
@@ -439,7 +497,11 @@ curl -X POST https://your-host/api/admin/posts/10/image \
 ```
 
 ```json Response
-{ "url": "https://your-host/uploads/posts/10/image.png" }
+{
+  "image_url": "/uploads/2/10_abc123.png",
+  "filename": "10_abc123.png",
+  "col": "image_path"
+}
 ```
 </CodeGroup>
 
@@ -489,13 +551,13 @@ Returns aggregated statistics for the specified study, including session counts,
 
 ---
 
-### Export Session Data
+### Export Session Data (XLSX)
 
 ```http
 GET /api/admin/export/:studyId
 ```
 
-Downloads all session and reaction data for a study as a spreadsheet or CSV file.
+Downloads all session and reaction data for a study as an Excel workbook (`.xlsx`). This is the primary export format and produces a multi-sheet workbook with formatted column headers.
 
 #### Path Parameters
 
@@ -503,26 +565,46 @@ Downloads all session and reaction data for a study as a spreadsheet or CSV file
   Integer ID of the study to export.
 </ParamField>
 
-#### Query Parameters
+#### Response
 
-<ParamField query="format" type="string">
-  Export format. Use `xlsx` (default) for an Excel workbook or `csv` for a plain comma-separated file. If omitted, defaults to `xlsx`.
-</ParamField>
+Returns an `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` file download. The `Content-Disposition` header includes a suggested filename in the format `<slug>_<date>.xlsx`.
 
 <CodeGroup>
-```bash XLSX (default)
+```bash Download XLSX
 curl "https://your-host/api/admin/export/2" \
   -H "Authorization: Bearer <token>" \
   --output study-2-data.xlsx
 ```
+</CodeGroup>
 
-```bash CSV
-curl "https://your-host/api/admin/export/2?format=csv" \
+---
+
+### Export Session Data (CSV)
+
+```http
+GET /api/admin/export/:studyId/csv
+```
+
+Downloads the primary data sheet for a study as a UTF-8 CSV file. Use this when you want to pipe data directly into R, Python, or another analysis tool that works with plain text.
+
+#### Path Parameters
+
+<ParamField path="studyId" type="number" required>
+  Integer ID of the study to export.
+</ParamField>
+
+#### Response
+
+Returns a `text/csv; charset=utf-8` file download with a UTF-8 BOM prepended so Excel opens the file correctly without a character-encoding prompt. The `Content-Disposition` header includes a suggested filename in the format `<slug>_<date>.csv`.
+
+<CodeGroup>
+```bash Download CSV
+curl "https://your-host/api/admin/export/2/csv" \
   -H "Authorization: Bearer <token>" \
   --output study-2-data.csv
 ```
 </CodeGroup>
 
 <Tip>
-Use `format=csv` when you want to pipe data directly into a data analysis tool. Use `format=xlsx` (the default) when you need formatted column headers, multiple worksheets, or compatibility with Excel.
+Use `GET /api/admin/export/:studyId` (XLSX) when you need multiple worksheets, formatted column headers, or Excel compatibility. Use `GET /api/admin/export/:studyId/csv` when you want to feed data directly into a script or analysis pipeline.
 </Tip>

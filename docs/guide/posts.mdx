@@ -1,7 +1,7 @@
 ---
-title: "Creating and Managing Posts in Your Study"
+title: "Creating and Managing Posts in Your Research Study"
 sidebarTitle: "Posts"
-description: "Add, configure, and organise posts in a builder study, including images, A/B variants, engagement counters, and part assignments."
+description: "Add, configure, and organise posts in a builder study, including all post fields, image uploads, A/B variants, engagement counters, and part assignments."
 ---
 
 The Posts tab is where you create and manage every piece of content participants will see during your study. Each post represents a single social-media item — a news article headline, a tweet-style post, or any other content unit your study requires. Posts are study-specific: they are not shared across studies unless you copy them from the post library. You can add as many posts as your study needs, reorder them at any time, and control exactly which experiment parts each post appears in.
@@ -29,7 +29,7 @@ The Posts tab is where you create and manage every piece of content participants
   The display name of the account or publication that "posted" this content. Shown as the author name in the post card — for example, *The Daily Wire* or *@sciencenews*.
 </ParamField>
 
-<ParamField path="handle" type="string">
+<ParamField path="source_handle" type="string">
   The @handle shown below the source name. Include the @ symbol in the value if you want it displayed. Leave blank to show no handle.
 </ParamField>
 
@@ -57,11 +57,11 @@ The Posts tab is where you create and manage every piece of content participants
   The body text of the post, shown beneath the headline. For A/B studies, this becomes **Content A**.
 </ParamField>
 
-<ParamField path="true_post" type="boolean" default="false">
-  Marks this post as the ground-truth "true" version for belief-accuracy analysis. **True posts are never shown to participants.** They exist solely for export purposes, allowing you to compare participant responses to the canonical accurate version of a story. Do not confuse this with the "Active" toggle — a true post can be active in the database but will never appear in the participant flow.
+<ParamField path="is_true" type="boolean" default="false">
+  Marks this post as factually accurate. Used in belief-accuracy analysis to identify which posts represent ground truth. In the export, this flag lets you compare participant credibility ratings against the known accuracy status of each post. Posts with `is_true` enabled are shown to participants like any other active post — this flag is for your analytical use, not a visibility control.
 </ParamField>
 
-<ParamField path="active" type="boolean" default="true">
+<ParamField path="is_active" type="boolean" default="true">
   When disabled, the post is excluded from all parts of the study. Use this to draft posts without participants seeing them, or to retire posts mid-study without deleting them.
 </ParamField>
 

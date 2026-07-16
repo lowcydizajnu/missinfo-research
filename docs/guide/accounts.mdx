@@ -38,7 +38,7 @@ Only admins can add new users. Open the **Konta** tab in the admin navigation, t
 </Steps>
 
 <Tip>
-  Share credentials securely — for example via an end-to-end encrypted message. The platform stores all passwords as **bcrypt hashes** and never exposes them in plaintext after creation.
+  Share credentials securely — for example via an end-to-end encrypted message. Passwords are never stored in plaintext and are never exposed after creation.
 </Tip>
 
 ## Editing an Account
@@ -103,8 +103,7 @@ Admins can view the collaborator list for every study on the instance. Researche
 | Setting | Value |
 |---|---|
 | Login URL | `/admin` |
-| Session token | JWT, valid for **24 hours** |
+| Session token | Valid for **24 hours** |
 | Brute-force protection | Rate-limited to **20 attempts per 15 minutes** per IP |
-| Password storage | bcrypt hashes |
 
 After 20 failed login attempts within a 15-minute window, further attempts from that IP address are temporarily blocked. Wait for the window to expire or contact your server administrator to reset the limit.

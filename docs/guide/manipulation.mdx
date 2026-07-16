@@ -1,5 +1,5 @@
 ---
-title: "Running A/B Manipulations Between Study Arms"
+title: "Running A/B Content Manipulations Between Study Arms"
 sidebarTitle: "Manipulation"
 description: "Define a binary between-subjects manipulation in the Configurator and deliver different headline and content variants to each condition arm."
 ---
@@ -30,8 +30,7 @@ The manipulation is **strictly binary**: one study supports exactly two arms. If
 
 ## Naming the Arms
 
-Arm names are stored as the values **A** and **B** internally, but you supply human-readable labels that appear in:
-- The `style_condition` export column (values will be your custom labels or the keys `A`/`B` depending on export format)
+Each arm has a short **key** (stored in the `style_condition` export column) and a human-readable **label** used in the builder UI. The key is what appears in your data — by default `A` and `B` — while the label is what you and your collaborators see when reviewing sessions in the admin panel. Human-readable labels also appear in:
 - The builder UI when reviewing individual session records
 - Conditional logic trigger definitions (see [Conditional Logic](/guide/conditional-logic))
 

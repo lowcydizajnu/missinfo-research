@@ -10,10 +10,10 @@ All persistent state in Misinfo Research lives in two places: a SQLite database 
 
 | Data | Default path | Override variable |
 |---|---|---|
-| SQLite database | `./data/misinfo.db` | `DATA_PATH` |
+| SQLite database | `./data/research.db` | `DATABASE_PATH` |
 | Uploaded images | `./uploads/` | `UPLOADS_PATH` |
 
-If you have set `DATA_PATH` or `UPLOADS_PATH` in your `.env`, use those paths instead of the defaults shown above.
+If you have set `DATABASE_PATH` or `UPLOADS_PATH` in your `.env`, use those paths instead of the defaults shown above.
 
 ## Cold backup (server stopped)
 
@@ -35,11 +35,11 @@ Stopping the server before copying ensures you capture a fully consistent snapsh
 
   <Step title="Copy the database and uploads">
     ```bash
-    cp -r ./data/misinfo.db /path/to/your/backup/misinfo.db
+    cp ./data/research.db /path/to/your/backup/research.db
     cp -r ./uploads/ /path/to/your/backup/uploads/
     ```
 
-    Adjust the source paths if you use `DATA_PATH` or `UPLOADS_PATH`.
+    Adjust the source paths if you use `DATABASE_PATH` or `UPLOADS_PATH`.
   </Step>
 
   <Step title="Restart the server">
@@ -63,7 +63,7 @@ Stopping the server before copying ensures you capture a fully consistent snapsh
 If you cannot afford downtime, SQLite's built-in `.backup` command writes a consistent copy of the database while the server is live. This avoids the need to stop the application.
 
 ```bash
-sqlite3 ./data/misinfo.db ".backup /path/to/your/backup/misinfo.db"
+sqlite3 ./data/research.db ".backup /path/to/your/backup/research.db"
 ```
 
 <Note>
@@ -126,7 +126,7 @@ This writes compressed archives to a `backups/` directory on your host. Run thes
         Copy your backed-up files back to their original locations:
 
         ```bash
-        cp /path/to/your/backup/misinfo.db ./data/misinfo.db
+        cp /path/to/your/backup/research.db ./data/research.db
         cp -r /path/to/your/backup/uploads/ ./uploads/
         ```
       </Tab>
@@ -171,5 +171,5 @@ This writes compressed archives to a `backups/` directory on your host. Run thes
 </Steps>
 
 <Tip>
-  Automate backups with a cron job or a scheduled task on your host. Even a nightly copy of `misinfo.db` to a separate disk or cloud storage bucket provides meaningful protection against data loss.
+  Automate backups with a cron job or a scheduled task on your host. Even a nightly copy of `research.db` to a separate disk or cloud storage bucket provides meaningful protection against data loss.
 </Tip>

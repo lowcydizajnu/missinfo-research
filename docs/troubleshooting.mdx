@@ -1,5 +1,5 @@
 ---
-title: "Troubleshooting common Misinfo Research issues"
+title: "Troubleshooting common Misinfo Research setup issues"
 sidebarTitle: "Troubleshooting"
 description: "Step-by-step fixes for the most common problems in Misinfo Research: server startup, login, 404 links, missing images, data export, and more."
 ---
@@ -11,7 +11,7 @@ Most issues with Misinfo Research fall into one of a small number of categories:
   <Accordion title="Server refuses to start">
     **Symptom:** The Node.js process exits immediately on startup, often with an error referencing a missing secret or a configuration problem.
 
-    **Cause:** The `JWT_SECRET` environment variable is not set. Misinfo Research requires this variable to sign and verify session tokens. Without it, the server will not start, as running without a secret would make all admin sessions cryptographically insecure.
+    **Cause:** The `JWT_SECRET` environment variable is not set. Misinfo Research requires this variable to sign and verify admin authentication tokens. Without it, the server will not start, as running without a secret would make all admin sessions cryptographically insecure.
 
     **Fix:**
 
@@ -20,9 +20,9 @@ Most issues with Misinfo Research fall into one of a small number of categories:
         If you are running locally, open (or create) the `.env` file in the project root. If you are running on a platform like Railway or Render, open the environment variables panel for your service.
       </Step>
       <Step title="Add the JWT_SECRET variable">
-        Set `JWT_SECRET` to any long, random string. A minimum of 32 characters is recommended. You can generate one with:
+        Set `JWT_SECRET` to any long, random string. A minimum of 48 bytes (96 hex characters) is recommended. You can generate one with:
         ```bash
-        node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+        node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
         ```
       </Step>
       <Step title="Restart the server">
@@ -47,7 +47,7 @@ Most issues with Misinfo Research fall into one of a small number of categories:
         If the database was already seeded (i.e., the server has been started at least once before), simply changing `ADMIN_PASSWORD` in `.env` and restarting will **not** update the password. The seed only runs when there is no admin in the database.
       </Step>
       <Step title="Reset the password via the server console">
-        Connect to your server and run a one-off script or SQLite command to update the hashed password directly. Refer to the project README for the exact command, as it uses bcrypt hashing consistent with the rest of the auth system.
+        Connect to your server and run the password-reset script described in the project README to update the stored password hash directly.
       </Step>
       <Step title="Alternatively, wipe and re-seed (development only)">
         If you are in a development environment and have no data you need to keep, you can delete the SQLite database file and restart the server with `ADMIN_PASSWORD` set. The server will create a fresh database and seed the admin account with the new password.

@@ -77,7 +77,7 @@ Before you begin, make sure the following are available on your server or local 
     |---|---|---|
     | `PORT` | `3000` | HTTP port the server listens on |
     | `NODE_ENV` | — | Set to `production` on hosted servers |
-    | `DATA_PATH` | `./data` | Directory where the SQLite database is stored |
+    | `DATABASE_PATH` | `./data/research.db` | Full file path for the SQLite database |
     | `UPLOADS_PATH` | `./uploads` | Directory where uploaded images are stored |
     | `ANTHROPIC_API_KEY` | — | Enables AI-assisted translation features |
 
@@ -98,7 +98,7 @@ Before you begin, make sure the following are available on your server or local 
     </CodeGroup>
 
     On first run, the server automatically:
-    - Creates the SQLite database in `./data/` (or `DATA_PATH`)
+    - Creates the SQLite database at `./data/research.db` (or `DATABASE_PATH`)
     - Runs all schema migrations
     - Seeds an admin account with the username `admin` and the password you set in `ADMIN_PASSWORD`
 

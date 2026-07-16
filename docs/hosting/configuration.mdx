@@ -18,7 +18,7 @@ Misinfo Research is configured entirely through environment variables. In a Node
 | `ADMIN_PASSWORD` | **Yes** | — | Password assigned to the `admin` account when the database is first seeded. Has no effect once an admin account already exists. |
 | `PORT` | No | `3000` | TCP port the HTTP server listens on. |
 | `NODE_ENV` | No | — | Set to `production` on any publicly accessible or hosted instance to enable production-mode optimisations and error handling. |
-| `DATA_PATH` | No | `./data` | Directory where the SQLite database file (`misinfo.db`) is stored. Must be writable by the Node.js process. |
+| `DATABASE_PATH` | No | `./data/research.db` | Full file path for the SQLite database. The directory must be writable by the Node.js process. |
 | `UPLOADS_PATH` | No | `./uploads` | Directory where user-uploaded images are stored. Must be writable by the Node.js process. |
 | `ANTHROPIC_API_KEY` | No | — | API key for the Anthropic Claude API. When present, enables AI-assisted translation features across the platform. |
 
@@ -48,15 +48,15 @@ To change the admin password after the first boot, use the admin panel rather th
 
 ## Optional variables in detail
 
-### `DATA_PATH`
+### `DATABASE_PATH`
 
-Override the default database directory when you need the database on a specific volume or mount point. Example:
+Override the default database file path when you need the database on a specific volume or mount point. This variable takes the full path to the `.db` file, not just a directory. Example:
 
 ```env
-DATA_PATH=/mnt/persistent/data
+DATABASE_PATH=/mnt/persistent/data/research.db
 ```
 
-In Docker deployments the named volume `misinfo-data` is mounted at `/app/data`, which matches the default. Only set this variable if you need a non-standard path.
+In Docker deployments the named volume `misinfo-data` is mounted at `/app/data`, so the database lands at `/app/data/research.db` by default. Only set this variable if you need a non-standard path.
 
 ### `UPLOADS_PATH`
 
@@ -84,7 +84,7 @@ NODE_ENV=production
 
 # Optional overrides
 PORT=3000
-DATA_PATH=./data
+DATABASE_PATH=./data/research.db
 UPLOADS_PATH=./uploads
 
 # Optional integrations

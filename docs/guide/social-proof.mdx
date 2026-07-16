@@ -1,5 +1,5 @@
 ---
-title: "Manipulating Social Proof with Metric Conditions"
+title: "Varying Social Proof Numbers with Metric Conditions"
 sidebarTitle: "Social Proof"
 description: "Configure between-subjects metric conditions to vary the engagement numbers shown under posts, and combine them with A/B manipulation for a 2×2 design."
 ---
@@ -8,7 +8,7 @@ Metric conditions let you vary the social-proof signals that participants see un
 
 ## How Metric Conditions Work
 
-When you define metric conditions, each participant session is assigned to exactly one condition. That condition specifies a **minimum and maximum range** for each engagement counter. When a participant loads a post, the platform draws a random integer from within that range and displays it as the counter value. This randomisation happens once per post per session — the number a participant sees does not change if they scroll away and return.
+When you define metric conditions, each participant session is assigned to exactly one condition. That condition specifies a **single minimum and maximum range** shared across all engagement counters (likes, shares, dislikes, and flags). When a participant loads a post, the platform draws a random integer from within that range and uses it as the displayed value for every counter on that post. This randomisation happens once per post per session — the number a participant sees does not change if they scroll away and return.
 
 The resolved values are stored in the session export so you know exactly what each participant saw, not just which condition they were assigned to.
 
@@ -28,7 +28,7 @@ The resolved values are stored in the session export so you know exactly what ea
     Click **Add Condition** to create your first condition. Repeat for each condition you need. Most designs use two conditions (e.g. *High engagement* and *Low engagement*).
   </Step>
   <Step title="Configure each condition">
-    Fill in the key, label, and min/max values for each engagement counter within each condition.
+    Fill in the key, label, and the min/max range for each condition. The range applies to all engagement counters (likes, shares, dislikes, and flags) uniformly.
   </Step>
   <Step title="Save the Configurator">
     Click **Save**. Participant sessions created after saving will be randomly assigned to one of the defined conditions.
@@ -47,36 +47,24 @@ Each metric condition has the following properties:
   A human-readable name displayed in the builder UI and session viewer, e.g. *High engagement* or *Low social proof*.
 </ParamField>
 
-<ParamField path="likes_min" type="integer" required>
-  The minimum number of likes drawn for any post under this condition (unless overridden by a post-level base value).
+<ParamField path="min" type="integer" required>
+  The lower bound of the engagement range for this condition. When a participant loads a post, a random integer drawn from `[min, max]` is displayed as every counter value (likes, shares, dislikes, and flags all draw from the same range). Set to `0` along with `max` to use post-level base values only.
 </ParamField>
 
-<ParamField path="likes_max" type="integer" required>
-  The maximum number of likes drawn for any post under this condition.
-</ParamField>
-
-<ParamField path="shares_min / shares_max" type="integer">
-  Range for share counts. Set both to 0 to hide share counters across all posts in this condition.
-</ParamField>
-
-<ParamField path="dislikes_min / dislikes_max" type="integer">
-  Range for dislike counts.
-</ParamField>
-
-<ParamField path="flags_min / flags_max" type="integer">
-  Range for flag counts.
+<ParamField path="max" type="integer" required>
+  The upper bound of the engagement range. When `max` is greater than `0`, the condition range is active and the platform draws a random integer from `[min, max]` for every counter on every post in this condition. Set `max` to `0` to disable range-based randomisation and fall back to each post's individual base values.
 </ParamField>
 
 ## How Shown Values Are Resolved
 
 The number displayed under a post is determined by the following priority order:
 
-1. **Post base value** — if you have entered a non-zero value directly in the `base_likes` (or equivalent) field on the post, that exact number is shown regardless of the assigned condition.
-2. **Condition range** — if no post-level base value is set, a value is drawn uniformly at random from `[min, max]` for the assigned condition.
-3. **Zero (hidden)** — if both the post base value and the condition range resolve to 0, the counter is hidden entirely from participants.
+1. **Post base value wins** — if you have entered a non-zero value in the `base_likes`, `base_shares`, `base_dislikes`, or `base_flags` field on the post, that exact number is shown regardless of the condition's range.
+2. **Condition range** — if the post's base value is `0` (the default) and the condition has `max > 0`, a value is drawn uniformly at random from `[min, max]` and shown as the counter.
+3. **Zero (hidden)** — if the post base value is `0` and the condition's `max` is also `0`, the counter is hidden entirely from participants.
 
 <Note>
-  Setting a base value of **0** on a post explicitly hides that counter for all participants on that post, overriding the condition range. To let the condition range control a counter, leave the post's base value at its default (empty or 0 depending on the field) and ensure your condition defines a non-zero range.
+  A post base value of `0` does **not** override the condition range — it means "no post-level override, use the condition." Only a **non-zero** base value takes precedence over the range. To hide a specific counter on a specific post regardless of the condition, set that post's base value to `0` and ensure the condition's `max` is also `0`, or use the per-post reaction-button toggles to hide the counter entirely.
 </Note>
 
 ## Export Columns

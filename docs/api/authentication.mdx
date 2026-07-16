@@ -113,7 +113,7 @@ Researchers can access their own studies and any studies they have been added to
 
 | Status | Meaning | When it occurs |
 |---|---|---|
-| `401` | Unauthorized | `Authorization` header missing, token malformed, or token expired |
+| `401` | Unauthorized | Wrong username or password at login; or `Authorization` header missing, token malformed, or token expired on a subsequent request |
 | `403` | Forbidden | Token is valid but the role does not permit the requested operation |
 
 <Tip>

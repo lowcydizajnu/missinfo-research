@@ -15,7 +15,7 @@ When you field a Misinfo Research study through an external recruiting panel —
 Recruiting panels append a unique respondent identifier to the study URL when sending a participant. Misinfo Research reads this identifier from the URL query string and stores it with the session record.
 
 <ParamField path="respondent_id_param" name="URL parameter name" type="string" default="res_id">
-  The name of the query-string parameter that carries the respondent identifier. The default is `res_id`, so a link like `https://your-instance.com/s/your-slug?res_id=ABC123` automatically captures `ABC123`. Change this value if your panel uses a different parameter name (for example, Prolific uses `PROLIFIC_PID`).
+  The name of the query-string parameter that carries the respondent identifier. The default is `res_id`, so a link like `https://your-instance.com/study/your-slug?res_id=ABC123` automatically captures `ABC123`. Change this value if your panel uses a different parameter name (for example, Prolific uses `PROLIFIC_PID`).
 </ParamField>
 
 The captured value is stored as **`external_id`** on the session record and appears in the **`external_id` column** of your data export. Use this column to match Misinfo Research responses back to the panel's own completion records.
@@ -32,8 +32,8 @@ After a participant finishes the study, Misinfo Research can redirect them to a 
   The URL to send participants to after they complete the study. Supports the placeholders `{ext_id}` (the captured external respondent ID) and `{session_id}` (the Misinfo Research internal session UUID). Example: `https://app.prolific.com/submissions/complete?cc=XXXX&respondent={ext_id}`
 </ParamField>
 
-<ParamField path="completion_redirect_delay" name="Redirect delay (seconds)" type="number" default="0">
-  How many seconds to wait on the debrief screen before the redirect fires. Set to `0` for an immediate redirect. A small delay (for example 3–5 seconds) gives participants time to read the debrief before being sent away.
+<ParamField path="completion_redirect_delay" name="Redirect delay (seconds)" type="number" default="4">
+  How many seconds to wait on the debrief screen before the redirect fires. Set to `0` for an immediate redirect. The default is 4 seconds, giving participants a moment to read the debrief before being sent away. The maximum is 600 seconds.
 </ParamField>
 
 <ParamField path="completion_redirect_notice" name="Show notice before redirect" type="boolean">
@@ -48,8 +48,8 @@ If a participant reads the consent screen and chooses **not** to participate, yo
   The URL to send participants to when they decline consent. Supports the same placeholders as the completion redirect: `{ext_id}` and `{session_id}`. Many panels require a separate "declined" or "screened-out" link distinct from the completion link — check your panel's documentation.
 </ParamField>
 
-<ParamField path="decline_redirect_delay" name="Redirect delay (seconds)" type="number" default="0">
-  Seconds to wait before redirecting after a consent decline. Set to `0` for immediate redirect. If you also enable **immediate redirect**, this delay is overridden.
+<ParamField path="decline_redirect_delay" name="Redirect delay (seconds)" type="number" default="4">
+  Seconds to wait before redirecting after a consent decline. The default is 4 seconds. Set to `0` for an immediate redirect. If you also enable **immediate redirect**, this delay is overridden. The maximum is 600 seconds.
 </ParamField>
 
 <ParamField path="decline_redirect_immediate" name="Immediate redirect" type="boolean">
@@ -67,7 +67,7 @@ If a participant reads the consent screen and chooses **not** to participate, yo
     In **Settings**, set the **URL parameter name** to match what your panel appends to links. For Prolific this is typically `PROLIFIC_PID`; for Respondi it may differ — check your panel's survey link documentation.
   </Step>
   <Step title="Build your panel study link">
-    Share the study URL with the parameter appended. For example: `https://your-instance.com/s/your-slug?PROLIFIC_PID={{%PROLIFIC_PID%}}`. The panel will substitute its own placeholder syntax before sending participants.
+    Share the study URL with the parameter appended. For example: `https://your-instance.com/study/your-slug?PROLIFIC_PID={{%PROLIFIC_PID%}}`. The panel will substitute its own placeholder syntax before sending participants.
   </Step>
   <Step title="Set the completion redirect URL">
     Paste the completion URL provided by your panel into **Completion redirect URL**. Insert `{ext_id}` where the panel expects the respondent identifier. Set a delay and notice if desired.
