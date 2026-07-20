@@ -2449,6 +2449,24 @@ router.patch('/studies/:id/builder', auth, (req, res) => {
   const updates = {};
   allowed.forEach(f => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
 
+  // GUARD — never let an EMPTY parts_json overwrite a real experiment structure.
+  // A builder study always has ≥1 part; '[]' is never a legitimate save. It only
+  // ever comes from a broken/stale client that collected 0 part cards — the
+  // historic wipe that set parts_json='[]' and ORPHANED every post and every
+  // post-question at once (rows survive in the DB but vanish from the builder and
+  // the participant runtime). The client was fixed, but a stale cached bundle,
+  // an API/script caller, or a future regression can still POST '[]'. Dropping
+  // the field here preserves the stored structure and protects BOTH the PL write
+  // and the non-PL overlay branch below. Server-side is the last line of defence.
+  if (updates.parts_json !== undefined) {
+    let pj = updates.parts_json;
+    if (typeof pj === 'string') { try { pj = JSON.parse(pj); } catch { pj = undefined; } }
+    if (Array.isArray(pj) && pj.length === 0) {
+      console.warn(`[builder] refused empty parts_json for study ${req.params.id} — keeping stored parts (preventing an orphan wipe)`);
+      delete updates.parts_json;
+    }
+  }
+
   // Normalize the manipulation to what post content actually supports: at most ONE
   // between-subjects manipulation with exactly TWO arms (A/B), on a field that has
   // per-arm content. Extra manipulations, C/D conditions, and fields without
