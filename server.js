@@ -151,6 +151,7 @@ app.use('/api', require('./routes/participant'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/walkthrough', require('./routes/walkthrough'));
 app.use('/api/backup', require('./routes/backup'));
+app.use('/api/recovery', require('./routes/recovery'));
 
 // Public read-only dashboard share page. Token is the path param;
 // validates server-side via the /api/admin/public/dashboard/:token endpoint.
