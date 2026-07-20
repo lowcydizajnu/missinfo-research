@@ -141,7 +141,13 @@
 
     <!-- TAB: Export -->
     <div class="tab-pane" id="tab-export">
-      <div class="tab-toolbar"><h2 data-i18n="panes.export_title">Eksport danych</h2></div>
+      <div class="tab-toolbar">
+        <h2 data-i18n="panes.export_title">Eksport danych</h2>
+        <button class="btn btn-ghost btn-sm" id="btn-export-screens"
+                data-i18n-title="panes.export_screens_title" data-i18n="panes.export_screens"
+                title="Otwórz wszystkie ekrany badania (warunek A) jako załącznik do raportu — do zapisania jako PDF"
+                onclick="(function(){var id=S.activeStudy;var st=(S.studies||[]).find(function(x){return String(x.id)===String(id);});if(!st){toast('Najpierw wybierz badanie.','error');return;}window.open('/study/'+encodeURIComponent(st.slug)+'/walkthrough','_blank','noopener');})()">🖼 Ekrany (PDF)</button>
+      </div>
       <div id="export-content">
         <div class="empty-state" data-i18n="common.pick_study_first">Wybierz badanie z listy powyżej.</div>
       </div>

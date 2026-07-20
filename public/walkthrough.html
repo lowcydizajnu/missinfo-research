@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ekrany badania — załącznik</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <!-- Reuse the exact participant styling so the "replica" mode looks like what
+       participants saw. walkthrough.css layers the print + report styling on top. -->
+  <link rel="stylesheet" href="/css/participant.css">
+  <link rel="stylesheet" href="/css/walkthrough.css">
+</head>
+<body class="wt-style-replica">
+
+  <!-- Toolbar — hidden when printing -->
+  <div class="wt-toolbar" id="wt-toolbar">
+    <div class="wt-toolbar-title">
+      <span class="wt-toolbar-icon">🖼</span>
+      <span id="wt-study-name">Ekrany badania</span>
+    </div>
+    <div class="wt-toolbar-controls">
+      <label class="wt-seg" title="Wygląd dokumentu">
+        <span>Wygląd:</span>
+        <select id="wt-style-select">
+          <option value="replica">Replika ekranów</option>
+          <option value="report">Dokument raportowy</option>
+        </select>
+      </label>
+      <button class="wt-btn wt-btn-primary" id="wt-print-btn">🖨 Zapisz jako PDF / Drukuj</button>
+    </div>
+  </div>
+
+  <!-- Rendered content -->
+  <main class="wt-doc" id="wt-doc">
+    <div class="wt-loading" id="wt-loading">Ładowanie ekranów badania…</div>
+  </main>
+
+  <script src="/js/walkthrough.js"></script>
+</body>
+</html>

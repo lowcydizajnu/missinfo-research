@@ -858,6 +858,8 @@
     "demog_preview": "👁 Preview screen",
     "demog_preview_title": "Opens the demographics screen in a new tab, skipping consent and instructions",
     "demog_title": "Demographic questions",
+    "export_screens": "🖼 Screens (PDF)",
+    "export_screens_title": "Open every study screen (condition A) as a report appendix — save it as a PDF",
     "export_title": "Data export",
     "konfig_empty": "Select a study from the list above to open the configurator.",
     "konfig_preview": "👁 Preview in a new tab",

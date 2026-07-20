@@ -1,0 +1,124 @@
+/* Study screen walkthrough — report appendix.
+   Layers on top of participant.css. "Replica" mode keeps the participant look;
+   "report" mode neutralises it into a clean document. Print rules put one
+   screen per page and hide the toolbar. */
+
+:root {
+  --wt-ink: #1a1f3d;
+  --wt-muted: #6b7280;
+  --wt-border: #e5e7eb;
+  --wt-accent: #4f7cff;
+  --wt-bg: #eef1f7;
+}
+
+body {
+  margin: 0;
+  background: var(--wt-bg);
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  color: var(--wt-ink);
+}
+
+/* ── Toolbar (screen only) ─────────────────────────────────────────────────── */
+.wt-toolbar {
+  position: sticky; top: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  padding: 0.7rem 1.25rem;
+  background: #fff; border-bottom: 1px solid var(--wt-border);
+  box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+}
+.wt-toolbar-title { display: flex; align-items: center; gap: 0.5rem; font-weight: 600; }
+.wt-toolbar-icon { font-size: 1.15rem; }
+.wt-toolbar-controls { display: flex; align-items: center; gap: 0.9rem; flex-wrap: wrap; }
+.wt-seg { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: var(--wt-muted); }
+.wt-seg select {
+  font: inherit; font-size: 0.85rem; padding: 0.3rem 1.6rem 0.3rem 0.5rem;
+  border: 1px solid var(--wt-border); border-radius: 7px; background: #fff; cursor: pointer;
+}
+.wt-btn {
+  font: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer;
+  padding: 0.5rem 0.95rem; border-radius: 8px; border: 1px solid var(--wt-border); background: #fff;
+}
+.wt-btn-primary { background: var(--wt-accent); border-color: var(--wt-accent); color: #fff; }
+.wt-btn-primary:hover { filter: brightness(1.05); }
+
+/* ── Document ──────────────────────────────────────────────────────────────── */
+.wt-doc { max-width: 780px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+.wt-loading, .wt-error { text-align: center; color: var(--wt-muted); padding: 4rem 1rem; }
+.wt-error a { color: var(--wt-accent); }
+
+.wt-cover { text-align: center; padding: 1rem 0 2rem; border-bottom: 2px solid var(--wt-border); margin-bottom: 1.5rem; }
+.wt-cover h1 { font-size: 1.6rem; margin: 0 0 0.35rem; }
+.wt-cover .wt-cover-sub { color: var(--wt-muted); font-size: 0.9rem; margin: 0.15rem 0; }
+.wt-cover .wt-cover-meta { color: var(--wt-muted); font-size: 0.8rem; margin-top: 0.75rem; }
+
+.wt-screen { margin: 0 0 1.75rem; }
+.wt-screen-label {
+  display: flex; align-items: center; gap: 0.55rem;
+  font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--wt-accent); margin-bottom: 0.6rem;
+}
+.wt-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 1.5rem; height: 1.5rem; border-radius: 50%;
+  background: var(--wt-accent); color: #fff; font-size: 0.75rem;
+}
+.wt-screen-note { font-size: 0.78rem; color: var(--wt-muted); font-weight: 400; text-transform: none; letter-spacing: 0; }
+
+/* Neutralise participant.css full-height centering so each screen is a block. */
+.wt-screen .screen-inner { min-height: 0 !important; height: auto !important; padding: 0 !important; display: block !important; }
+.wt-screen .screen-inner.centered { align-items: stretch; }
+.wt-screen .paged-outer { max-width: none; margin: 0; }
+.wt-screen .card { margin: 0; }
+
+/* Post truth/falsehood tag on each post screen. */
+.wt-truth { font-size: 0.72rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.04em; }
+.wt-truth.t { background: #dcfce7; color: #166534; }
+.wt-truth.f { background: #fee2e2; color: #991b1b; }
+
+/* Rating scale rendered statically (no JS interactions here). */
+.wt-likert { margin-top: 1rem; }
+.wt-likert-q { font-weight: 600; margin: 0 0 0.5rem; }
+.wt-likert-scale { display: flex; gap: 0.4rem; }
+.wt-likert-scale span { flex: 1; text-align: center; border: 1px solid var(--wt-border); border-radius: 7px; padding: 0.4rem 0; font-size: 0.85rem; background: #fff; }
+.wt-likert-ends { display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--wt-muted); margin-top: 0.3rem; }
+
+/* Static demographic question rendering. */
+.wt-dq { border: 1px solid var(--wt-border); border-radius: 10px; padding: 0.85rem 1rem; margin-bottom: 0.7rem; background: #fff; }
+.wt-dq-label { font-weight: 600; margin-bottom: 0.5rem; }
+.wt-dq-req { color: #dc2626; }
+.wt-dq-opts { display: flex; flex-direction: column; gap: 0.35rem; }
+.wt-opt { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; color: #374151; }
+.wt-opt .wt-radio { width: 15px; height: 15px; border: 2px solid #cbd5e1; border-radius: 50%; flex: none; }
+.wt-opt .wt-check { width: 15px; height: 15px; border: 2px solid #cbd5e1; border-radius: 4px; flex: none; }
+.wt-dq-input { border: 1px dashed #cbd5e1; border-radius: 7px; padding: 0.5rem 0.7rem; color: #9ca3af; font-size: 0.88rem; }
+
+/* Debrief post list. */
+.wt-debrief-post { display: flex; align-items: flex-start; gap: 0.6rem; padding: 0.5rem 0; border-top: 1px solid var(--wt-border); font-size: 0.9rem; }
+.wt-debrief-post:first-child { border-top: none; }
+
+/* ── Report mode: strip the app look into a clean document ─────────────────── */
+.wt-style-report .wt-screen .card {
+  box-shadow: none !important; border: 1px solid var(--wt-border) !important;
+  border-radius: 10px !important; background: #fff !important;
+}
+.wt-style-report .post-actions,
+.wt-style-report .paged-participant-comment,
+.wt-style-report .wt-dq .wt-radio,
+.wt-style-report .wt-dq .wt-check { /* keep, but calmer */ }
+.wt-style-report .post-actions { opacity: 0.55; }
+.wt-style-report .topic-pill { background: #f1f5f9 !important; color: #475569 !important; }
+.wt-style-report .wt-screen-label { color: var(--wt-ink); }
+.wt-style-report .wt-num { background: var(--wt-ink); }
+.wt-style-report .post-metrics .metric { background: transparent !important; color: var(--wt-muted) !important; padding: 0 0.4rem 0 0 !important; }
+
+/* ── Print: one screen per page, no toolbar ───────────────────────────────── */
+@media print {
+  @page { size: A4; margin: 14mm 12mm; }
+  body { background: #fff; }
+  .wt-toolbar { display: none !important; }
+  .wt-doc { max-width: none; padding: 0; }
+  .wt-screen { break-inside: avoid; page-break-inside: avoid; margin-bottom: 0; }
+  .wt-screen + .wt-screen { break-before: page; page-break-before: always; }
+  .wt-cover { break-after: page; page-break-after: always; }
+  .wt-screen .card { border: 1px solid #d1d5db !important; box-shadow: none !important; }
+}

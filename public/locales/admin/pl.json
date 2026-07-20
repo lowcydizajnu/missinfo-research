@@ -858,6 +858,8 @@
     "demog_preview": "👁 Podgląd ekranu",
     "demog_preview_title": "Otwiera ekran demograficznych w nowej karcie, bez przechodzenia przez zgodę i instrukcje",
     "demog_title": "Pytania demograficzne",
+    "export_screens": "🖼 Ekrany (PDF)",
+    "export_screens_title": "Otwórz wszystkie ekrany badania (warunek A) jako załącznik do raportu — do zapisania jako PDF",
     "export_title": "Eksport danych",
     "konfig_empty": "Wybierz badanie z listy powyżej, aby otworzyć konfigurator.",
     "konfig_preview": "👁 Podgląd w nowej karcie",

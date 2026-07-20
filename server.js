@@ -149,6 +149,7 @@ app.use('/lib', express.static(path.join(__dirname, 'lib'), {
 // API routes
 app.use('/api', require('./routes/participant'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/walkthrough', require('./routes/walkthrough'));
 
 // Public read-only dashboard share page. Token is the path param;
 // validates server-side via the /api/admin/public/dashboard/:token endpoint.
@@ -161,6 +162,14 @@ app.get('/share/dashboard/:token', (req, res) => {
 // Redirect those to jsDelivr so no binary assets need to be bundled in the repo.
 app.get('/study/mediapipe/face_mesh/:file', (req, res) => {
   res.redirect(302, `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/${req.params.file}`);
+});
+
+// Study screen walkthrough (report appendix). Serves a static shell; the page's
+// JS authenticates with the admin token from localStorage and fetches the study
+// content from /api/walkthrough/:slug. Registered BEFORE /study/:slug so the
+// more specific path wins.
+app.get('/study/:slug/walkthrough', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'walkthrough.html'));
 });
 
 // Study SPA — inject study config into HTML
