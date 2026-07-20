@@ -46,8 +46,32 @@ function recoverStudy(study, { apply }) {
   existing.forEach(p => { if (p && p.id != null) byId[String(p.id)] = p; });
   const existingIds = new Set(Object.keys(byId));
 
+  // Structural evidence from the surviving translation overlays. The base
+  // parts_json holds structural flags (show_transition) that a wipe erased, but
+  // the overlays keep the translatable fields. A non-empty overlay
+  // transition_text proves that part HAD a between-parts transition screen — so
+  // the reconstructed base must set show_transition:true (structural flags are
+  // NOT translated, so the overlay text alone would otherwise never render).
+  let allTrans = {};
+  try { allTrans = JSON.parse(study.translations_json || '{}'); } catch {}
+  const partHadTransition = {};
+  for (const lang of Object.keys(allTrans)) {
+    for (const p of ((allTrans[lang] && allTrans[lang].parts) || [])) {
+      if (p && p.id != null && p.transition_text && String(p.transition_text).trim()) partHadTransition[String(p.id)] = true;
+    }
+  }
+
   const missing = [...refs].filter(id => !existingIds.has(id));
-  if (refs.size === 0 || missing.length === 0) {
+  // Correct any EXISTING part whose overlay proves a transition but whose base
+  // show_transition is off (e.g. a part reconstructed by an earlier, dumber run
+  // of this endpoint). Evidence-based and non-destructive: only turns a
+  // transition ON when a surviving translation shows it was meant to be on.
+  let corrected = 0;
+  for (const p of existing) {
+    if (partHadTransition[String(p.id)] && !p.show_transition) { p.show_transition = true; corrected++; }
+  }
+
+  if (refs.size === 0 || (missing.length === 0 && corrected === 0)) {
     return { slug: study.slug, changed: false, reason: existing.length ? 'ok — nic do odzyskania' : 'brak osieroconej treści' };
   }
 
@@ -57,7 +81,11 @@ function recoverStudy(study, { apply }) {
   const pqMode = study.post_questions_display_mode || 'after_interaction';
   const mkDefault = (id, idx) => ({
     id, label: `Część ${idx + 1}`, layout,
-    show_transition: false, transition_text: '', pq_display_mode: pqMode,
+    // Preserve the between-parts transition when a surviving translation proves
+    // it existed. The base transition_text stays empty (its source-language
+    // wording was lost with the wipe); the overlay supplies it for translated
+    // languages, and the source language shows the part label as the title.
+    show_transition: !!partHadTransition[id], transition_text: '', pq_display_mode: pqMode,
     pq_title: '', pq_subtitle: '', require_interaction: false,
     allow_back: true, show_reactions: true, max_seconds: 0, requirements: [],
   });
@@ -67,9 +95,9 @@ function recoverStudy(study, { apply }) {
   return {
     slug: study.slug, name: study.name, changed: true,
     before: existing.map(p => p.id), after: rebuilt.map(p => p.id),
-    reconstructed_parts: missing,
+    reconstructed_parts: missing, transitions_restored: Object.keys(partHadTransition).length,
     posts: posts.length, questions: pqs.length,
-    note: 'Odzyskano treść i grupowanie. Sprawdź ustawienia odtworzonych części (nazwa, timer, wymagania) w Konfiguratorze.',
+    note: 'Odzyskano treść, grupowanie i ekrany przejścia. Sprawdź ustawienia odtworzonych części (nazwa, timer, wymagania) w Konfiguratorze.',
   };
 }
 
