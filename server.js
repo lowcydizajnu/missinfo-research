@@ -150,6 +150,7 @@ app.use('/lib', express.static(path.join(__dirname, 'lib'), {
 app.use('/api', require('./routes/participant'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/walkthrough', require('./routes/walkthrough'));
+app.use('/api/backup', require('./routes/backup'));
 
 // Public read-only dashboard share page. Token is the path param;
 // validates server-side via the /api/admin/public/dashboard/:token endpoint.

@@ -470,6 +470,8 @@
     "accounts": "👥 Accounts",
     "accounts_title": "User accounts and study assignment",
     "brand_title": "All studies — combined dashboard",
+    "db_backup": "⬇ Backup",
+    "db_backup_title": "Download a full copy of the database (.db) — administrator only",
     "lang_title": "Panel language",
     "logout": "Sign out",
     "mode_preview": "🧪 Preview (not counted)",

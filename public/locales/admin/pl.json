@@ -470,6 +470,8 @@
     "accounts": "👥 Konta",
     "accounts_title": "Konta użytkowników i przypisanie do badań",
     "brand_title": "Wszystkie badania — pulpit zbiorczy",
+    "db_backup": "⬇ Kopia bazy",
+    "db_backup_title": "Pobierz pełną kopię bazy danych (.db) — tylko administrator",
     "lang_title": "Język panelu",
     "logout": "Wyloguj",
     "mode_preview": "🧪 Podgląd (nie liczone)",

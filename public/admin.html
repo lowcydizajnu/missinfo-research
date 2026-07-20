@@ -81,6 +81,7 @@
         <option value="pl">Polski</option>
         <option value="en">English</option>
       </select>
+      <button class="btn btn-ghost btn-sm" id="btn-db-backup" style="display:none" data-i18n-title="header.db_backup_title" data-i18n="header.db_backup" title="Pobierz pełną kopię bazy danych (.db) — tylko administrator" onclick="downloadDbBackup(this)">⬇ Kopia bazy</button>
       <button class="btn btn-ghost btn-sm btn-icon" id="btn-platform-settings" data-i18n-title="header.platform_settings" title="Tłumaczenia i ustawienia platformy">⚙</button>
       <button class="btn btn-ghost btn-sm" id="logout-btn" data-i18n="header.logout">Wyloguj</button>
     </div>
@@ -221,5 +222,45 @@
      t() is usable from the module's first line (module-level constants use it). -->
 <script src="/locales/admin.js"></script>
 <script src="/js/admin.js"></script>
+<script>
+// Admin-only database backup — kept out of admin.js (which carries local-only
+// platform chrome) so it commits normally. Downloads a consistent .db snapshot
+// via /api/backup/database using the Bearer token, then triggers a file save.
+async function downloadDbBackup(btn) {
+  const token = localStorage.getItem('admin_token');
+  if (!token) { (window.toast || alert)('Zaloguj się ponownie.'); return; }
+  const label = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = '… tworzę kopię'; }
+  try {
+    const r = await fetch('/api/backup/database', { headers: { Authorization: 'Bearer ' + token } });
+    if (!r.ok) {
+      const e = await r.json().catch(() => ({}));
+      (window.toast || alert)(e.error || ('Błąd ' + r.status), 'error');
+      return;
+    }
+    const blob = await r.blob();
+    const cd = r.headers.get('content-disposition') || '';
+    const name = (cd.match(/filename="?([^"]+)"?/) || [])[1] || 'misinfo-backup.db';
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = name; document.body.appendChild(a); a.click();
+    a.remove(); URL.revokeObjectURL(url);
+    (window.toast || function(){})('Kopia bazy pobrana.');
+  } catch (err) {
+    (window.toast || alert)('Nie udało się pobrać kopii: ' + err.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = label; }
+  }
+}
+// Reveal the backup button only for administrators (server enforces this too).
+(function () {
+  try {
+    if (typeof currentRole === 'function' && currentRole() === 'admin') {
+      const b = document.getElementById('btn-db-backup');
+      if (b) b.style.display = '';
+    }
+  } catch {}
+})();
+</script>
 </body>
 </html>
