@@ -1632,7 +1632,7 @@ function builderPartHTML(part, idx, study, questions) {
         <textarea class="part-trans-text" rows="2" placeholder="${t('konfig.part_transition_ph')}">${esc(part.transition_text||'')}</textarea>
         <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.4rem;flex-wrap:wrap">
           <label style="font-size:0.8rem;color:var(--muted)">${t('konfig.part_transition_emoji_label')}</label>
-          <input type="text" class="part-trans-emoji" value="${esc(part.transition_emoji != null ? part.transition_emoji : '📱')}" maxlength="8" style="width:70px;text-align:center;font-size:1rem" placeholder="📱">
+          <input type="text" class="part-trans-emoji" value="${esc(part.transition_emoji != null ? part.transition_emoji : '📱')}" maxlength="8" style="width:70px;text-align:center;font-size:1rem" placeholder="—">
           <span style="font-size:0.78rem;color:var(--muted)">${t('konfig.part_transition_emoji_hint')}</span>
         </div>
       </div>
