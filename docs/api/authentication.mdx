@@ -67,9 +67,9 @@ curl https://your-host/api/admin/studies \
 ```
 </CodeGroup>
 
-<Warning>
-Tokens expire after **24 hours**. When a token expires, the API returns `401 Unauthorized`. Repeat the login flow to obtain a fresh token. Do not embed tokens in client-side code or commit them to source control.
-</Warning>
+<Info>
+Tokens expire after **24 hours**. When a token expires, the API returns `401 Unauthorized` — repeat the login flow to obtain a fresh token. Keep tokens out of client-side code and source control.
+</Info>
 
 ## Token Lifetime
 

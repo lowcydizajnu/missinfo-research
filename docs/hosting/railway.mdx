@@ -12,13 +12,13 @@ The fastest way to get started is the Railway template link. Click it to open a 
 
 [**Deploy Misinfo Research on Railway →**](https://railway.com/new/template?template=https://github.com/lowcydizajnu/missinfo-research)
 
-You will need a Railway account (free tier available). If you are not already signed in, Railway will prompt you to log in or sign up before continuing.
+You need a Railway account (free tier available). If you are not already signed in, Railway prompts you to log in or sign up before continuing.
 
 ## Configuration
 
 <Steps>
   <Step title="Open the template deploy page">
-    Follow the one-click link above. Railway will show you a summary of the services the template will create, along with a form to set environment variables before the first deploy.
+    Follow the one-click link above. Railway shows a summary of the services the template creates, along with a form to set environment variables before the first deploy.
   </Step>
 
   <Step title="Set required environment variables">
@@ -27,22 +27,22 @@ You will need a Railway account (free tier available). If you are not already si
     | Variable | Value |
     |---|---|
     | `JWT_SECRET` | A long random string — generate one with `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"` on any machine with Node.js |
-    | `ADMIN_PASSWORD` | The password for the `admin` account that is created on first boot |
+    | `ADMIN_PASSWORD` | The password for the `admin` account created on first boot |
     | `NODE_ENV` | `production` |
 
-    <Warning>
-      Set `JWT_SECRET` before the first deploy. If the app starts without it, it will crash immediately. You can set variables in the Railway dashboard and trigger a redeploy, but setting them upfront avoids the extra step.
-    </Warning>
+    <Info>
+      Set `JWT_SECRET` before the first deploy. Without it, the app exits on startup. You can add it later in the Railway dashboard and redeploy, but setting it upfront avoids the extra step.
+    </Info>
   </Step>
 
   <Step title="Deploy the application">
-    Click **Deploy**. Railway clones the repository, installs dependencies, and starts the Node.js process. Auto-detection picks up `package.json` — no extra build configuration is required.
+    Click **Deploy**. Railway clones the repository, installs dependencies, and starts the Node.js process. Auto-detection picks up `package.json`, so no extra build configuration is required.
 
     You can watch the build and deploy logs in real time from the Railway dashboard.
   </Step>
 
   <Step title="Add a persistent volume for the database">
-    By default, Railway's filesystem is ephemeral — files written outside a mounted volume are lost when the service restarts. You must attach a volume to persist the SQLite database.
+    Railway's filesystem is ephemeral: files written outside a mounted volume are lost when the service restarts. Attach a volume to persist the SQLite database.
 
     In your service settings on Railway:
 
@@ -52,9 +52,9 @@ You will need a Railway account (free tier available). If you are not already si
 
     This volume stores `research.db` and survives all future deploys and restarts.
 
-    <Note>
-      If you expect to store a significant number of uploaded images, add a second volume mounted at `/app/uploads`. Without it, uploaded files are lost on each redeploy.
-    </Note>
+    <Info>
+      To store uploaded images, add a second volume mounted at `/app/uploads`. Without it, uploaded files are lost on each redeploy.
+    </Info>
   </Step>
 
   <Step title="Access the admin panel">
@@ -69,20 +69,20 @@ You will need a Railway account (free tier available). If you are not already si
     - **Password:** the value you set for `ADMIN_PASSWORD`
 
     <Tip>
-      You can find or customise your public URL under **Settings → Networking → Public Domain** in the Railway dashboard.
+      Find or customise your public URL under **Settings → Networking → Public Domain** in the Railway dashboard.
     </Tip>
   </Step>
 </Steps>
 
 ## Updating environment variables after deploy
 
-If you need to change a variable after the initial deploy:
+To change a variable after the initial deploy:
 
 1. Open your service in the Railway dashboard.
 2. Go to the **Variables** tab.
 3. Edit or add the variable and click **Save**.
 4. Railway automatically triggers a redeploy with the new values.
 
-<Note>
-  Changing `ADMIN_PASSWORD` after the first boot has no effect on the existing `admin` account — the seed only runs when no admin account exists yet. Use the admin panel to change the password instead.
-</Note>
+<Info>
+  Changing `ADMIN_PASSWORD` has no effect on an existing `admin` account — the seed runs only when no admin account exists. Use the admin panel to change the password instead.
+</Info>

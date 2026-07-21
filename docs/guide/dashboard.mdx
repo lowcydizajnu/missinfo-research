@@ -4,9 +4,9 @@ sidebarTitle: "Dashboard"
 description: "Track recruitment progress, explore response distributions, and share live charts with colleagues using the per-study configurable dashboard."
 ---
 
-Each study has its own dashboard — a configurable widget grid that updates as participants complete sessions. The first time you open a study's dashboard, a default layout is generated automatically based on your study design. You can reshape this layout at any time without affecting the underlying data.
+Each study has its own dashboard — a configurable widget grid that updates as participants complete sessions. The first time you open a study's dashboard, a default layout is generated from your study design. You can reshape this layout at any time without affecting the underlying data.
 
-The dashboard shows **production sessions only**. Preview sessions — those you ran yourself while testing the study — are excluded from every chart and table on this page.
+The dashboard shows **production sessions only**. Preview sessions — those you run yourself while testing the study — are excluded from every chart and table on this page.
 
 <Tip>
   The dashboard is designed for **monitoring recruitment**, not for testing hypotheses. Use it to track completion rates, spot dropout patterns, and check that conditions are filling evenly. For statistical inference, use the [Analyses tab](./analyses) or export your data to R, SPSS, JASP, or Python.
@@ -39,7 +39,7 @@ The dashboard supports the following widget types. Each widget can be scoped to 
     Grid of Pearson correlations across a set of numeric variables. Useful for a quick overview of multivariate relationships.
   </Accordion>
   <Accordion title="Time series">
-    Session completions over time — by day, week, or custom interval. Helps you spot when a recruitment push drove a surge in responses.
+    Session completions over time — by day, week, or custom interval. Shows when a recruitment push drives a surge in responses.
   </Accordion>
   <Accordion title="Text responses">
     Sample of open-text answers to a specific question, displayed as a scrollable list.
@@ -79,7 +79,7 @@ Use the date-range control in the dashboard toolbar to focus all widgets on a sp
 
 ### Cross-filters
 
-Clicking a bar, segment, or data point in any chart automatically filters all other widgets to show only sessions that match that category. For example, clicking the "Correction" bar in a condition chart narrows every other widget to participants in the Correction condition. Click the same element again to clear the filter.
+Clicking a bar, segment, or data point in any chart filters all other widgets to show only sessions that match that category. For example, clicking the "Correction" bar in a condition chart narrows every other widget to participants in the Correction condition. Click the same element again to clear the filter.
 
 ## Auto-refresh
 
@@ -126,4 +126,4 @@ At the bottom of the dashboard, a table lists the **last 20 completed sessions**
 | Avg. belief (false posts) | Mean credibility rating given to false posts in this session |
 | Date | Session completion timestamp |
 
-Preview sessions are excluded from this table. If a session was accidentally recorded as production data, you can manage it from the [Export tab](./export).
+Preview sessions are excluded from this table. To manage a session that was recorded as production data, use the [Export tab](./export).

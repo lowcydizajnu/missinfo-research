@@ -33,7 +33,7 @@ A study can be **Active** (accepting real participant sessions) or **Inactive** 
 
 ### Builder mode vs classic mode
 
-Misinfo Research supports two study creation modes. All studies created via the **+ New** button use Builder mode. Older studies created before Builder mode was introduced are *classic* studies. The distinction affects how posts are assigned to conditions and how randomization works.
+Misinfo Research supports two study creation modes: **Builder** and **classic**. The **+ New** button creates Builder-mode studies. The distinction affects how posts are assigned to conditions and how randomization works.
 
 <Tabs>
   <Tab title="Builder">
@@ -42,14 +42,14 @@ Misinfo Research supports two study creation modes. All studies created via the 
     Condition assignment in Builder studies is **uniformly random**: each incoming session is independently and randomly assigned to one of the available conditions with equal probability.
   </Tab>
   <Tab title="Classic">
-    Classic studies were created before the Configurator existed. Their structure is defined through a combination of study-level settings and post-level flags rather than through a unified interface. Some features available in Builder mode — such as conditional logic rules and post questions — are not available in classic studies.
+    Classic studies define their structure through a combination of study-level settings and post-level flags rather than a unified interface. Conditional logic rules and post questions are available only in Builder mode.
 
-    Classic studies use **permuted block randomization**: participants are assigned to conditions in balanced blocks, ensuring that condition counts stay approximately equal throughout recruitment rather than converging only in expectation.
+    Classic studies use **permuted block randomization**: participants are assigned to conditions in balanced blocks, so condition counts stay approximately equal throughout recruitment rather than converging only in expectation.
   </Tab>
 </Tabs>
 
 <Note>
-  All new research should use Builder mode. Classic studies continue to function and collect data normally, but they will not receive new feature updates.
+  New research should use Builder mode. Classic studies function and collect data normally.
 </Note>
 
 ---

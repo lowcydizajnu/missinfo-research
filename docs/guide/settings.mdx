@@ -7,7 +7,7 @@ description: "A complete reference for every field in the study Settings tab —
 Every study in Misinfo Research has a **Settings** tab where you control how the study is identified, how it appears to participants, which integrations are active, and whether it is live. For studies built with the visual builder, the Settings tab presents the same interface as the **Configurator** — changes made in either place are identical.
 
 <Note>
-  Settings changes are saved automatically as you type. An explicit **Save** button is also available if you prefer to commit a batch of edits at once.
+  Settings changes are saved automatically as you type. An explicit **Save** button is also available to commit a batch of edits at once.
 </Note>
 
 ## Basic Information
@@ -17,7 +17,7 @@ Every study in Misinfo Research has a **Settings** tab where you control how the
 </ParamField>
 
 <ParamField path="slug" name="Slug" type="string" required>
-  The URL-safe identifier appended to your instance's base URL to form the participant-facing study link (for example `/study/my-study-slug`). Must be unique across the instance. Changing the slug after a study is distributed will break existing links, so set it before sharing the URL.
+  The URL-safe identifier appended to your instance's base URL to form the participant-facing study link (for example `/study/my-study-slug`). Must be unique across the instance. Set it before sharing the URL, since changing the slug after distribution breaks existing links.
 </ParamField>
 
 <ParamField path="title" name="Title shown to participants" type="string">
@@ -33,7 +33,7 @@ Every study in Misinfo Research has a **Settings** tab where you control how the
 </ParamField>
 
 <ParamField path="contact_email" name="Contact email" type="string">
-  An email address displayed on the **consent screen** and the **debrief screen** so participants know how to reach the research team. We recommend using a monitored institutional inbox rather than a personal address.
+  An email address displayed on the **consent screen** and the **debrief screen** so participants know how to reach the research team. Use a monitored institutional inbox rather than a personal address.
 </ParamField>
 
 <ParamField path="institution_name" name="Institution name" type="string">
@@ -59,18 +59,18 @@ The row of buttons at the top of the Settings tab lets you take high-level actio
     Create a full copy of the study — including all settings, posts, and questions — under a new name. The duplicate is inactive by default and gets a new slug.
   </Card>
   <Card title="Delete" icon="trash">
-    Permanently remove the study and all its data. This action cannot be undone. The platform will ask for confirmation before proceeding.
+    Permanently remove the study and all its data. This action cannot be undone. The platform asks for confirmation before proceeding.
   </Card>
 </CardGroup>
 
 <Warning>
-  Deleting a study removes all collected response data permanently. Export your results before deleting if you need to retain them.
+  Deleting a study removes all collected response data permanently and cannot be undone. Export your results before deleting if you need to retain them.
 </Warning>
 
 ## Display Options
 
 <ParamField path="show_metrics" name="Show metrics" type="boolean">
-  When **enabled**, like and share counters are visible to participants on each post card. When **disabled**, the counters are hidden entirely. Turn this off when you want to isolate participant responses from social-proof cues.
+  When **enabled**, like and share counters are visible to participants on each post card. When **disabled**, the counters are hidden entirely. Turn this off to isolate participant responses from social-proof cues.
 </ParamField>
 
 ## Integrations
@@ -87,18 +87,18 @@ Microsoft Clarity records session replays, heatmaps, and interaction metrics for
     Go to your [Clarity dashboard](https://clarity.microsoft.com), copy the **Project ID** for the project you created for this study, and paste it into the **Project ID** field.
   </Step>
   <Step title="Verify tracking">
-    Activate the study and run a test session. Open the Clarity dashboard — live sessions should appear within a few minutes.
+    Activate the study and run a test session. Open the Clarity dashboard — live sessions appear within a few minutes.
   </Step>
 </Steps>
 
 <Note>
-  Each study requires its own Clarity Project ID if you want to keep session data separated. You can reuse the same Project ID across studies, but all sessions will be pooled in a single Clarity project.
+  Give each study its own Clarity Project ID to keep session data separated. Reusing one Project ID across studies pools all sessions in a single Clarity project.
 </Note>
 
 ### Eye Tracking
 
 <ParamField path="eye_tracking" name="Eye tracking" type="boolean">
-  When **enabled**, the study loads **WebGazer.js** and attempts to use the participant's webcam to capture gaze data as they read posts. Participants are prompted to grant camera permission; if they decline, the study continues normally without gaze data. Enable this only when your study design explicitly requires gaze tracking, as the webcam prompt can affect consent rates.
+  When **enabled**, the study loads **WebGazer.js** and uses the participant's webcam to capture gaze data as they read posts. Participants are prompted to grant camera permission; if they decline, the study continues normally without gaze data. Enable this only when your study design requires gaze tracking, as the webcam prompt can affect consent rates.
 </ParamField>
 
 <Tip>

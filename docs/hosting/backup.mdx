@@ -76,9 +76,9 @@ After the database backup completes, copy the uploads directory:
 cp -r ./uploads/ /path/to/your/backup/uploads/
 ```
 
-<Warning>
-  The hot backup only guarantees consistency for the database. If a file upload occurs between the database backup and the uploads copy, the backup may reference an image file that is not yet included. For perfectly consistent backups, use the cold backup method.
-</Warning>
+<Info>
+  The hot backup guarantees consistency for the database. If a file upload occurs between the database backup and the uploads copy, the backup may reference an image that is not yet included. For a perfectly consistent snapshot, use the cold backup method.
+</Info>
 
 ## Docker volume backup
 

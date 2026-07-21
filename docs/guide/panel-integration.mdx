@@ -4,10 +4,10 @@ sidebarTitle: "Panel Integration"
 description: "Set up respondent ID capture and completion or decline redirects when fielding studies through recruiting agencies like Prolific or Respondi."
 ---
 
-When you field a Misinfo Research study through an external recruiting panel — such as Prolific, Respondi, or a similar agency — you need to link each participant's session back to the panel's own respondent record. Misinfo Research handles this with two mechanisms: **respondent ID capture** on the way in, and **redirect URLs** on the way out. Both are configured in the study's **Settings** tab (or equivalently in the **Configurator** for builder studies).
+When you field a Misinfo Research study through an external recruiting panel — such as Prolific, Respondi, or a similar agency — you link each participant's session back to the panel's own respondent record. Misinfo Research handles this with two mechanisms: **respondent ID capture** on the way in, and **redirect URLs** on the way out. Both are configured in the study's **Settings** tab (or equivalently in the **Configurator** for builder studies).
 
 <Note>
-  Redirect URLs only fire while the study is **active**. Make sure to activate the study before distributing the panel link, and deactivate it once data collection is complete to prevent late arrivals from being redirected incorrectly.
+  Redirect URLs fire only while the study is **active**. Activate the study before distributing the panel link, and deactivate it once data collection is complete so late arrivals are not redirected incorrectly.
 </Note>
 
 ## Capturing the External Respondent ID
@@ -15,13 +15,13 @@ When you field a Misinfo Research study through an external recruiting panel —
 Recruiting panels append a unique respondent identifier to the study URL when sending a participant. Misinfo Research reads this identifier from the URL query string and stores it with the session record.
 
 <ParamField path="respondent_id_param" name="URL parameter name" type="string" default="res_id">
-  The name of the query-string parameter that carries the respondent identifier. The default is `res_id`, so a link like `https://your-instance.com/study/your-slug?res_id=ABC123` automatically captures `ABC123`. Change this value if your panel uses a different parameter name (for example, Prolific uses `PROLIFIC_PID`).
+  The name of the query-string parameter that carries the respondent identifier. The default is `res_id`, so a link like `https://your-instance.com/study/your-slug?res_id=ABC123` captures `ABC123`. Change this value if your panel uses a different parameter name (for example, Prolific uses `PROLIFIC_PID`).
 </ParamField>
 
 The captured value is stored as **`external_id`** on the session record and appears in the **`external_id` column** of your data export. Use this column to match Misinfo Research responses back to the panel's own completion records.
 
 <Tip>
-  Include `{ext_id}` in your completion redirect URL (see below) so the panel receives the respondent's own ID back in the redirect. This is the standard way panels verify that a specific participant finished the study — without it, the panel cannot automatically mark the submission as complete.
+  Include `{ext_id}` in your completion redirect URL (see below) so the panel receives the respondent's own ID back in the redirect. This is the standard way panels verify that a specific participant finished the study; without it, the panel cannot automatically mark the submission as complete.
 </Tip>
 
 ## Completion Redirect
@@ -33,11 +33,11 @@ After a participant finishes the study, Misinfo Research can redirect them to a 
 </ParamField>
 
 <ParamField path="completion_redirect_delay" name="Redirect delay (seconds)" type="number" default="4">
-  How many seconds to wait on the debrief screen before the redirect fires. Set to `0` for an immediate redirect. The default is 4 seconds, giving participants a moment to read the debrief before being sent away. The maximum is 600 seconds.
+  How many seconds to wait on the debrief screen before the redirect fires. Set to `0` for an immediate redirect. The default of 4 seconds gives participants a moment to read the debrief before being sent away. The maximum is 600 seconds.
 </ParamField>
 
 <ParamField path="completion_redirect_notice" name="Show notice before redirect" type="boolean">
-  When enabled, a notice box is shown on the debrief screen informing the participant that they will be redirected. Recommended when using a non-zero delay so participants understand why the page changes.
+  When enabled, a notice box on the debrief screen informs the participant that they will be redirected. Recommended with a non-zero delay so participants understand why the page changes.
 </ParamField>
 
 ## Decline Redirect
@@ -49,15 +49,15 @@ If a participant reads the consent screen and chooses **not** to participate, yo
 </ParamField>
 
 <ParamField path="decline_redirect_delay" name="Redirect delay (seconds)" type="number" default="4">
-  Seconds to wait before redirecting after a consent decline. The default is 4 seconds. Set to `0` for an immediate redirect. If you also enable **immediate redirect**, this delay is overridden. The maximum is 600 seconds.
+  Seconds to wait before redirecting after a consent decline. The default is 4 seconds. Set to `0` for an immediate redirect. Enabling **immediate redirect** overrides this delay. The maximum is 600 seconds.
 </ParamField>
 
 <ParamField path="decline_redirect_immediate" name="Immediate redirect" type="boolean">
-  When enabled, participants who decline consent are redirected without being shown any intermediate screen on the Misinfo Research side. Use this when your panel requires seamless flow back to its own "not eligible" or "opted out" page.
+  When enabled, participants who decline consent are redirected without seeing any intermediate screen on the Misinfo Research side. Use this when your panel requires seamless flow back to its own "not eligible" or "opted out" page.
 </ParamField>
 
 <ParamField path="decline_redirect_notice" name="Show notice before redirect" type="boolean">
-  When enabled (and immediate redirect is off), a notice box is shown on the local decline screen before the redirect fires. Not applicable when immediate redirect is enabled.
+  When enabled (and immediate redirect is off), a notice box on the local decline screen appears before the redirect fires. Not applicable when immediate redirect is enabled.
 </ParamField>
 
 ## Configuration Checklist
@@ -67,7 +67,7 @@ If a participant reads the consent screen and chooses **not** to participate, yo
     In **Settings**, set the **URL parameter name** to match what your panel appends to links. For Prolific this is typically `PROLIFIC_PID`; for Respondi it may differ — check your panel's survey link documentation.
   </Step>
   <Step title="Build your panel study link">
-    Share the study URL with the parameter appended. For example: `https://your-instance.com/study/your-slug?PROLIFIC_PID={{%PROLIFIC_PID%}}`. The panel will substitute its own placeholder syntax before sending participants.
+    Share the study URL with the parameter appended. For example: `https://your-instance.com/study/your-slug?PROLIFIC_PID={{%PROLIFIC_PID%}}`. The panel substitutes its own placeholder syntax before sending participants.
   </Step>
   <Step title="Set the completion redirect URL">
     Paste the completion URL provided by your panel into **Completion redirect URL**. Insert `{ext_id}` where the panel expects the respondent identifier. Set a delay and notice if desired.
@@ -76,7 +76,7 @@ If a participant reads the consent screen and chooses **not** to participate, yo
     Paste the panel's declined/screened-out URL into **Decline redirect URL**. Enable **Immediate redirect** if you do not want participants to see any intermediate screen.
   </Step>
   <Step title="Activate the study">
-    Use **Activate** in the action row (see [Settings](/guide/settings)) before distributing the panel link. Redirects will not fire for inactive studies.
+    Use **Activate** in the action row (see [Settings](/guide/settings)) before distributing the panel link. Redirects do not fire for inactive studies.
   </Step>
   <Step title="Verify with a test session">
     Complete a test run using a dummy respondent ID in the URL. Confirm that the `external_id` column in the export contains the expected value and that the redirect fires correctly at the end of the session.
@@ -91,5 +91,5 @@ If a participant reads the consent screen and chooses **not** to participate, yo
 | `session_id` | The Misinfo Research internal UUID for the session. Available as the `{session_id}` placeholder in redirect URLs. |
 
 <Tip>
-  If you run the same study through multiple panels simultaneously, consider using a separate slug (duplicated study) per panel so you can track completion rates by source without relying solely on the `external_id` values.
+  If you run the same study through multiple panels simultaneously, use a separate slug (duplicated study) per panel so you can track completion rates by source without relying solely on the `external_id` values.
 </Tip>

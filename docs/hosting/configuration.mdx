@@ -7,7 +7,7 @@ description: "Complete reference for every environment variable recognised by Mi
 Misinfo Research is configured entirely through environment variables. In a Node.js or Docker installation these are set in a `.env` file in the project root. On Railway and other cloud platforms you set them through the platform's dashboard. This page documents every variable the application recognises.
 
 <Warning>
-  Never commit your `.env` file to git. It contains secrets such as `JWT_SECRET` and `ADMIN_PASSWORD` that grant full administrative access to your instance. The repository's `.gitignore` already excludes `.env`, but double-check before pushing to a remote.
+  Never commit your `.env` file to git. It contains secrets such as `JWT_SECRET` and `ADMIN_PASSWORD` that grant full administrative access to your instance. The repository's `.gitignore` excludes `.env`, but confirm before pushing to a remote.
 </Warning>
 
 ## Variable reference
@@ -26,7 +26,7 @@ Misinfo Research is configured entirely through environment variables. In a Node
 
 ### `JWT_SECRET`
 
-This secret is used to sign every admin session token. If it changes, all existing sessions are immediately invalidated and admins must log in again. Use a value that is long, random, and never reused across instances.
+This secret signs every admin session token. If it changes, existing sessions are invalidated and admins log in again. Use a value that is long, random, and never reused across instances.
 
 Generate a suitable value with Node.js:
 
@@ -42,21 +42,21 @@ openssl rand -hex 48
 
 ### `ADMIN_PASSWORD`
 
-This password seeds the initial `admin` account on the very first startup. It is only applied if no admin account exists in the database yet — subsequent restarts (even with a changed value) do not overwrite the stored password.
+This password seeds the initial `admin` account on the first startup. It applies only when no admin account exists in the database yet; later restarts, even with a changed value, keep the stored password.
 
-To change the admin password after the first boot, use the admin panel rather than this variable.
+To change the admin password, use the admin panel rather than this variable.
 
 ## Optional variables in detail
 
 ### `DATABASE_PATH`
 
-Override the default database file path when you need the database on a specific volume or mount point. This variable takes the full path to the `.db` file, not just a directory. Example:
+Set this when you need the database on a specific volume or mount point. It takes the full path to the `.db` file, not just a directory. Example:
 
 ```env
 DATABASE_PATH=/mnt/persistent/data/research.db
 ```
 
-In Docker deployments the named volume `misinfo-data` is mounted at `/app/data`, so the database lands at `/app/data/research.db` by default. Only set this variable if you need a non-standard path.
+In Docker deployments the named volume `misinfo-data` is mounted at `/app/data`, so the database lands at `/app/data/research.db` by default. Set this variable only for a non-standard path.
 
 ### `UPLOADS_PATH`
 
@@ -70,7 +70,7 @@ In Docker deployments the named volume `misinfo-uploads` is mounted at `/app/upl
 
 ### `ANTHROPIC_API_KEY`
 
-When this key is set, the platform can call the Anthropic Claude API to provide AI-assisted translation of experiment content. If the key is absent, translation features are disabled but the rest of the platform functions normally.
+When this key is set, the platform calls the Anthropic Claude API to provide AI-assisted translation of experiment content. Without the key, translation features are disabled and the rest of the platform functions normally.
 
 ## Example `.env` file
 

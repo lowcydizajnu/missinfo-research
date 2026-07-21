@@ -4,23 +4,23 @@ sidebarTitle: "Preview & Launch"
 description: "Test your study as a participant before going live, manage the activation lifecycle, and safely duplicate studies for new data collection rounds."
 ---
 
-Before exposing your study to real participants, you should walk through it yourself to confirm that posts appear correctly, rating scales behave as expected, and the flow feels right. Misinfo Research separates this testing phase — called a **preview session** — from live data collection so that your exploratory clicks never contaminate your dataset.
+Before exposing your study to real participants, walk through it yourself to confirm that posts appear correctly, rating scales behave as expected, and the flow feels right. Misinfo Research separates this testing phase — called a **preview session** — from live data collection, so your exploratory clicks never contaminate your dataset.
 
 ## Preview sessions
 
-Clicking the **Preview** button in the study editor opens `/study/<slug>?preview=1` in a new tab. You can use this link even while the study is inactive, making it safe to review your design at any point without worrying about accidentally recruiting real participants.
+Clicking the **Preview** button in the study editor opens `/study/<slug>?preview=1` in a new tab. This link works even while the study is inactive, so you can review your design at any point without recruiting real participants.
 
 Preview sessions behave differently from production sessions in several deliberate ways:
 
 <AccordionGroup>
   <Accordion title="Fixed condition assignment">
-    Every preview session is assigned to the **first condition** in your condition list, regardless of any randomisation logic you have configured. This is intentional — it gives you a stable, reproducible view of one condition rather than a random one each time.
+    Every preview session is assigned to the **first condition** in your condition list, regardless of any randomisation logic you have configured. This gives you a stable, reproducible view of one condition rather than a random one each time.
   </Accordion>
   <Accordion title="Conditional logic is suspended">
     Rules that branch the study flow based on participant responses do not fire during a preview. You see the default path through the study every time.
   </Accordion>
   <Accordion title="Flagged and excluded automatically">
-    Every preview session is tagged `is_preview = 1`. These sessions are excluded from the dashboard and from all exports by default, so your charts and downloads always reflect real participant data unless you explicitly opt in to include them.
+    Every preview session is tagged `is_preview = 1`. These sessions are excluded from the dashboard and from all exports by default, so your charts and downloads reflect real participant data unless you explicitly opt in to include them.
   </Accordion>
 </AccordionGroup>
 
@@ -39,7 +39,7 @@ Switch to **Production (counted)** only when you genuinely want your responses r
 
 ## Activating the study
 
-When you are satisfied with your preview, click **Activate** to make `/study/<slug>` live. From this point, anyone with the link can participate and their sessions will be recorded as production data.
+When you are satisfied with your preview, click **Activate** to make `/study/<slug>` live. From this point, anyone with the link can participate, and their sessions are recorded as production data.
 
 <Steps>
   <Step title="Open the study editor">
@@ -49,7 +49,7 @@ When you are satisfied with your preview, click **Activate** to make `/study/<sl
     Click **Preview** and complete the study from start to finish. Check every screen, including the debrief page.
   </Step>
   <Step title="Review the preview in the dashboard">
-    Go to the **Dashboard** tab. Your preview session will not appear in the main charts, but you can temporarily include preview sessions using the export panel to verify that data was recorded correctly.
+    Go to the **Dashboard** tab. Your preview session does not appear in the main charts, but you can temporarily include preview sessions from the export panel to verify that data was recorded correctly.
   </Step>
   <Step title="Click Activate">
     Click **Activate** to make the study publicly accessible. Share the `/study/<slug>` link with your recruitment channels.
@@ -58,27 +58,27 @@ When you are satisfied with your preview, click **Activate** to make `/study/<sl
 
 ## Deactivating the study
 
-Clicking **Deactivate** closes recruitment immediately. Once deactivated, `/study/<slug>` returns a **404** response, so any participant who follows an old recruitment link will land on a "not found" page rather than a partially active study.
+Clicking **Deactivate** closes recruitment immediately. Once deactivated, `/study/<slug>` returns a **404** response, so a participant who follows a stale recruitment link lands on a "not found" page rather than a partially active study.
 
 <Tip>
   Deactivation is the cleanest way to close recruitment at a pre-specified sample size. You can reactivate the study at any time without losing existing data.
 </Tip>
 
-## Warning: design changes after data collection starts
+## Changing a study after data collection starts
 
 <Warning>
-  Changing certain study properties after real participants have already completed sessions will alter the meaning of previously collected data. Specifically, avoid:
+  Changing certain study properties after real participants have completed sessions alters the meaning of already-collected data. Avoid:
 
   - Toggling a post's **true / false** flag (changes which posts count as true vs. false in downstream analyses).
   - Renumbering a **Likert scale** (e.g., changing a 1–7 scale to 0–6 makes old and new ratings incomparable).
-  - Adding, removing, or reordering **conditions** (reassigns condition labels to previously collected sessions).
+  - Adding, removing, or reordering **conditions** (reassigns condition labels to already-collected sessions).
 
-  If you need to make such a change, consider duplicating the study and starting fresh data collection rather than editing the live version.
+  If you need such a change, duplicate the study and start fresh data collection rather than editing the live version.
 </Warning>
 
 ## Duplicating a study
 
-You can create an exact copy of any study by clicking **Duplicate** in the study menu. The duplicate contains all of your posts, conditions, questions, and settings — but starts with zero sessions, giving you a clean slate for a new data collection round.
+You can create an exact copy of any study by clicking **Duplicate** in the study menu. The duplicate contains all of your posts, conditions, questions, and settings, and starts with zero sessions — a clean slate for a new data collection round.
 
 <CardGroup cols={2}>
   <Card title="Use duplication for replication" icon="copy">

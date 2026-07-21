@@ -121,7 +121,7 @@ Most issues with Misinfo Research fall into one of a small number of categories:
     </Steps>
 
     <Warning>
-      Do not rely on ephemeral container storage for uploads in production. Always configure a persistent volume or object storage before going live with a study.
+      In production, files written to ephemeral container storage are lost on every restart. Configure a persistent volume or object storage for the uploads path before going live with a study.
     </Warning>
   </Accordion>
 
@@ -136,7 +136,7 @@ Most issues with Misinfo Research fall into one of a small number of categories:
 
     <Steps>
       <Step title="Assess whether the imbalance is within acceptable bounds">
-        For most studies, minor imbalance from random assignment is statistically unproblematic and should be accounted for in your analysis (e.g., by including condition as a covariate). A difference of a few sessions between cells is expected and not a sign of a bug.
+        For most studies, minor imbalance from random assignment is statistically unproblematic and can be accounted for in your analysis (e.g., by including condition as a covariate). A difference of a few sessions between cells is expected.
       </Step>
       <Step title="Switch to classic mode if balance is critical">
         If your protocol requires guaranteed equal cell sizes at every interim check, consider using a classic study, which uses permuted block randomisation. Note that classic and builder studies have different feature sets, so review the FAQ entry on classic vs builder mode before switching.
@@ -153,7 +153,7 @@ Most issues with Misinfo Research fall into one of a small number of categories:
 
     <Steps>
       <Step title="Check completion rate on the dashboard">
-        The dashboard shows both total sessions started and the completion rate. The difference between those two numbers is your drop-out count. This is expected behaviour, not a data loss bug.
+        The dashboard shows both total sessions started and the completion rate. The difference between those two numbers is your drop-out count. This is expected behaviour.
       </Step>
       <Step title="Investigate the drop-off stage">
         The dashboard also shows which stage of the study participants were at when they dropped out. If a particular stage has high abandonment, consider whether the instructions are clear, whether the page is too long, or whether there is a rendering issue at that point.
@@ -204,9 +204,9 @@ Most issues with Misinfo Research fall into one of a small number of categories:
       </Step>
     </Steps>
 
-    <Warning>
-      If you have already shared the suffixed link with any participants, do **not** rename the slug — doing so will break the link for anyone who has bookmarked or received it. Only rename before the study goes live.
-    </Warning>
+    <Info>
+      If you have already shared the suffixed link with participants, keep it — renaming the slug changes the URL and breaks any link people have bookmarked or received. Rename only before the study goes live.
+    </Info>
   </Accordion>
 
 </AccordionGroup>

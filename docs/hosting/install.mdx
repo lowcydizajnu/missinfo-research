@@ -4,11 +4,11 @@ sidebarTitle: "Install"
 description: "Set up a self-hosted Misinfo Research instance on any machine running Node.js 18 or later, from cloning the repo to your first admin login."
 ---
 
-Installing Misinfo Research directly on Node.js gives you the most control over your environment. This guide walks you through every step, from verifying your prerequisites to logging in to the admin panel for the first time.
+Installing Misinfo Research directly on Node.js gives you full control over your environment. This guide covers every step, from verifying prerequisites to your first admin login.
 
 ## Prerequisites
 
-Before you begin, make sure the following are available on your server or local machine:
+Make sure the following are available on your server or local machine:
 
 - **Node.js 18 or later** — check with `node -v`
 - **npm** — bundled with Node.js; check with `npm -v`
@@ -42,13 +42,13 @@ Before you begin, make sure the following are available on your server or local 
     cp .env.example .env
     ```
 
-    Open `.env` in a text editor — every available variable is described in the template. You will fill in the required values in the next step.
+    Open `.env` in a text editor — every available variable is described in the template. Fill in the required values in the next step.
   </Step>
 
   <Step title="Set required environment variables">
     Two variables must be present before the server will start.
 
-    **`JWT_SECRET`** — a long, random string used to sign admin session tokens. Generate one now with Node's built-in `crypto` module:
+    **`JWT_SECRET`** — a long, random string used to sign admin session tokens. Generate one with Node's built-in `crypto` module:
 
     ```bash
     node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
@@ -56,7 +56,7 @@ Before you begin, make sure the following are available on your server or local 
 
     Copy the output and paste it as the value of `JWT_SECRET` in your `.env` file.
 
-    **`ADMIN_PASSWORD`** — the password that will be set on the `admin` account the first time the server boots. Choose a strong password and record it somewhere safe.
+    **`ADMIN_PASSWORD`** — the password set on the `admin` account the first time the server boots. Choose a strong password and record it somewhere safe.
 
     Your `.env` should contain at minimum:
 
@@ -66,12 +66,12 @@ Before you begin, make sure the following are available on your server or local 
     ```
 
     <Warning>
-      The server will refuse to start if `JWT_SECRET` is missing or empty. Keep this value secret — anyone who knows it can forge admin tokens.
+      The server will not start if `JWT_SECRET` is missing or empty. Keep this value secret — anyone who knows it can forge admin tokens.
     </Warning>
   </Step>
 
   <Step title="Configure optional environment variables">
-    The following variables are optional. You can leave them unset to accept the defaults, or add them to your `.env` file as needed:
+    These variables are optional. Leave them unset to accept the defaults, or add them to your `.env` file as needed:
 
     | Variable | Default | Purpose |
     |---|---|---|
@@ -85,7 +85,7 @@ Before you begin, make sure the following are available on your server or local 
   </Step>
 
   <Step title="Start the server">
-    Choose the appropriate command for your use case:
+    Choose the command for your use case:
 
     <CodeGroup>
       ```bash Production
@@ -103,7 +103,7 @@ Before you begin, make sure the following are available on your server or local 
     - Seeds an admin account with the username `admin` and the password you set in `ADMIN_PASSWORD`
 
     <Note>
-      The admin account is only seeded if no admin account exists yet. If you restart the server later with a different `ADMIN_PASSWORD`, the existing account is not affected.
+      The admin account is seeded only when no admin account exists yet. Restarting the server with a different `ADMIN_PASSWORD` leaves the existing account unchanged.
     </Note>
   </Step>
 

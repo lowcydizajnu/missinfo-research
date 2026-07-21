@@ -4,9 +4,9 @@ sidebarTitle: "Manipulation"
 description: "Define a binary between-subjects manipulation in the Configurator and deliver different headline and content variants to each condition arm."
 ---
 
-The Manipulation section of the Configurator lets you run a classic between-subjects A/B design within a single study. When enabled, every participant is randomly assigned to one of two arms — Arm A or Arm B — and consistently sees only the post content you have authored for their arm throughout the entire study. This approach is the standard method for testing how framing, headline wording, or narrative style affects participant reactions, sharing intent, or belief accuracy.
+The Manipulation section of the Configurator runs a between-subjects A/B design within a single study. When enabled, every participant is randomly assigned to one of two arms — Arm A or Arm B — and sees only the post content authored for their arm throughout the study. This is the standard method for testing how framing, headline wording, or narrative style affects participant reactions, sharing intent, or belief accuracy.
 
-The manipulation is **strictly binary**: one study supports exactly two arms. If your design requires a second independent factor — for example, varying social engagement numbers as well as content framing — use [Metric Conditions](/guide/social-proof) for the second factor to create a 2×2 design.
+The manipulation is **binary**: one study supports exactly two arms. To add a second independent factor — for example, varying social engagement numbers alongside content framing — use [Metric Conditions](/guide/social-proof) to build a 2×2 design.
 
 ## Enabling the Manipulation
 
@@ -21,24 +21,25 @@ The manipulation is **strictly binary**: one study supports exactly two arms. If
     Enable the toggle. Two arm name fields appear.
   </Step>
   <Step title="Name your arms">
-    Enter a descriptive label for each arm. For example: *Manipulative* and *Neutral*, or *Emotional framing* and *Factual framing*. These names appear in exports under the `style_condition` column and help you interpret your data without referring back to the builder.
+    Enter a descriptive label for each arm — for example *Manipulative* and *Neutral*, or *Emotional framing* and *Factual framing*. These names appear in exports under the `style_condition` column and help you interpret your data without returning to the builder.
   </Step>
   <Step title="Save the Configurator">
-    Click **Save**. The Posts tab will now display A/B variant fields on every post card.
+    Click **Save**. The Posts tab then displays A/B variant fields on every post card.
   </Step>
 </Steps>
 
 ## Naming the Arms
 
-Each arm has a short **key** (stored in the `style_condition` export column) and a human-readable **label** used in the builder UI. The key is what appears in your data — by default `A` and `B` — while the label is what you and your collaborators see when reviewing sessions in the admin panel. Human-readable labels also appear in:
-- The builder UI when reviewing individual session records
+Each arm has a short **key** (stored in the `style_condition` export column, `A` and `B` by default) and a human-readable **label** shown in the builder UI. The key is what appears in your data; the label is what you and your collaborators see when reviewing sessions in the admin panel. Labels also appear in:
+
+- Individual session records in the builder UI
 - Conditional logic trigger definitions (see [Conditional Logic](/guide/conditional-logic))
 
-Choose names that make your arms immediately identifiable. Avoid generic names like *Version 1* and *Version 2* — names like *High-manipulation* and *Control* make your exported data self-documenting.
+Choose names that make each arm immediately identifiable. Labels like *High-manipulation* and *Control* make your exported data self-documenting; avoid generic names like *Version 1* and *Version 2*.
 
 ## Authoring Post Variants
 
-Once the manipulation is enabled, every post card in the Posts tab gains four additional fields:
+When the manipulation is enabled, every post card in the Posts tab gains four additional fields:
 
 <ParamField path="headline_a" type="string">
   The headline displayed to participants assigned to Arm A. Replaces the base Headline field for these participants.
@@ -56,31 +57,31 @@ Once the manipulation is enabled, every post card in the Posts tab gains four ad
   The body text displayed to participants in Arm B.
 </ParamField>
 
-You may also upload a **separate image** for each variant. If you upload only one image (using the standard image field), both arms see the same image. If your manipulation involves visual elements, upload arm-specific images using the Variant A Image and Variant B Image upload zones that appear when the manipulation is active.
+You can also upload a **separate image** for each variant. Upload a single image through the standard image field and both arms see it; to vary the visual, use the Variant A Image and Variant B Image upload zones that appear when the manipulation is active.
 
 ### Control Posts
 
-Not every post in your study needs to differ across conditions. For posts that serve as filler, distractors, or context-setters unrelated to your manipulation, enter identical text in both the A and B fields.
+Not every post needs to differ across conditions. For filler, distractors, or context-setters unrelated to your manipulation, enter identical text in both the A and B fields.
 
 <Tip>
-  Keep control posts — posts that should be the same across both arms — byte-for-byte identical in their A and B fields. This ensures that any statistically detected difference between arms can be attributed solely to the posts you intentionally varied, not to unintended differences in filler content.
+  Keep control posts byte-for-byte identical in their A and B fields. This ensures any statistically detected difference between arms is attributable solely to the posts you intentionally varied, not to unintended differences in filler content.
 </Tip>
 
 ## How Assignment Works
 
 Each new participant session is assigned to Arm A or Arm B **uniformly at random** when the session is created. Assignment is:
 
-- **Between-subjects**: a participant always sees the same arm for the entire study; they never see content from both arms.
+- **Between-subjects**: a participant sees the same arm for the entire study and never sees content from both arms.
 - **Independent**: assignment is independent of demographic characteristics, recruitment source, and all other variables.
-- **Stored in the session**: the assigned arm is recorded in the `style_condition` field of the session record and is available in every export row for that participant.
+- **Stored in the session**: the assigned arm is recorded in the `style_condition` field of the session record and appears in every export row for that participant.
 
 <Note>
-  Assignment happens at session creation, before the participant has consented or answered any questions. You cannot manually assign participants to conditions through the builder UI. If you need deterministic routing based on a participant attribute, use [Conditional Logic](/guide/conditional-logic) in addition to the random assignment.
+  Assignment happens at session creation, before the participant consents or answers any questions. The builder UI does not support manual assignment to conditions. For deterministic routing based on a participant attribute, use [Conditional Logic](/guide/conditional-logic) alongside the random assignment.
 </Note>
 
 ## The `style_condition` Session Field
 
-Every export row for a builder study with an active manipulation includes the `style_condition` column. Its value is the arm key (`A` or `B`) for that participant. Use this column as your primary between-subjects grouping variable in analysis.
+Every export row for a builder study with an active manipulation includes the `style_condition` column, holding the arm key (`A` or `B`) for that participant. Use it as your primary between-subjects grouping variable in analysis.
 
 | `style_condition` | Meaning |
 |-------------------|---------|
@@ -89,8 +90,8 @@ Every export row for a builder study with an active manipulation includes the `s
 
 ## Combining with Metric Conditions
 
-The binary constraint on arms is intentional. If you need to cross content framing with engagement number variation, enable [Metric Conditions](/guide/social-proof) as a second factor. The resulting `full_condition` export field will contain combined values such as `A-HIGH` or `B-LOW`, giving you a full 2×2 design with four distinct cells.
+The binary constraint on arms is intentional. To cross content framing with engagement number variation, enable [Metric Conditions](/guide/social-proof) as a second factor. The `full_condition` export field then contains combined values such as `A-HIGH` or `B-LOW`, giving you a full 2×2 design with four distinct cells.
 
 ## Disabling the Manipulation
 
-Turning off the A/B toggle in the Configurator removes the variant fields from the post editor UI but does **not** delete the variant content you have already authored. If you re-enable the manipulation later, your A/B text is still present. However, any sessions collected while the manipulation was disabled will have a blank `style_condition` value.
+Turning off the A/B toggle in the Configurator removes the variant fields from the post editor UI but keeps the variant content you have authored, so re-enabling the manipulation restores your A/B text. Sessions collected while the manipulation is disabled carry a blank `style_condition` value.

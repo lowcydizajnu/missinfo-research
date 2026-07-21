@@ -4,11 +4,11 @@ sidebarTitle: "Docker"
 description: "Spin up a fully containerised Misinfo Research instance using Docker Compose, with persistent named volumes for your database and uploaded images."
 ---
 
-Running Misinfo Research with Docker Compose is the easiest way to get a consistent, isolated environment without installing Node.js on your host machine. Docker Compose manages the container lifecycle and mounts named volumes so your data survives container rebuilds.
+Docker Compose gives you a consistent, isolated environment without installing Node.js on your host machine. It manages the container lifecycle and mounts named volumes so your data survives container rebuilds.
 
 ## Prerequisites
 
-- **Docker** — version 20.10 or later recommended; check with `docker -v`
+- **Docker** — version 20.10 or later; check with `docker -v`
 - **Docker Compose** — included in Docker Desktop; on Linux install the `docker-compose-plugin`; check with `docker compose version`
 - **git** — to clone the repository
 
@@ -23,7 +23,7 @@ Running Misinfo Research with Docker Compose is the easiest way to get a consist
   </Step>
 
   <Step title="Create your environment file">
-    Copy the included template to create a `.env` file that Docker Compose will read automatically:
+    Copy the included template to create a `.env` file that Docker Compose reads automatically:
 
     ```bash
     cp .env.example .env
@@ -39,7 +39,7 @@ Running Misinfo Research with Docker Compose is the easiest way to get a consist
     node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
     ```
 
-    If you don't have Node.js locally, any method that produces 48+ random bytes as a hex string works (e.g. `openssl rand -hex 48`).
+    Without Node.js locally, any method that produces 48+ random bytes as a hex string works (e.g. `openssl rand -hex 48`).
 
     Then set both values in your `.env`:
 
@@ -49,7 +49,7 @@ Running Misinfo Research with Docker Compose is the easiest way to get a consist
     ```
 
     <Warning>
-      Do not leave `JWT_SECRET` blank. The application will refuse to start without it, and Docker Compose will keep restarting the container.
+      `JWT_SECRET` is required. The application refuses to start without it, and Docker Compose keeps restarting the container until it is set.
     </Warning>
   </Step>
 
@@ -60,13 +60,13 @@ Running Misinfo Research with Docker Compose is the easiest way to get a consist
     docker compose up -d
     ```
 
-    Docker Compose will pull the required images (if not already cached), build the application image, and start the container. The admin panel will be available at `http://localhost:3000/admin` once the container is healthy.
+    Docker Compose pulls the required images (if not already cached), builds the application image, and starts the container. The admin panel is available at `http://localhost:3000/admin` once the container is healthy.
   </Step>
 </Steps>
 
 ## Persistent volumes
 
-Docker Compose creates two named volumes automatically. They are stored by Docker on your host and persist across container rebuilds, image updates, and `docker compose down` calls (unless you explicitly delete them).
+Docker Compose creates two named volumes automatically. Docker stores them on your host, and they persist across container rebuilds, image updates, and `docker compose down` calls unless you explicitly delete them.
 
 | Volume name | Mount path inside container | Contents |
 |---|---|---|
@@ -74,7 +74,7 @@ Docker Compose creates two named volumes automatically. They are stored by Docke
 | `misinfo-uploads` | `/app/uploads` | User-uploaded images |
 
 <Note>
-  Because data lives in named volumes rather than bind mounts, you do not need to worry about file-permission issues between your host user and the container user.
+  Because data lives in named volumes rather than bind mounts, there are no file-permission issues to manage between your host user and the container user.
 </Note>
 
 ## Managing the container
@@ -85,7 +85,7 @@ Docker Compose creates two named volumes automatically. They are stored by Docke
 docker compose ps
 ```
 
-You should see the service listed with a status of `Up` or `running`.
+The service is listed with a status of `Up` or `running`.
 
 **View live logs:**
 
@@ -101,7 +101,7 @@ Press `Ctrl + C` to stop following logs without stopping the container.
 docker compose down
 ```
 
-This stops and removes the containers but leaves the named volumes — your data is safe.
+This stops and removes the containers but leaves the named volumes, so your data is safe.
 
 **Stop and remove volumes (destructive):**
 
@@ -110,7 +110,7 @@ docker compose down -v
 ```
 
 <Warning>
-  The `-v` flag permanently deletes the named volumes and all data inside them. Only use this if you intend to wipe the instance entirely.
+  The `-v` flag permanently deletes the named volumes and all data inside them. Use it only when you intend to wipe the instance entirely.
 </Warning>
 
 ## Accessing the admin panel

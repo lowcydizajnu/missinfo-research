@@ -4,7 +4,7 @@ sidebarTitle: "Data Model"
 description: "Detailed schema reference for the Session, Post, Reaction, and Study display objects returned and consumed throughout the Misinfo Research API."
 ---
 
-This page describes the shape of the key data objects used throughout the Misinfo Research API. Understanding these structures helps you parse responses correctly, build reliable front-end rendering logic, and map collected data to your analysis pipeline.
+This page describes the shape of the key data objects used throughout the Misinfo Research API. These structures let you parse responses correctly, build front-end rendering logic, and map collected data to your analysis pipeline.
 
 ---
 
@@ -17,7 +17,7 @@ The Session object is returned in full by `POST /api/session/start`. It is the s
 </ResponseField>
 
 <ResponseField name="is_preview" type="number">
-  `1` if this session was started with `preview: true`, `0` otherwise. Preview sessions are excluded from analysis exports. Note that this field is returned as an integer (`0` or `1`), not a boolean.
+  `1` if this session was started with `preview: true`, `0` otherwise. Preview sessions are excluded from analysis exports. Returned as an integer (`0` or `1`), not a boolean.
 </ResponseField>
 
 <ResponseField name="style_condition" type="string">
@@ -111,7 +111,7 @@ Post objects appear in the `posts` array of the Session bootstrap. Each object d
 </ResponseField>
 
 <ResponseField name="topic" type="string">
-  Topic label for the post (e.g. `"climate"`). Hidden from the participant when `hide_topic` was set to `true` at post creation.
+  Topic label for the post (e.g. `"climate"`). Hidden from the participant when `hide_topic` is set to `true` at post creation.
 </ResponseField>
 
 <ResponseField name="emoji" type="string">
@@ -143,7 +143,7 @@ Post objects appear in the `posts` array of the Session bootstrap. Each object d
 </ResponseField>
 
 <ResponseField name="image_url" type="string | null">
-  URL of the post's attached image, or `null` if no image has been uploaded.
+  URL of the post's attached image, or `null` if no image is set.
 </ResponseField>
 
 <ResponseField name="avatar_url" type="string | null">
@@ -193,14 +193,14 @@ Post objects appear in the `posts` array of the Session bootstrap. Each object d
 </ResponseField>
 
 <Note>
-Always use the per-post `show_*` flags to conditionally render interaction buttons. These may differ between posts within the same study.
+Use the per-post `show_*` flags to conditionally render interaction buttons. These may differ between posts within the same study.
 </Note>
 
 ---
 
 ## Reaction
 
-The Reaction object is what you send to `POST /api/reaction`. It is not returned by any read endpoint but its fields are present in the data export. The table below summarises the `action` enum values and their meanings.
+The Reaction object is what you send to `POST /api/reaction`. It is not returned by any read endpoint, but its fields are present in the data export. The table below summarises the `action` enum values and their meanings.
 
 | `action` value | Description |
 |---|---|
@@ -211,7 +211,7 @@ The Reaction object is what you send to `POST /api/reaction`. It is not returned
 | `"comment"` | Participant submitted a free-text comment |
 
 <ResponseField name="is_undo" type="boolean">
-  When `true`, this reaction reverses a previously recorded action of the same type on the same post. For example, a participant clicking "like" a second time (to unlike) should be sent as `action: "like", is_undo: true`. Your front-end should track toggle state and set this flag accordingly.
+  When `true`, this reaction reverses a previously recorded action of the same type on the same post. For example, a participant clicking "like" a second time (to unlike) is sent as `action: "like", is_undo: true`. Track toggle state on the front-end and set this flag accordingly.
 </ResponseField>
 
 <ResponseField name="dwell_ms" type="number">

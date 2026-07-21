@@ -4,13 +4,13 @@ sidebarTitle: "Translations"
 description: "Understand the two separate language layers in Misinfo Research — admin panel UI language and per-study content language — and how to translate study content."
 ---
 
-Misinfo Research has two independent language layers that are worth keeping distinct: the **admin panel UI language**, which controls what you and your team see while building studies, and the **study content language**, which controls what participants see when they take part. Changing one has no effect on the other.
+Misinfo Research has two independent language layers: the **admin panel UI language**, which controls what you and your team see while building studies, and the **study content language**, which controls what participants see when they take part. Changing one has no effect on the other.
 
 ## Admin Panel UI Language
 
-The admin interface is available in **Polish** (the default) and **English**. You can switch at any time using the language toggle in the **top-right corner of the header**, or on the **login screen** before signing in. The preference is stored in your browser and applies to your session only — other users on the same instance can choose their own preferred language independently.
+The admin interface is available in **Polish** (the default) and **English**. Switch at any time using the language toggle in the **top-right corner of the header**, or on the **login screen** before signing in. The preference is stored in your browser and applies to your session only — other users on the same instance choose their own language independently.
 
-This setting affects only the labels, buttons, menu items, and messages you see in the admin panel. It does not change anything that participants experience.
+This setting affects only the labels, buttons, menu items, and messages you see in the admin panel. It does not change anything participants experience.
 
 ## Study Content Language
 
@@ -36,17 +36,17 @@ When your study is set to a non-Polish language, every translatable field in the
     Type the translated text directly into each target-language field alongside the Polish source. This works for any language and requires no external services — the platform is fully functional without any AI integration.
   </Step>
   <Step title="Use automatic translation">
-    Click the **✨ Translate automatically** button available at the top of translatable sections. The platform sends the Polish source text to the Anthropic Claude API and populates the target-language fields for you. Review the results and adjust as needed before saving.
+    Click the **✨ Translate automatically** button at the top of translatable sections. The platform sends the Polish source text to the Anthropic Claude API and populates the target-language fields for you. Review the results and adjust as needed before saving.
   </Step>
 </Steps>
 
 <Note>
-  Automatic translation requires an `ANTHROPIC_API_KEY` to be configured on your Misinfo Research instance. If no API key is present, the **✨ Translate automatically** button will not appear, and the platform remains fully functional for manual translation. Contact your system administrator if you want to enable AI-assisted translation.
+  Automatic translation requires an `ANTHROPIC_API_KEY` configured on your Misinfo Research instance. Without an API key, the **✨ Translate automatically** button does not appear, and the platform remains fully functional for manual translation. Contact your system administrator to enable AI-assisted translation.
 </Note>
 
 ### What AI Translation Covers
 
-When you trigger automatic translation, the following content areas are translated in one operation:
+Automatic translation handles the following content areas in one operation:
 
 <AccordionGroup>
   <Accordion title="Study framework">
@@ -68,10 +68,10 @@ When you trigger automatic translation, the following content areas are translat
   </Accordion>
 </AccordionGroup>
 
-Fields left empty by the automatic pass — for example, custom content you add after running the translation — will fall back to their Polish source values until you provide a translation manually.
+Fields left empty by the automatic pass — for example, custom content you add after running the translation — fall back to their Polish source values until you provide a translation manually.
 
 <Tip>
-  Run automatic translation early in your workflow, then make manual edits to refine phrasing. It is easier to correct a machine-translated draft than to translate from scratch, especially for longer consent and debrief texts.
+  Run automatic translation early in your workflow, then make manual edits to refine phrasing. Correcting a machine-translated draft is easier than translating from scratch, especially for longer consent and debrief texts.
 </Tip>
 
 ## Admin Panel Locale Overrides
@@ -86,10 +86,10 @@ If the default Polish or English labels in the admin interface do not match your
     Click any string to edit it. Your override replaces the default value for **all users on this instance** — it is not a per-user setting.
   </Step>
   <Step title="Save changes">
-    Overrides are stored in the database and take effect immediately. They persist across platform updates unless a new release introduces a key that does not yet have an override.
+    Overrides are stored in the database and take effect immediately. They persist across platform updates, except when a new release introduces a key that does not yet have an override.
   </Step>
 </Steps>
 
 <Note>
-  Locale overrides affect the admin panel UI only. They do not modify any participant-facing content. Study content translations are managed per study in the builder or Configurator.
+  Locale overrides affect the admin panel UI only. They do not modify participant-facing content. Study content translations are managed per study in the builder or Configurator.
 </Note>
