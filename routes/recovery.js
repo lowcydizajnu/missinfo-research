@@ -118,4 +118,40 @@ router.post('/parts', auth, (req, res) => {
   res.json({ recovered: reports.filter(r => r.changed), skipped: reports.filter(r => !r.changed).length });
 });
 
+// Restore STRUCTURAL part settings that the wipe erased and that are not carried
+// by the translation overlays (requirements, timer, etc.). Writes the base
+// parts_json DIRECTLY — deliberately bypassing PATCH /studies/:id/builder, which
+// would route these into a translation overlay for non-PL clones. Only merges a
+// whitelist of structural fields into an EXISTING part (never creates one), and
+// only on studies the caller may access.
+const SETTABLE_PART_FIELDS = new Set([
+  'requirements', 'max_seconds', 'transition_emoji', 'label', 'layout',
+  'show_transition', 'transition_text', 'pq_title', 'pq_subtitle',
+  'pq_display_mode', 'require_interaction', 'allow_back', 'show_reactions',
+]);
+
+router.post('/part-settings', auth, (req, res) => {
+  const { part_id, set, slug_like } = req.body || {};
+  if (!part_id || !set || typeof set !== 'object') {
+    return res.status(400).json({ error: 'Wymagane: part_id oraz set (obiekt pól).' });
+  }
+  const fields = {};
+  for (const [k, v] of Object.entries(set)) if (SETTABLE_PART_FIELDS.has(k)) fields[k] = v;
+  if (!Object.keys(fields).length) {
+    return res.status(400).json({ error: 'Brak dozwolonych pól do ustawienia.' });
+  }
+  const updated = [];
+  const studies = eligibleStudies(req.user).filter(s => !slug_like || String(s.slug).includes(String(slug_like)));
+  for (const s of studies) {
+    let parts = [];
+    try { parts = JSON.parse(s.parts_json || '[]'); } catch { continue; }
+    const part = parts.find(p => p && String(p.id) === String(part_id));
+    if (!part) continue;
+    Object.assign(part, fields);
+    db.prepare('UPDATE studies SET parts_json = ? WHERE id = ?').run(JSON.stringify(parts), s.id);
+    updated.push(s.slug);
+  }
+  res.json({ updated, fields: Object.keys(fields), skipped: studies.length - updated.length });
+});
+
 module.exports = router;
