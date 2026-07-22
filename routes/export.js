@@ -162,14 +162,18 @@ function buildExportContext(studyId, options = {}) {
   }
   const trHeadlineShown = (pid, sc, orig) => trVariant(pid, sc, 'headline') || orig;
   const trContentShown  = (pid, sc, orig) => trVariant(pid, sc, 'content')  || orig;
+  // base-topic-key → translated-topic, paired per post. The old fallback loop
+  // returned the FIRST overlay topic that merely differed from the key, so a
+  // custom topic got mislabeled with an unrelated post's topic. Pair by post id.
+  const topicTransMap = {};
+  try {
+    db.prepare('SELECT id, topic FROM posts WHERE study_id = ? AND is_active = 1').all(studyId)
+      .forEach(bp => { const tp = postTransMap[bp.id];
+        if (bp.topic && tp && tp.topic && tp.topic !== bp.topic) topicTransMap[bp.topic] = tp.topic; });
+  } catch {}
   function trTopic(topicKey) {
     if (!topicKey) return topicKey;
-    const locTopic = exportLocale?.topics?.[topicKey];
-    if (locTopic) return locTopic;
-    for (const tp of Object.values(postTransMap)) {
-      if (tp.topic && tp.topic !== topicKey) return tp.topic;
-    }
-    return topicKey;
+    return (exportLocale?.topics?.[topicKey]) || topicTransMap[topicKey] || topicKey;
   }
   const trDqLabel = q => (dqTransMap[q.id] && dqTransMap[q.id].label) || q.label;
   const trPqLabel = q => (pqTransMap[q.id] && pqTransMap[q.id].label) || q.label;
@@ -506,7 +510,9 @@ function getDaneSuroweData(ctx, options = {}) {
     WHERE s.study_id = ? AND s.completed = 1${previewS}${dateFilterS}
   `).all(studyId).forEach(r => {
     const sessBucket = (pqRespBySess[r.session_id] ||= { bySlot: {}, byPart: {} });
-    let val = r.response_text;
+    // Single-choice answers are stored in response_text as the source-language
+    // option value; translate them like the multi-choice values below.
+    let val = r.response_text != null ? trPqValue(r.question_id, r.response_text) : null;
     if (!val) { try { const arr = JSON.parse(r.response_values_json || '[]'); val = arr.map(v => trPqValue(r.question_id, v)).join('; '); } catch {} }
     if (r.part_id) {
       // Part-scoped response: store under byPart keyed by part_id. No meta —
@@ -951,19 +957,19 @@ async function generateExcel(studyId, options = {}) {
   function trContentShown(postId, styleCondition, original) {
     return trVariant(postId, styleCondition, 'content') || original;
   }
-  // Topic: prefer per-study translation → locale → raw key
+  // Topic: prefer locale mapping → per-study overlay (paired per post) → raw key.
+  // base-topic-key → translated-topic, paired by post id. The old fallback loop
+  // returned the FIRST overlay topic that merely differed from the key, so a
+  // custom topic got mislabeled with an unrelated post's topic.
+  const topicTransMap = {};
+  try {
+    db.prepare('SELECT id, topic FROM posts WHERE study_id = ? AND is_active = 1').all(studyId)
+      .forEach(bp => { const tp = postTransMap[bp.id];
+        if (bp.topic && tp && tp.topic && tp.topic !== bp.topic) topicTransMap[bp.topic] = tp.topic; });
+  } catch {}
   function trTopic(topicKey) {
     if (!topicKey) return topicKey;
-    // The translate endpoint stored translated topic per-post but topic is shared
-    // across posts with the same key, so any post in postTransMap with this topic
-    // gives us the translation. Cheaper: just check locale; fall back to raw.
-    const locTopic = exportLocale?.topics?.[topicKey];
-    if (locTopic) return locTopic;
-    // Look in any translated post for the same topic key
-    for (const tp of Object.values(postTransMap)) {
-      if (tp.topic && tp.topic !== topicKey) return tp.topic; // any non-identity translation wins
-    }
-    return topicKey;
+    return (exportLocale?.topics?.[topicKey]) || topicTransMap[topicKey] || topicKey;
   }
   function trDqLabel(q) {
     return (dqTransMap[q.id] && dqTransMap[q.id].label) || q.label;
@@ -1172,6 +1178,7 @@ async function generateExcel(studyId, options = {}) {
         .all(studyId, ...singleIds).forEach(r => {
           let val = r.response_text;
           if (val == null || val === '') { try { const a = JSON.parse(r.response_values_json || '[]'); val = a.length ? a[0] : null; } catch {} }
+          if (val != null) val = trPqValue(r.question_id, val); // translate single-choice source value
           ((singlePostBySess[r.session_id] ||= {})[r.post_order] ||= {})[r.question_id] = (val == null ? null : String(val));
         });
     }
@@ -1913,7 +1920,8 @@ async function generateExcel(studyId, options = {}) {
     `).all(studyId).forEach(r => {
       const k = `${r.session_id}_${r.post_id}`;
       if (!pqRespMap[k]) pqRespMap[k] = {};
-      let val = r.response_text;
+      // Single-choice answers live in response_text as the source-language value.
+      let val = r.response_text != null ? trPqValue(r.question_id, r.response_text) : null;
       if (!val) {
         try { const arr = JSON.parse(r.response_values_json || '[]'); val = arr.map(v => trPqValue(r.question_id, v)).join('; '); } catch {}
       }
