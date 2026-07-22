@@ -529,6 +529,33 @@ router.post('/studies', auth, (req, res) => {
   res.json(study);
 });
 
+// Validate a custom_domain binding before it can be written. A domain bind
+// reroutes ALL traffic on that host to one study (see the middleware in
+// server.js), so an unchecked value is a platform-hijack / DoS primitive: a
+// researcher could point their study at the platform's own host and 404 the
+// admin panel plus every other study. Guardrails: only admins may set one, the
+// platform's own hosts are off-limits, the hostname must be well-formed, and a
+// host binds to at most one study. Returns { value } (null clears the binding)
+// or { error } to reject with 400.
+function validateCustomDomain(raw, { user, req, studyId }) {
+  const v = raw == null ? '' : String(raw).trim().toLowerCase();
+  if (v === '') return { value: null }; // clearing the binding is always allowed
+  if (!user || user.role !== 'admin')
+    return { error: 'Tylko administrator może przypisać własną domenę do badania.' };
+  if (!/^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/.test(v))
+    return { error: 'Nieprawidłowa nazwa hosta (podaj samą domenę, np. badanie.przyklad.pl).' };
+  const reserved = new Set(
+    (process.env.PLATFORM_HOST || '').split(',')
+      .map(s => s.trim().toLowerCase()).filter(Boolean)
+      .concat(['localhost', '127.0.0.1', '0.0.0.0']));
+  if (req && req.hostname) reserved.add(String(req.hostname).toLowerCase());
+  if (reserved.has(v))
+    return { error: 'Ta nazwa hosta jest zarezerwowana dla platformy.' };
+  const clash = db.prepare('SELECT id FROM studies WHERE custom_domain = ? AND id != ?').get(v, studyId);
+  if (clash) return { error: 'Ta domena jest już przypisana do innego badania.' };
+  return { value: v };
+}
+
 router.patch('/studies/:id', auth, (req, res) => {
   if (!ownedStudy(req, res, req.params.id)) return;
   const { id } = req.params;
@@ -577,6 +604,12 @@ router.patch('/studies/:id', auth, (req, res) => {
       return res.status(400).json({ error: 'clarity_project_id must contain only alphanumeric characters' });
     }
     updates.clarity_project_id = trimmed || null;
+  }
+
+  if (updates.custom_domain !== undefined) {
+    const r = validateCustomDomain(updates.custom_domain, { user: req.user, req, studyId: id });
+    if (r.error) return res.status(400).json({ error: r.error });
+    updates.custom_domain = r.value;
   }
 
   if (Object.keys(updates).length === 0) return res.json(study);
@@ -2448,6 +2481,12 @@ router.patch('/studies/:id/builder', auth, (req, res) => {
     'post_questions_display_mode', 'manipulation_field', 'manipulation_variants', 'manipulation_json'];
   const updates = {};
   allowed.forEach(f => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
+
+  if (updates.custom_domain !== undefined) {
+    const r = validateCustomDomain(updates.custom_domain, { user: req.user, req, studyId: id });
+    if (r.error) return res.status(400).json({ error: r.error });
+    updates.custom_domain = r.value;
+  }
 
   // GUARD — never let an EMPTY parts_json overwrite a real experiment structure.
   // A builder study always has ≥1 part; '[]' is never a legitimate save. It only
