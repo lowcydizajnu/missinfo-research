@@ -497,7 +497,15 @@ router.post('/session/start', (req, res) => {
   if (!allPosts.length) return res.status(400).json({ error: 'No active posts in study' });
 
   const n = Math.min(study.posts_per_session, allPosts.length);
-  const shuffled = [...allPosts].sort(() => Math.random() - 0.5).slice(0, n);
+  // Fisher-Yates: `sort(() => Math.random() - 0.5)` is NOT a uniform shuffle —
+  // the inconsistent comparator biases which posts land in the selected slice,
+  // skewing post exposure. This yields an unbiased permutation.
+  const pool = [...allPosts];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  const shuffled = pool.slice(0, n);
 
   const token = uuidv4();
   db.prepare(`
@@ -959,17 +967,34 @@ router.post('/post-question-response', (req, res) => {
   const { session_token, post_id, post_order, question_id, response_text, response_values, part_id } = req.body;
   const session = getSession(session_token);
   if (!session) return res.status(401).json({ error: 'Invalid session' });
+
+  const isPart = !!part_id;
+  const postIdVal = isPart ? 0 : (post_id || 0);
+  const partIdVal = isPart ? part_id : null;
+
+  // Idempotent write: a participant can re-open a question block (e.g. after
+  // toggling a reaction, which re-renders the inline questions) and submit
+  // again. A bare INSERT appended a duplicate row each time, double-counting
+  // answers in the export. Replace the prior answer for the same
+  // (session, question, scope) instead — mirrors the ratings handler above.
+  if (isPart) {
+    db.prepare('DELETE FROM post_question_responses WHERE session_id = ? AND question_id = ? AND part_id = ?')
+      .run(session.id, question_id, partIdVal);
+  } else {
+    db.prepare('DELETE FROM post_question_responses WHERE session_id = ? AND question_id = ? AND part_id IS NULL AND post_id = ?')
+      .run(session.id, question_id, postIdVal);
+  }
   db.prepare(`
     INSERT INTO post_question_responses (session_id, post_id, post_order, question_id, response_text, response_values_json, part_id)
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `).run(
     session.id,
-    part_id ? 0 : (post_id || 0),
-    part_id ? null : (post_order || 0),
+    postIdVal,
+    isPart ? null : (post_order || 0),
     question_id,
     response_text || null,
     JSON.stringify(response_values || []),
-    part_id || null
+    partIdVal
   );
   res.json({ ok: true });
 });
