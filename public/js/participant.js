@@ -1882,7 +1882,15 @@ function startMainPhase() {
   // Stash the full post list once — startPart will swap S.posts to a
   // per-part slice and we need the original to resolve subsequent parts.
   if (!S.allPosts) S.allPosts = S.posts || [];
-  startPart(0);
+  // A skip_part rule evaluated at after_demographics can flag the FIRST part(s).
+  // completePart honours logicPartSkipped when advancing between parts, but the
+  // initial entry hardcoded part 0 — so a rule skipping part 0 was ignored on
+  // entry. Advance past any leading skipped parts here too (startPart completes
+  // the session cleanly if every part is skipped).
+  const parts = getOrderedParts();
+  let idx = 0;
+  while (idx < parts.length && logicPartSkipped(parts[idx])) idx++;
+  startPart(idx);
 }
 
 $('btn-start-feed').onclick = () => startMainPhase();
@@ -2246,6 +2254,22 @@ function flushAllInFlightDwell() {
 window.addEventListener('pagehide', flushAllInFlightDwell);
 window.addEventListener('beforeunload', flushAllInFlightDwell);
 
+// True unless some post in the CURRENT part carries a required (non-hidden)
+// post-question whose inline block hasn't been submitted yet. The per-post
+// submit button enforces required fields on its own block, but nothing stopped
+// the part-level "Dalej" from firing while other posts' required questions were
+// still unanswered. Scoped to S.posts (already the current part's slice).
+function feedRequiredQuestionsMet() {
+  const submitted = S.pagedQSubmitted || {};
+  const hidden = logicHiddenQuestionSet();
+  for (const post of (S.posts || [])) {
+    let qs = getPostQuestionsForPost(post);
+    if (hidden) qs = qs.filter(q => !hidden.has(String(q.id)));
+    if (qs.some(q => q.required) && !submitted[post.id]) return false;
+  }
+  return true;
+}
+
 function updateFeedProgress() {
   // Per-part flow: reactions tracker accumulates across parts (keyed by
   // post.id) but the visible progress bar should reflect ONLY the current
@@ -2286,9 +2310,19 @@ function updateFeedProgress() {
       const parts = S.session?.parts || [];
       const partCfg = parts[S.currentPartIdx ?? 0];
       const reqStatus = partCfg ? evalPartRequirements(partCfg) : { reqs: [], allMet: true };
-      const canAdvance = reqStatus.reqs.length
-        ? reqStatus.allMet
-        : (reacted >= total && total > 0);
+      // Are reactions actually available here? If the part or the study disables
+      // reactions there is NO affordance to react, so "every post reacted" can
+      // never be satisfied — gating on it would trap the participant forever
+      // (short of a max_seconds timer). Browse-only feeds advance once shown.
+      const partReactable = partCfg?.show_reactions !== false && partCfg?.show_reactions !== 0;
+      const reactionsAvailable = partReactable && (S.session?.study?.show_reactions !== false);
+      let canAdvance;
+      if (reqStatus.reqs.length) canAdvance = reqStatus.allMet;
+      else if (reactionsAvailable) canAdvance = reacted >= total && total > 0;
+      else canAdvance = total > 0;
+      // Required post-questions must be submitted before the part can advance —
+      // feed mode otherwise had no part-level enforcement of required answers.
+      canAdvance = canAdvance && feedRequiredQuestionsMet();
       partBtn.disabled = !canAdvance;
       // Final-part label tweak — clearer signal when "Dalej" actually
       // means "Zakończ badanie".
@@ -3649,6 +3683,11 @@ async function submitPostQuestionsInline(btn, postId, postOrder) {
   await persistAnswers(saves); // blocks (with retry) until every answer is saved
   btn.textContent = '✓';
 
+  // Mark this post's question block as submitted so the part-level advance gate
+  // (feedRequiredQuestionsMet) can confirm required answers are in.
+  S.pagedQSubmitted = S.pagedQSubmitted || {};
+  S.pagedQSubmitted[postId] = true;
+
   // If this block lives inside the modal (after_interaction_modal mode),
   // close the modal now that all responses are saved. The bottom Dalej is
   // then enabled and the next click on Dalej calls pagedAdvance() in the
@@ -3678,9 +3717,11 @@ async function submitPostQuestionsInline(btn, postId, postOrder) {
       // Paged: mark as submitted, then advance to next post (or complete session)
       S.pagedQSubmitted[postId] = true;
       setTimeout(() => pagedAdvance(), 400);
+    } else {
+      // Feed: re-evaluate the part-level "Dalej" gate now that a required
+      // block was submitted (updateFeedProgress recomputes canAdvance).
+      updateFeedProgress();
     }
-    // Feed: no-op. updateFeedProgress / refreshPartChecklistForFeed have
-    // already kept the Dalej-button gate and checklist counts in sync.
   }
 }
 
