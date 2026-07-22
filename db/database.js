@@ -295,8 +295,17 @@ const DEFAULT_DEMOGRAPHIC_QUESTIONS = [
 ];
 
 function seedDefaultDemographicQuestions(studyId) {
+  // Seed the default set at most ONCE per study. Once demographics are
+  // configured — including deleting them all, an intentional "no demographics"
+  // study — the demographics_seeded flag stops any further auto-seeding, even
+  // across the live participant/admin paths that call this lazily. Previously
+  // this only checked for zero rows, so hard-deleting every question re-injected
+  // the four default Polish PII fields on the next call.
+  const study = db.prepare('SELECT demographics_seeded FROM studies WHERE id = ?').get(studyId);
+  if (study && study.demographics_seeded) return;
+  const markSeeded = db.prepare('UPDATE studies SET demographics_seeded = 1 WHERE id = ?');
   const existing = db.prepare('SELECT COUNT(*) as n FROM demographic_questions WHERE study_id = ?').get(studyId);
-  if (existing && existing.n > 0) return;
+  if (existing && existing.n > 0) { markSeeded.run(studyId); return; }
   const insert = db.prepare(`
     INSERT INTO demographic_questions (study_id, field_key, label, input_type, options, required, order_index, is_active)
     VALUES (?, ?, ?, ?, ?, 1, ?, 1)
@@ -305,6 +314,7 @@ function seedDefaultDemographicQuestions(studyId) {
     for (const q of DEFAULT_DEMOGRAPHIC_QUESTIONS) {
       insert.run(sid, q.field_key, q.label, q.input_type, q.options, q.order_index);
     }
+    markSeeded.run(sid);
   });
   seedAll(studyId);
 }
@@ -537,6 +547,12 @@ migrate(`ALTER TABLE studies ADD COLUMN dashboard_config_json TEXT DEFAULT '{}'`
 // studies.export_profiles_json. Researcher saves e.g. "Recruitment monitoring"
 // vs "Analysis-ready" and switches between them.
 migrate(`ALTER TABLE studies ADD COLUMN dashboard_profiles_json TEXT DEFAULT '{}'`);
+// One-shot marker: once a study's demographics have been configured (defaults
+// seeded, a question manually added, or backfilled below for existing studies),
+// we never auto-seed the default PII questions again. Without this, deleting all
+// demographic questions — a legitimate "no demographics" study — caused the next
+// participant session or admin load to re-inject the four Polish default fields.
+migrate(`ALTER TABLE studies ADD COLUMN demographics_seeded INTEGER DEFAULT 0`);
 // ── Images stored as BLOBs in the database (not on filesystem) ───────────────
 // Railway's filesystem is ephemeral — even with UPLOADS_PATH pointing at a
 // mounted volume, the volume's relationship to the uploads subdirectory is
@@ -796,11 +812,18 @@ migrate(`CREATE INDEX IF NOT EXISTS idx_collab_user ON study_collaborators(user_
   const upd = db.prepare('UPDATE studies SET metric_conditions_json = ? WHERE id = ?');
   for (const s of studies) {
     upd.run(JSON.stringify([
-      { key: 'HIGH', label: 'Metryki HIGH', min: s.high_metrics_min || 800, max: s.high_metrics_max || 1300, enabled: s.enable_metrics_high ? true : false },
-      { key: 'LOW',  label: 'Metryki LOW',  min: s.low_metrics_min  || 1,   max: s.low_metrics_max  || 20,   enabled: s.enable_metrics_low  ? true : false },
+      { key: 'HIGH', label: 'Metryki HIGH', min: s.high_metrics_min ?? 800, max: s.high_metrics_max ?? 1300, enabled: s.enable_metrics_high ? true : false },
+      { key: 'LOW',  label: 'Metryki LOW',  min: s.low_metrics_min  ?? 1,   max: s.low_metrics_max  ?? 20,   enabled: s.enable_metrics_low  ? true : false },
     ]), s.id);
   }
 }
+
+// Backfill the demographics_seeded flag for studies that already have (or once
+// had) demographic questions — they are configured and must not be re-seeded.
+// Idempotent: after the first boot no rows match, so this is a no-op thereafter.
+db.prepare(`UPDATE studies SET demographics_seeded = 1
+            WHERE demographics_seeded = 0
+              AND id IN (SELECT DISTINCT study_id FROM demographic_questions)`).run();
 
 // ── REMOVED: Auto-overwrite seed migration block ──────────────────────────────
 // Earlier versions had an "idempotent" UPDATE here that ran on every app
@@ -935,11 +958,19 @@ db.STUDY_LABEL_DEFAULTS = buildStudyLabelDefaults();
 (function migrateExistingImagesToBlobs() {
   const uploadsDir = path.resolve(process.env.UPLOADS_PATH || './uploads');
   if (!fs.existsSync(uploadsDir)) return;
+  // Select only WHETHER each blob is already present (boolean), never the blob
+  // bytes — SELECTing image_blob_* materialised every already-migrated image
+  // into memory on every boot, an OOM risk as the post library grows. Also skip
+  // posts that have no image paths at all.
   const rows = db.prepare(`
     SELECT id, study_id,
            image_path, image_path_a, image_path_b, avatar_path,
-           image_blob_a, image_blob_b, avatar_blob
+           (image_blob_a IS NOT NULL) AS has_blob_a,
+           (image_blob_b IS NOT NULL) AS has_blob_b,
+           (avatar_blob  IS NOT NULL) AS has_blob_avatar
     FROM posts
+    WHERE image_path IS NOT NULL OR image_path_a IS NOT NULL
+       OR image_path_b IS NOT NULL OR avatar_path IS NOT NULL
   `).all();
   const mimeFor = ext => {
     const e = (ext || '').toLowerCase().replace(/^\./, '');
@@ -958,9 +989,9 @@ db.STUDY_LABEL_DEFAULTS = buildStudyLabelDefaults();
     const tasks = [];
     // image_path_a OR legacy image_path (only when image_path_a is null)
     const aPath = p.image_path_a || (p.image_path && !p.image_path_a ? p.image_path : null);
-    if (aPath && !p.image_blob_a) tasks.push({ key: 'image_a', filename: aPath });
-    if (p.image_path_b && !p.image_blob_b) tasks.push({ key: 'image_b', filename: p.image_path_b });
-    if (p.avatar_path && !p.avatar_blob)   tasks.push({ key: 'avatar', filename: p.avatar_path });
+    if (aPath && !p.has_blob_a) tasks.push({ key: 'image_a', filename: aPath });
+    if (p.image_path_b && !p.has_blob_b) tasks.push({ key: 'image_b', filename: p.image_path_b });
+    if (p.avatar_path && !p.has_blob_avatar)   tasks.push({ key: 'avatar', filename: p.avatar_path });
     for (const t of tasks) {
       const fp = path.join(uploadsDir, String(p.study_id), t.filename);
       if (!fs.existsSync(fp)) continue;

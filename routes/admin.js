@@ -1257,6 +1257,8 @@ router.post('/studies/:studyId/demographic-questions', auth, (req, res) => {
     order_index != null ? order_index : maxOrder + 1,
     is_active != null ? (is_active ? 1 : 0) : 1
   );
+  // Researcher has configured demographics — never auto-seed the defaults again.
+  db.prepare('UPDATE studies SET demographics_seeded = 1 WHERE id = ?').run(studyId);
   res.json(db.prepare('SELECT * FROM demographic_questions WHERE id = ?').get(info.lastInsertRowid));
 });
 
