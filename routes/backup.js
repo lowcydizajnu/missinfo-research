@@ -29,15 +29,21 @@ function requireAdmin(req, res, next) {
 router.get('/database', requireAdmin, async (req, res) => {
   const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
   const filename = `misinfo-research-backup-${stamp}.db`;
-  const tmp = path.join(os.tmpdir(), `misinfo-backup-${process.pid}-${stamp}.db`);
+  // A per-request unique temp DIR (atomic via mkdtemp) rather than a stamped
+  // filename: two downloads in the same wall-clock second from the same process
+  // would otherwise resolve to the identical path and clobber each other's
+  // in-progress snapshot. Clean up the whole dir when the response finishes.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'misinfo-backup-'));
+  const tmp = path.join(dir, filename);
+  const cleanup = () => fs.rm(dir, { recursive: true, force: true }, () => {});
   try {
     await db.backup(tmp); // consistent online snapshot, WAL included
     res.download(tmp, filename, (err) => {
-      fs.unlink(tmp, () => {}); // best-effort cleanup regardless of outcome
+      cleanup(); // best-effort cleanup regardless of outcome
       if (err && !res.headersSent) res.status(500).end();
     });
   } catch (e) {
-    fs.unlink(tmp, () => {});
+    cleanup();
     console.error('[backup] failed:', e);
     if (!res.headersSent) res.status(500).json({ error: 'Nie udało się utworzyć kopii bazy.' });
   }

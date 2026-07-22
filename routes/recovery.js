@@ -75,8 +75,17 @@ function recoverStudy(study, { apply }) {
     return { slug: study.slug, changed: false, reason: existing.length ? 'ok — nic do odzyskania' : 'brak osieroconej treści' };
   }
 
-  // Union of surviving + reconstructed, ordered by id (part-0 < part-1 < …).
-  const allIds = [...new Set([...existingIds, ...refs])].sort();
+  // Union of surviving + reconstructed, ordered NUMERICALLY by the part index
+  // (part-2 before part-10). A plain .sort() is lexical — "part-10" < "part-2" —
+  // which would corrupt the flow order of any study with 10+ parts and reshuffle
+  // otherwise-healthy parts. Fall back to a stable lexical compare for any id
+  // without a trailing number.
+  const partNum = (id) => {
+    const m = String(id).match(/(\d+)\s*$/);
+    return m ? parseInt(m[1], 10) : Number.MAX_SAFE_INTEGER;
+  };
+  const allIds = [...new Set([...existingIds, ...refs])]
+    .sort((a, b) => (partNum(a) - partNum(b)) || String(a).localeCompare(String(b)));
   const layout = study.layout_type || 'feed';
   const pqMode = study.post_questions_display_mode || 'after_interaction';
   const mkDefault = (id, idx) => ({
@@ -131,7 +140,7 @@ const SETTABLE_PART_FIELDS = new Set([
 ]);
 
 router.post('/part-settings', auth, (req, res) => {
-  const { part_id, set, slug_like } = req.body || {};
+  const { part_id, set, slug_like, slugs } = req.body || {};
   if (!part_id || !set || typeof set !== 'object') {
     return res.status(400).json({ error: 'Wymagane: part_id oraz set (obiekt pól).' });
   }
@@ -141,7 +150,15 @@ router.post('/part-settings', auth, (req, res) => {
     return res.status(400).json({ error: 'Brak dozwolonych pól do ustawienia.' });
   }
   const updated = [];
-  const studies = eligibleStudies(req.user).filter(s => !slug_like || String(s.slug).includes(String(slug_like)));
+  // Prefer an EXACT slug allow-list (`slugs`) — the precise, safe selector.
+  // `slug_like` (substring) stays only as an explicit fallback; on its own it
+  // can match unintended studies (e.g. "study-a" also hits "study-a-pilot"),
+  // so callers targeting specific studies should pass `slugs`.
+  const exact = Array.isArray(slugs) && slugs.length
+    ? new Set(slugs.map(String)) : null;
+  const studies = eligibleStudies(req.user).filter(s =>
+    exact ? exact.has(String(s.slug))
+          : (!slug_like || String(s.slug).includes(String(slug_like))));
   for (const s of studies) {
     let parts = [];
     try { parts = JSON.parse(s.parts_json || '[]'); } catch { continue; }
