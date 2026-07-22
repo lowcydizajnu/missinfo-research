@@ -75,6 +75,18 @@ async function api(method, path, data, isForm = false) {
   return r;
 }
 
+// Open the participant preview for a study. Preview pages serve unpublished
+// (builder) content, so the server requires a short-lived, study-scoped preview
+// token — mint one first, then redirect. The blank window is opened
+// synchronously (before any await) to dodge popup blockers.
+async function openStudyPreview(study, extra = '') {
+  const w = window.open('', '_blank');
+  const r = await api('GET', `/studies/${study.id}/preview-token`);
+  if (!r || !r.token) { if (w) w.close(); return; }
+  const url = `/study/${study.slug}?preview=1&pt=${encodeURIComponent(r.token)}${extra}`;
+  if (w) w.location = url; else window.open(url, '_blank');
+}
+
 // ── Toast ──────────────────────────────────────────────────────────────────
 let toastTimer;
 function toast(msg, type = 'success') {
@@ -2504,7 +2516,7 @@ async function builderPreview(studyId) {
     });
     toast(t('konfig.save_demo_added'));
   }
-  window.open(`/study/${study.slug}?preview=1`, '_blank');
+  openStudyPreview(study);
 }
 
 // Direct preview of the debrief screen — saves the builder first (so the
@@ -2516,7 +2528,7 @@ async function previewDebrief(studyId) {
   await builderSave(studyId, true);
   const study = S.studies.find(x => x.id == studyId);
   if (!study?.slug) return toast(t('konfig.save_before_preview'), 'error');
-  window.open(`/study/${study.slug}?preview=1&focus=debrief`, '_blank');
+  openStudyPreview(study, '&focus=debrief');
 }
 
 // ── i18n: translate study content ─────────────────────────────────────────
@@ -5344,7 +5356,7 @@ document.getElementById('btn-preview-dq').onclick = () => {
   if (!S.activeStudy) return toast(t('demog.select_study'), 'error');
   const study = S.studies?.find(x => x.id == S.activeStudy);
   if (!study?.slug) return toast(t('demog.no_slug'), 'error');
-  window.open(`/study/${study.slug}?preview=1&focus=demographics`, '_blank');
+  openStudyPreview(study, '&focus=demographics');
 };
 
 // ── Utilities ──────────────────────────────────────────────────────────────

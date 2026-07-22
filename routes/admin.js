@@ -556,6 +556,16 @@ function validateCustomDomain(raw, { user, req, studyId }) {
   return { value: v };
 }
 
+// Short-lived, study-scoped token that authorises a preview page load
+// (/study/:slug?preview=1&pt=…). Preview serves unpublished builder content, so
+// server.js requires this token — only someone who can open the study in the
+// panel can mint one.
+router.get('/studies/:id/preview-token', auth, (req, res) => {
+  if (!ownedStudy(req, res, req.params.id)) return;
+  const token = jwt.sign({ preview: Number(req.params.id) }, JWT_SECRET, { expiresIn: '15m' });
+  res.json({ token });
+});
+
 router.patch('/studies/:id', auth, (req, res) => {
   if (!ownedStudy(req, res, req.params.id)) return;
   const { id } = req.params;

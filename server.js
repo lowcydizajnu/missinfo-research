@@ -178,9 +178,24 @@ app.get('/study/:slug/walkthrough', (req, res) => {
 app.get('/study/:slug', (req, res) => {
   const db = require('./db/database');
   const previewMode = req.query.preview === '1';
-  const study = previewMode
-    ? db.prepare('SELECT * FROM studies WHERE slug = ? AND builder_mode = 1').get(req.params.slug)
-    : db.prepare('SELECT * FROM studies WHERE slug = ? AND is_active = 1').get(req.params.slug);
+  let study;
+  if (previewMode) {
+    // Preview serves UNPUBLISHED (builder_mode) studies. Require a short-lived,
+    // study-scoped preview token minted by the researcher panel — otherwise
+    // anyone who knew the slug could read draft consent/debrief/instruction
+    // text via ?preview=1.
+    study = db.prepare('SELECT * FROM studies WHERE slug = ? AND builder_mode = 1').get(req.params.slug);
+    if (study) {
+      let ok = false;
+      try {
+        const decoded = require('jsonwebtoken').verify(String(req.query.pt || ''), process.env.JWT_SECRET);
+        ok = decoded && Number(decoded.preview) === Number(study.id);
+      } catch { ok = false; }
+      if (!ok) return res.status(403).send('<h2>Podgląd wymaga autoryzacji z panelu badacza.</h2>');
+    }
+  } else {
+    study = db.prepare('SELECT * FROM studies WHERE slug = ? AND is_active = 1').get(req.params.slug);
+  }
   if (!study) return res.status(404).send('<h2>Badanie nie zostało znalezione lub jest nieaktywne.</h2>');
 
   let html = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf-8');
