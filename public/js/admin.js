@@ -1056,6 +1056,21 @@ function buildStudySettingsBody(s, mcHTML) {
         zobaczyć podziękowanie). Wesprzeć placeholdery: <code>{ext_id}</code> (ID z parametru URL)
         i <code>{session_id}</code> (nasz token sesji). Puste = bez przekierowania.
       </div>
+      <div class="form-group" style="margin-bottom:0;padding-top:0.75rem;border-top:1px dashed var(--border,#e5e5ea)">
+        <label>${t('konfig.custom_domain_label')}</label>
+        <input type="text" id="es-custom-domain" value="${esc(s.custom_domain || '')}"
+               placeholder="study.example.org" maxlength="253"
+               style="font-family:var(--font-mono,monospace);font-size:0.9rem">
+        <div style="font-size:0.78rem;color:var(--muted);margin-top:0.3rem;line-height:1.5">
+          ${t('konfig.custom_domain_help_1')}
+          ${t('konfig.custom_domain_help_2')}
+          ${t('konfig.custom_domain_help_3')}
+          ${t('konfig.custom_domain_help_4')}
+          ${t('konfig.custom_domain_help_5')}
+          ${t('konfig.custom_domain_help_6')} <code>/study/${esc(s.slug || '<slug>')}</code>
+          ${t('konfig.custom_domain_help_7')}
+        </div>
+      </div>
     </div>
 
   `; // end buildStudySettingsBody
@@ -1156,6 +1171,7 @@ async function saveStudySettings(id) {
     name: document.getElementById('es-name').value.trim(),
     participant_title: document.getElementById('es-participant-title')?.value.trim() || null,
     slug: document.getElementById('es-slug').value.trim(),
+    custom_domain: document.getElementById('es-custom-domain')?.value.trim() || null,
     description: document.getElementById('es-desc').value.trim(),
     institution: document.getElementById('es-inst').value.trim(),
     contact_email: document.getElementById('es-email').value.trim(),
