@@ -420,16 +420,36 @@ function getDaneSuroweData(ctx, options = {}) {
   // post has none of those for a given session, every column for that
   // slot stays NULL — including the post's identity. Researchers reading
   // the CSV then can't tell whether post 5 had topic "Zdrowie" or what
-  // its base metrics were configured to be. This map replays the
-  // session/start ordering (is_active=1, ORDER BY part_id, id) so
-  // post_order N → posts row works without a per-session snapshot table.
-  // Sessions whose post set changed after start fall back to the latest
-  // ordering — imperfect but better than a blank row.
+  // its base metrics were configured to be. This map replays a static
+  // study ordering (is_active=1, ORDER BY part_id, id) so post_order N →
+  // posts row works without a per-session snapshot table. It is used ONLY
+  // for builder studies (behaviour deliberately left unchanged there).
+  // Legacy studies shuffle posts per session, so slot N says nothing about
+  // which post was shown — there identity comes from a recorded row
+  // (reaction / rating / post-question / post_view), resolved via postById.
   const studyPostsOrdered = db.prepare(
     'SELECT * FROM posts WHERE study_id = ? AND is_active = 1 ORDER BY part_id, id'
   ).all(studyId);
   const studyPostByOrder = {};
   studyPostsOrdered.forEach((p, idx) => { studyPostByOrder[idx + 1] = p; });
+  // Every post of the study (incl. since-deactivated ones a session may have
+  // shown), for resolving a recorded post_id to its row.
+  const postById = {};
+  db.prepare('SELECT * FROM posts WHERE study_id = ?').all(studyId).forEach(p => { postById[p.id] = p; });
+  // Legacy metric conditions exactly as session/start builds them, so a post
+  // that was shown but never reacted to can be given its DETERMINISTIC shown
+  // value (per-post override, or base when the condition has no range) —
+  // see calcMetrics in routes/participant.js.
+  const legacyCondByKey = {};
+  if (!isBuilder) {
+    let mc = [];
+    try { mc = JSON.parse(study.metric_conditions_json || '[]').filter(c => c && c.enabled); } catch {}
+    if (!mc.length) {
+      if (study.enable_metrics_high) mc.push({ key: 'HIGH', min: study.high_metrics_min, max: study.high_metrics_max });
+      if (study.enable_metrics_low)  mc.push({ key: 'LOW',  min: study.low_metrics_min,  max: study.low_metrics_max });
+    }
+    mc.forEach(c => { legacyCondByKey[c.key] = c; });
+  }
 
   // reactionsBySess shape: { [session_id]: { [post_order]: [reaction row, ...] } }
   // In single-react mode there's exactly one row per (session, post), so the
@@ -579,11 +599,8 @@ function getDaneSuroweData(ctx, options = {}) {
       const rating   = sRatings[i];
       const pqSlot   = sPq.bySlot[i];
       const meta     = reaction || rating || pqSlot?.meta;
-      // postFromOrder is the posts table row for THIS slot, derived from
-      // session/start ordering (is_active=1, ORDER BY part_id, id). Used
-      // for TWO independent fallbacks below — they need to fire under
-      // different conditions, so we capture it once here regardless of
-      // whether `meta` is truthy.
+      // slotPost feeds TWO independent fallbacks below, firing under
+      // different conditions:
       //   • identity fallback (id/topic/headline/content): fires only
       //     when `meta` is null — meta from rating/pq already carries
       //     these fields.
@@ -593,8 +610,19 @@ function getDaneSuroweData(ctx, options = {}) {
       //     so a post that was rated or answered but never reacted to
       //     would otherwise show empty likes_shown — exactly the
       //     "post 4/5/6 brak metryk" bug the researcher reported.
-      const postFromOrder = studyPostByOrder[i] || null;
-      const fallbackPost = !meta ? postFromOrder : null;
+      // slotPost: the post to use for this slot's fallbacks.
+      //  • builder: the static study order, exactly as before (unchanged).
+      //  • legacy: posts are shuffled per session, so the static order is
+      //    unrelated to slot i — resolve the post ACTUALLY shown from any
+      //    recorded row (reaction → rating → post-question → post_view); an
+      //    unrecorded slot stays unknown rather than borrowing another post.
+      const slotView = sPostViews[`o:${i}`] || null;
+      const slotPid  = reaction?.post_id ?? rating?.post_id ?? pqSlot?.meta?.post_id ?? slotView?.post_id ?? null;
+      const slotPost = isBuilder
+        ? (studyPostByOrder[i] || null)
+        : (slotPid != null ? (postById[slotPid] || null) : null);
+      const slotExisted = !!studyPostByOrder[i]; // same "slot is in range" test as before
+      const fallbackPost = !meta ? slotPost : null;
       if (meta) {
         const pid = reaction?.post_id ?? rating?.post_id ?? pqSlot?.meta?.post_id ?? null;
         row[`post_${i}_id`]         = pid;
@@ -645,11 +673,17 @@ function getDaneSuroweData(ctx, options = {}) {
         // was actually shown to the participant rather than a zero that
         // misreads as "no metric configured".
         const pickMetric = (field, baseField) => {
+          // Legacy: a real (non-comment) reaction row carries exactly what
+          // the participant saw — including a legitimate 0 (e.g. a condition
+          // configured to show 0 flags). Honour it. Builder keeps the old
+          // heuristic: early builder clients sent no metrics, so a stored 0
+          // there is not trustworthy.
+          if (!isBuilder && nonCommentRow && nonCommentRow[field] != null) return nonCommentRow[field];
           const src = metricSrc[field];
           if (src) return src;
           const mx = maxOf(field);
           if (mx) return mx;
-          return postFromOrder ? (postFromOrder[baseField] || 0) : 0;
+          return slotPost ? (slotPost[baseField] || 0) : 0;
         };
         row[`post_${i}_likes_shown`]    = pickMetric('likes_shown',    'base_likes');
         row[`post_${i}_shares_shown`]   = pickMetric('shares_shown',   'base_shares');
@@ -663,7 +697,7 @@ function getDaneSuroweData(ctx, options = {}) {
         // 'comment' is a synthetic action carrying free-text in r.comment;
         // it's exposed via post_N_comment / post_N_commented, not here.
         const activeList = Object.keys(active).filter(a => active[a] && a !== 'comment');
-        // Same sentinel as the postFromOrder branch below — the
+        // Same sentinel as the no-reaction branch below — the
         // participant interacted with this post (multi-react clicks
         // landed) but then toggled everything off; the net "current
         // reaction state" is none. 'no_reaction' makes that explicit
@@ -697,18 +731,30 @@ function getDaneSuroweData(ctx, options = {}) {
         }
         if (postComment) row[`post_${i}_comment`] = postComment;
         row[`post_${i}_commented`] = postComment ? 1 : 0;
-      } else if (postFromOrder) {
+      } else if (slotExisted) {
         // No reactions on this slot, regardless of whether rating/pq filled
-        // in the post identity. Surface what the post was configured WITH
-        // (base_likes etc.) so the CSV row isn't a blank for the metric
-        // columns. In builder mode shown = base (no randomization), so
-        // these are exact. In legacy random-range mode they're the
-        // researcher's configured baseline rather than the
-        // participant-specific random — better than NULL either way.
-        row[`post_${i}_likes_shown`]    = postFromOrder.base_likes    || 0;
-        row[`post_${i}_shares_shown`]   = postFromOrder.base_shares   || 0;
-        row[`post_${i}_dislikes_shown`] = postFromOrder.base_dislikes || 0;
-        row[`post_${i}_flags_shown`]    = postFromOrder.base_flags    || 0;
+        // in the post identity. Shown metrics live on reaction rows, so here
+        // we reconstruct them for the post actually shown (slotPost):
+        //  • builder: shown = configured base, as before;
+        //  • legacy: replicate calcMetrics' deterministic part — a per-post
+        //    override is exact; a ranged condition drew a random value that
+        //    was never recorded, so leave it blank instead of fabricating one;
+        //    no range → base (exact).
+        // Unknown post (legacy slot with no recorded row) → blank metrics.
+        const shownMetric = (metric, baseField) => {
+          if (!slotPost) return null;
+          if (isBuilder) return slotPost[baseField] || 0;
+          let ov = {};
+          try { ov = (JSON.parse(slotPost.metrics_override_json || '{}') || {})[sess.metric_condition] || {}; } catch {}
+          if (ov[metric] != null) return ov[metric];
+          const cond = legacyCondByKey[sess.metric_condition];
+          if (cond && Number(cond.max) > 0) return null;
+          return slotPost[baseField] || 0;
+        };
+        row[`post_${i}_likes_shown`]    = shownMetric('likes',    'base_likes');
+        row[`post_${i}_shares_shown`]   = shownMetric('shares',   'base_shares');
+        row[`post_${i}_dislikes_shown`] = shownMetric('dislikes', 'base_dislikes');
+        row[`post_${i}_flags_shown`]    = shownMetric('flags',    'base_flags');
         // Explicit sentinel rather than a blank cell. Empty cells in a
         // categorical column are indistinguishable from "data not exported
         // / column missing" — researchers asked for a positive signal that
@@ -736,7 +782,7 @@ function getDaneSuroweData(ctx, options = {}) {
         // doesn't trip on typed mismatches. Researchers should still
         // treat 0 as "no recorded dwell"; non-zero means we observed
         // the participant view it for that many ms without interacting.
-        const pv = sPostViews[`o:${i}`] || (postFromOrder ? sPostViews[`p:${postFromOrder.id}`] : null);
+        const pv = slotView || (slotPost ? sPostViews[`p:${slotPost.id}`] : null);
         row[`post_${i}_dwell_ms`]   = pv ? (pv.dwell_ms || 0) : 0;
       }
       if (rating) {
